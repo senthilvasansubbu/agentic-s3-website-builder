@@ -692,9 +692,9 @@ function siteRow(w) {
     <td>${statusBadge(w.status)}</td>
     <td style="color:var(--muted);font-size:.85rem">${dateStr}</td>
     <td style="white-space:nowrap">
-      <button class="btn btn-secondary btn-sm" onclick="viewSite('${w.website_id}')" title="Open website">👁 View</button>
-      <button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${w.website_id}')" title="Edit details">✏️ Edit</button>
-      <button class="btn ${isInactive?'btn-primary':'btn-secondary'} btn-sm" style="margin-left:4px" onclick="deactivateSite('${w.website_id}','${w.status}')">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
+      ${!isInactive ? `<button class="btn btn-secondary btn-sm" onclick="viewSite('${w.website_id}')" title="Open website">👁 View</button>` : ''}
+      ${!isInactive ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${w.website_id}')" title="Edit details">✏️ Edit</button>` : ''}
+      <button class="btn ${isInactive?'btn-primary':'btn-secondary'} btn-sm" style="${!isInactive?'margin-left:4px':''}" onclick="deactivateSite('${w.website_id}','${w.status}')">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="deleteSite('${w.website_id}')" title="Delete permanently">🗑 Delete</button>
     </td>
   </tr>`;
