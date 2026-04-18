@@ -113,7 +113,7 @@ async def get_plan_features():
     return result
 
 
-
+@router.post("/subscribe/{plan}")
 async def subscribe(plan: str, request: Request,
                     current_user: dict = Depends(get_current_user)):
     if plan not in PLANS:
