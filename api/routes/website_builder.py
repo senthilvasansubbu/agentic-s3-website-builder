@@ -36,6 +36,7 @@ class CreateWebsiteRequest(BaseModel):
     hosting_env: str = "s3"
     include_shopping_cart: bool = False
     cart_features: Optional[List[str]] = None  # e.g. ["categories","coupons","flash_offers","ads","email_notify"]
+    enable_chatbot: bool = False
     num_pages: int = 1
     custom_css: Optional[str] = None
 
@@ -89,12 +90,13 @@ async def create_website(body: CreateWebsiteRequest, request: Request,
     db.execute(
         """INSERT INTO websites
            (website_id, user_id, name, title, description, logo_url, domain,
-            hosting_env, theme, custom_css, cart_features, status)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
+            hosting_env, theme, custom_css, cart_features, enable_chatbot, status)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
         (website_id, user_id, body.name, body.title, body.description or "",
          body.logo_url or "", body.domain or "", body.hosting_env,
          body.theme, body.custom_css or "",
-         json.dumps(body.cart_features or [])),
+         json.dumps(body.cart_features or []),
+         1 if body.enable_chatbot else 0),
     )
     log_event("website_created", user_id=user_id, website_id=website_id,
               ip_address=request.client.host)
@@ -154,6 +156,16 @@ async def build_website_pages(
         feat_text = "\n".join(f"- {FEATURE_PROMPTS.get(f, f)}" for f in cart_features if f in FEATURE_PROMPTS)
         if feat_text:
             full_prompt += f"\n\n=== Required E-commerce Features ===\nThe shopping cart/storefront must include:\n{feat_text}"
+
+    if site.get("enable_chatbot"):
+        full_prompt += (
+            "\n\n=== Chatbot Widget ===\n"
+            "Embed a floating customer-support chatbot widget on every page. "
+            "The widget should appear as a chat bubble in the bottom-right corner, "
+            "open a chat panel on click, greet the visitor, and allow them to send "
+            "messages. Include a clean HTML/CSS/JS implementation with a configurable "
+            "welcome message and a placeholder for an API endpoint to handle replies."
+        )
 
     # Build via AI crew (or static fallback)
     output_path = build_website(full_prompt)

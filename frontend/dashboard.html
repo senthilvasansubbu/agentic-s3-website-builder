@@ -220,6 +220,10 @@
           <div><div class="toggle-label">Web Search Enhanced</div><div class="toggle-desc">AI uses live web data for content generation</div></div>
           <label class="toggle"><input type="checkbox" id="buildWebSearch" checked><span class="slider"></span></label>
         </div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">Enable Chatbot</div><div class="toggle-desc">Add a floating customer-support chat widget to every page</div></div>
+          <label class="toggle"><input type="checkbox" id="buildChatbot"><span class="slider"></span></label>
+        </div>
       </div>
 
       <div style="margin-top:20px;display:flex;gap:12px">
@@ -610,6 +614,7 @@ function resetBuildForm() {
   document.getElementById('buildCart').checked = false;
   document.getElementById('cartFeaturesPanel').style.display = 'none';
   document.getElementById('buildWebSearch').checked = true;
+  document.getElementById('buildChatbot').checked = false;
   selectedTheme = 'modern';
   buildThemeGrid();
 }
@@ -629,6 +634,7 @@ async function buildWebsite() {
     enable_cart: document.getElementById('buildCart').checked,
     cart_features: getSelectedCartFeatures(),
     web_search: document.getElementById('buildWebSearch').checked,
+    enable_chatbot: document.getElementById('buildChatbot').checked,
   };
 
   document.getElementById('buildProgress').style.display = 'block';

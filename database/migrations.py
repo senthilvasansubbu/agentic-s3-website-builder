@@ -309,6 +309,7 @@ def run_migrations():
     _safe_alter("ALTER TABLE users ADD COLUMN owner_id TEXT")
     _safe_alter("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '[]'")
     _safe_alter("ALTER TABLE websites ADD COLUMN cart_features TEXT DEFAULT '[]'")
+    _safe_alter("ALTER TABLE websites ADD COLUMN enable_chatbot INTEGER DEFAULT 0")
     _safe_alter("ALTER TABLE products ADD COLUMN image_url TEXT")
     _safe_alter("ALTER TABLE products ADD COLUMN compare_price REAL DEFAULT 0")
     _safe_alter("ALTER TABLE products ADD COLUMN discount_pct REAL DEFAULT 0")
