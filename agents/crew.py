@@ -104,32 +104,53 @@ def create_website_crew():
     
     return crew
 
-def build_website(user_requirements: str) -> dict:
+def build_website(user_requirements: str, project_name: str = "") -> dict:
     """
     Build a website based on user requirements.
     Falls back to a static template when OPENAI_API_KEY is not configured.
+    The generated files are saved to output/<project-slug>/ automatically.
     """
+    from tools.html_generator import generate_html, get_website_dir
+
+    # Derive project name from requirements if not provided
+    if not project_name:
+        project_name = " ".join(user_requirements.split()[:5]).title()
+
     if not settings.OPENAI_API_KEY:
         print("⚠️  No OPENAI_API_KEY found — generating static template website instead.")
         html_code = _generate_static_fallback(user_requirements)
+        filepath = generate_html({}, html_code, project_name, page_name="index")
+        site_dir = get_website_dir(project_name)
+        print(f"✅ Website saved to: {site_dir}")
         return {
             "status": "success",
             "result": html_code,
+            "output_dir": site_dir,
+            "index": filepath,
             "requirements": user_requirements,
             "fallback": True,
         }
 
     crew = create_website_crew()
-    
+
     result = crew.kickoff(
         inputs={
             "user_requirements": user_requirements,
-            "project_name": user_requirements.split()[0] if user_requirements else "Website"
+            "project_name": project_name,
         }
     )
-    
+
+    # Save AI-generated HTML
+    html_code = str(result)
+    filepath = generate_html({}, html_code, project_name, page_name="index")
+    site_dir = get_website_dir(project_name)
+    print(f"✅ Website saved to: {site_dir}")
+
     return {
         "status": "success",
         "result": result,
-        "requirements": user_requirements
+        "output_dir": site_dir,
+        "index": filepath,
+        "requirements": user_requirements,
     }
+
