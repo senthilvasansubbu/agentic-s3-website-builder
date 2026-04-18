@@ -338,7 +338,7 @@ def run_migrations():
 # Feature matrix: plan → feature → enabled
 _PLAN_FEATURE_SEED = {
     "free":       {"web_search": 1, "social_search": 0, "shopping_cart": 0, "livestream": 0, "blog": 0, "chatbot": 0},
-    "pro":        {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
+    "pro":        {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 0, "blog": 0, "chatbot": 1},
     "enterprise": {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
     "superuser":  {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
 }
