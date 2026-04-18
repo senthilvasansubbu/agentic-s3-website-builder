@@ -565,7 +565,7 @@ if (localStorage.getItem('wb_plan') === 'superuser') { window.location.href = '/
 function headers() { return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }; }
 
 async function apiFetch(path, opts = {}) {
-  const r = await fetch(API + path, { headers: headers(), ...opts });
+  const r = await fetch(API + path, { headers: headers(), cache: 'no-store', ...opts });
   if (r.status === 401) { logout(); return null; }
   return r.ok ? r.json() : null;
 }
