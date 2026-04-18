@@ -330,6 +330,10 @@
           <label class="toggle"><input type="checkbox" id="buildSocialSearch" onchange="toggleSocialSearch()"><span class="slider"></span></label>
         </div>
         <div class="toggle-row">
+          <div><div class="toggle-label">Enable Blog</div><div class="toggle-desc">Add a Blog page with sample posts and navigation link</div></div>
+          <label class="toggle"><input type="checkbox" id="buildBlog"><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
           <div><div class="toggle-label">Enable Chatbot</div><div class="toggle-desc">Add a floating customer-support chat widget to every page</div></div>
           <label class="toggle"><input type="checkbox" id="buildChatbot"><span class="slider"></span></label>
         </div>
@@ -676,6 +680,7 @@ function featureBadges(w) {
     const cf = typeof w.cart_features === 'string' ? JSON.parse(w.cart_features) : (w.cart_features || []);
     if (cf.length) badges.push(`<span class="tag published" style="font-size:.72rem;padding:2px 8px">🛒 Cart</span>`);
   } catch(e) {}
+  if (w.enable_blog) badges.push(`<span class="tag" style="font-size:.72rem;padding:2px 8px;background:#f0fdf4;color:#15803d">📝 Blog</span>`);
   if (w.enable_chatbot) badges.push(`<span class="tag" style="font-size:.72rem;padding:2px 8px;background:#e8f4fd;color:#1a73e8">💬 Bot</span>`);
   return badges.join(' ') || '<span style="color:var(--muted);font-size:.82rem">—</span>';
 }
@@ -912,6 +917,7 @@ function resetBuildForm() {
   document.getElementById('buildCart').checked = false;
   document.getElementById('cartFeaturesPanel').style.display = 'none';
   document.getElementById('buildWebSearch').checked = true;
+  document.getElementById('buildBlog').checked = false;
   document.getElementById('buildChatbot').checked = false;
   selectedTheme = 'modern';
   buildThemeGrid();
@@ -952,6 +958,7 @@ async function buildWebsite() {
     enable_cart: document.getElementById('buildCart').checked,
     cart_features: getSelectedCartFeatures(),
     web_search: document.getElementById('buildWebSearch').checked,
+    enable_blog: document.getElementById('buildBlog').checked,
     enable_chatbot: document.getElementById('buildChatbot').checked,
     ...(categories?.length && { categories }),
     ...(location && { location }),
