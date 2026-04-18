@@ -255,6 +255,14 @@ async def build_website_pages(
                 "\nSocial Media Profiles (use these real URLs in the footer social icons):\n"
                 + '\n'.join(social_parts)
             )
+    elif body.use_social_search:
+        enrichment_lines.append(
+            f"\n=== SOCIAL MEDIA SEARCH DIRECTIVE ===\n"
+            f"No social media URLs were provided by the user. You are AUTHORISED to search the web "
+            f"for the official Instagram, Facebook, and LinkedIn profiles of '{site_name}' and use "
+            f"those real URLs in the footer social icons. If you cannot find them, use '#' as a "
+            f"placeholder but still render the social icon buttons in the footer."
+        )
 
     # Hero image
     niche_kw = (cats[0] if cats else site_name).lower().replace(' ', ',')

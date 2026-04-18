@@ -234,6 +234,9 @@
         <div class="form-group"><label>LinkedIn URL(s)</label><input id="buildLinkedin" placeholder="https://linkedin.com/company/yourbusiness (comma-separate multiple)" /></div>
         <div class="form-group"></div>
       </div>
+      <div id="socialSearchRow" style="display:none;margin-top:4px;padding:10px 14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;font-size:.82rem;color:var(--muted)">
+        ℹ️ The agent will search the web for official social profiles matching your business name and link them in the footer.
+      </div>
 
       <p style="font-size:.85rem;font-weight:600;margin-bottom:12px">Choose a Theme</p>
       <div class="theme-grid" id="themeGrid"></div>
@@ -264,6 +267,10 @@
         <div class="toggle-row">
           <div><div class="toggle-label">Web Search Enhanced</div><div class="toggle-desc">AI uses live web data for content generation</div></div>
           <label class="toggle"><input type="checkbox" id="buildWebSearch" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">Auto-search Social Profiles</div><div class="toggle-desc">If no social URLs entered, agent searches and links official profiles automatically</div></div>
+          <label class="toggle"><input type="checkbox" id="buildSocialSearch" onchange="toggleSocialSearch()"><span class="slider"></span></label>
         </div>
         <div class="toggle-row">
           <div><div class="toggle-label">Enable Chatbot</div><div class="toggle-desc">Add a floating customer-support chat widget to every page</div></div>
@@ -663,6 +670,16 @@ function toggleCartFeatures() {
   document.getElementById('cartFeaturesPanel').style.display = enabled ? 'block' : 'none';
 }
 
+function toggleSocialSearch() {
+  const on = document.getElementById('buildSocialSearch').checked;
+  // When agent will auto-search, dim the manual URL inputs and show info hint
+  ['buildInstagram', 'buildFacebook', 'buildLinkedin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = on; el.style.opacity = on ? '.4' : '1'; }
+  });
+  document.getElementById('socialSearchRow').style.display = on ? 'block' : 'none';
+}
+
 function getSelectedCartFeatures() {
   return [...document.querySelectorAll('input[name="cartFeature"]:checked')].map(el => el.value);
 }
@@ -702,6 +719,7 @@ async function buildWebsite() {
   const social_links = (instagram || facebook || linkedin)
     ? { ...(instagram && { instagram }), ...(facebook && { facebook }), ...(linkedin && { linkedin }) }
     : undefined;
+  const use_social_search = document.getElementById('buildSocialSearch')?.checked ?? false;
 
   const payload = {
     name,
@@ -718,6 +736,7 @@ async function buildWebsite() {
     ...(location && { location }),
     ...(email && { email }),
     ...(phone && { phone }),
+    use_social_search,
     ...(social_links && { social_links }),
   };
 
