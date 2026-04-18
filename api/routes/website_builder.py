@@ -51,6 +51,7 @@ class BuildWebsiteRequest(BaseModel):
     email: Optional[str] = None                     # e.g. "info@mybakery.com"
     phone: Optional[str] = None                     # e.g. "+1-212-555-0199"
     booking_prefix: Optional[str] = None            # e.g. "BK" — order ref prefix
+    social_links: Optional[dict] = None             # e.g. {"instagram": "https://...", "facebook": [...], "linkedin": "https://..."}
 
 
 class UpdateWebsiteRequest(BaseModel):
@@ -235,6 +236,25 @@ async def build_website_pages(
         f"\nOrder/Booking Reference Prefix: {prefix}\n"
         f"The booking form must auto-generate a reference like '{prefix}-' + Date.now() on submission."
     )
+
+    # Social links
+    if body.social_links:
+        sl = body.social_links
+        social_parts = []
+        if sl.get('instagram'):
+            urls = sl['instagram'] if isinstance(sl['instagram'], list) else [sl['instagram']]
+            social_parts.append('Instagram: ' + ', '.join(urls))
+        if sl.get('facebook'):
+            urls = sl['facebook'] if isinstance(sl['facebook'], list) else [sl['facebook']]
+            social_parts.append('Facebook: ' + ', '.join(urls))
+        if sl.get('linkedin'):
+            urls = sl['linkedin'] if isinstance(sl['linkedin'], list) else [sl['linkedin']]
+            social_parts.append('LinkedIn: ' + ', '.join(urls))
+        if social_parts:
+            enrichment_lines.append(
+                "\nSocial Media Profiles (use these real URLs in the footer social icons):\n"
+                + '\n'.join(social_parts)
+            )
 
     # Hero image
     niche_kw = (cats[0] if cats else site_name).lower().replace(' ', ',')

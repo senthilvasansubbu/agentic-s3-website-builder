@@ -226,6 +226,14 @@
         <div class="form-group"><label>Contact Email</label><input id="buildEmail" type="email" placeholder="info@yourbusiness.com" /></div>
         <div class="form-group"><label>Contact Phone</label><input id="buildPhone" type="tel" placeholder="+1-555-000-0000" /></div>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label>Instagram URL(s)</label><input id="buildInstagram" placeholder="https://instagram.com/yourbusiness (comma-separate multiple)" /></div>
+        <div class="form-group"><label>Facebook URL(s)</label><input id="buildFacebook" placeholder="https://facebook.com/yourbusiness (comma-separate multiple)" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>LinkedIn URL(s)</label><input id="buildLinkedin" placeholder="https://linkedin.com/company/yourbusiness (comma-separate multiple)" /></div>
+        <div class="form-group"></div>
+      </div>
 
       <p style="font-size:.85rem;font-weight:600;margin-bottom:12px">Choose a Theme</p>
       <div class="theme-grid" id="themeGrid"></div>
@@ -682,6 +690,19 @@ async function buildWebsite() {
   const email = document.getElementById('buildEmail')?.value.trim() || undefined;
   const phone = document.getElementById('buildPhone')?.value.trim() || undefined;
 
+  const parseSocial = id => {
+    const raw = document.getElementById(id)?.value.trim();
+    if (!raw) return undefined;
+    const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+    return parts.length === 1 ? parts[0] : parts;
+  };
+  const instagram = parseSocial('buildInstagram');
+  const facebook = parseSocial('buildFacebook');
+  const linkedin = parseSocial('buildLinkedin');
+  const social_links = (instagram || facebook || linkedin)
+    ? { ...(instagram && { instagram }), ...(facebook && { facebook }), ...(linkedin && { linkedin }) }
+    : undefined;
+
   const payload = {
     name,
     niche: document.getElementById('buildNiche').value.trim() || 'general',
@@ -697,6 +718,7 @@ async function buildWebsite() {
     ...(location && { location }),
     ...(email && { email }),
     ...(phone && { phone }),
+    ...(social_links && { social_links }),
   };
 
   document.getElementById('buildProgress').style.display = 'block';
