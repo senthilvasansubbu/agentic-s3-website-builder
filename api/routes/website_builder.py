@@ -45,6 +45,12 @@ class BuildWebsiteRequest(BaseModel):
     requirements: str                  # natural language
     use_web_search: bool = True
     use_social_search: bool = False
+    # Optional structured fields — enriches AI prompt when provided
+    categories: Optional[List[str]] = None          # e.g. ["Cakes","Pastries","Breads"]
+    location: Optional[str] = None                  # e.g. "123 Main St, New York, NY 10001"
+    email: Optional[str] = None                     # e.g. "info@mybakery.com"
+    phone: Optional[str] = None                     # e.g. "+1-212-555-0199"
+    booking_prefix: Optional[str] = None            # e.g. "BK" — order ref prefix
 
 
 class UpdateWebsiteRequest(BaseModel):
@@ -166,6 +172,85 @@ async def build_website_pages(
             "messages. Include a clean HTML/CSS/JS implementation with a configurable "
             "welcome message and a placeholder for an API endpoint to handle replies."
         )
+
+    # ── Rich structured content enrichment ────────────────────────────────────
+    site_name = site.get("name") or site.get("title") or "Business"
+    site_desc = site.get("description") or ""
+
+    enrichment_lines = [
+        "\n\n=== CONTENT & STYLE ENRICHMENT ===",
+        "You MUST use every piece of information below in the generated website.",
+        f"Business Name: {site_name}",
+    ]
+
+    if site_desc:
+        enrichment_lines.append(
+            f"Business Description:\n{site_desc}\n"
+            "Incorporate this description into the hero tagline, about section, and category cards."
+        )
+
+    # Categories — from explicit field or extracted from description/requirements
+    cats = body.categories or []
+    if not cats:
+        # Auto-extract capitalised words as category hints from requirements
+        import re as _re
+        cats = _re.findall(r'(?:categor(?:y|ies)[:\s]+|types?[:\s]+)([A-Za-z ,&]+)', body.requirements)
+        if cats:
+            cats = [c.strip() for item in cats for c in item.split(',') if c.strip()]
+    if cats:
+        cat_list = "\n".join(f"  - {c}" for c in cats)
+        enrichment_lines.append(
+            f"\nProduct/Service Categories (create a visual card for EACH with a relevant Unsplash image):\n{cat_list}"
+        )
+        # Build Unsplash image hints per category
+        unsplash_hints = "\n".join(
+            f"  - {c}: https://source.unsplash.com/featured/400x300/?{c.lower().replace(' ', ',')}"
+            for c in cats
+        )
+        enrichment_lines.append(f"\nSuggested Unsplash images per category:\n{unsplash_hints}")
+
+    # Location
+    location = body.location or ""
+    if location:
+        import urllib.parse as _up
+        map_query = _up.quote(location)
+        enrichment_lines.append(
+            f"\nBusiness Location: {location}\n"
+            f"Embed this Google Map in the Contact section:\n"
+            f'<iframe src="https://maps.google.com/maps?q={map_query}&output=embed" '
+            f'width="100%" height="350" style="border:0;border-radius:12px" allowfullscreen loading="lazy"></iframe>'
+        )
+
+    # Email
+    email = body.email or f"info@{site_name.lower().replace(' ', '')}.com"
+    enrichment_lines.append(f"\nBusiness Email: {email}")
+
+    # Phone
+    if body.phone:
+        enrichment_lines.append(f"Business Phone: {body.phone}")
+
+    # Booking/order reference prefix
+    prefix = body.booking_prefix or "ORD"
+    enrichment_lines.append(
+        f"\nOrder/Booking Reference Prefix: {prefix}\n"
+        f"The booking form must auto-generate a reference like '{prefix}-' + Date.now() on submission."
+    )
+
+    # Hero image
+    niche_kw = (cats[0] if cats else site_name).lower().replace(' ', ',')
+    enrichment_lines.append(
+        f"\nHero background image: https://source.unsplash.com/featured/1400x700/?{niche_kw}"
+    )
+
+    enrichment_lines.append(
+        "\n=== STYLE DIRECTIVE ===\n"
+        "The website must feel PREMIUM and CLASSY — use elegant fonts (e.g. Playfair Display for headings, "
+        "Lato or Inter for body), generous whitespace, subtle drop shadows, smooth hover transitions, "
+        "and a refined colour palette. NO clip-art, no garish colours. Sections should feel editorial — "
+        "inspired by Squarespace or Behance premium portfolios."
+    )
+
+    full_prompt += "\n".join(enrichment_lines)
 
     # Build via AI crew (or static fallback)
     output_path = build_website(full_prompt)
