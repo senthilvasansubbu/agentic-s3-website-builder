@@ -423,7 +423,7 @@ async def list_my_websites(current_user: dict = Depends(get_current_user)):
     owner_id = u.get("owner_id") if u else None
     effective_id = owner_id if owner_id else user_id
     return db.execute(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, enable_chatbot, created_at "
+        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, enable_chatbot, created_at, updated_at "
         "FROM websites WHERE user_id = ? ORDER BY created_at DESC",
         (effective_id,),
     ) or []

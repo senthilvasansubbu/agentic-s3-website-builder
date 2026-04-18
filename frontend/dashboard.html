@@ -187,8 +187,8 @@
     </div>
     <div class="table-wrap">
       <div class="table-header"><h3>Recent Websites</h3><button class="btn btn-primary btn-sm" onclick="showPage('build')">+ New Site</button></div>
-      <table><thead><tr><th>Name</th><th>Domain</th><th>Theme</th><th>Features</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
-        <tbody id="recentSitesBody"><tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
+      <table><thead><tr><th>Name</th><th>Domain</th><th>Theme</th><th>Features</th><th>Status</th><th>Created</th><th>Last Changed</th><th>Last Changed</th><th>Actions</th></tr></thead>
+        <tbody id="recentSitesBody"><tr><td colspan="8" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -207,9 +207,10 @@
           <th>Features</th>
           <th>Status</th>
           <th>Created</th>
+          <th>Last Changed</th>
           <th>Actions</th>
         </tr></thead>
-        <tbody id="allSitesBody"><tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
+        <tbody id="allSitesBody"><tr><td colspan="8" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -653,7 +654,7 @@ async function loadOverview() {
   document.getElementById('statPublished').textContent = websites.filter(w => w.status === 'published').length;
   const tbody = document.getElementById('recentSitesBody');
   if (!websites.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">No websites yet — <a href="javascript:showPage('build')" style="color:var(--accent)">build one now</a>!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:24px">No websites yet — <a href="javascript:showPage('build')" style="color:var(--accent)">build one now</a>!</td></tr>`;
     return;
   }
   tbody.innerHTML = websites.slice(0, 5).map(siteRow).join('');
@@ -696,7 +697,8 @@ function siteRow(w) {
   const domainDisplay = w.domain
     ? `<a href="https://${w.domain.replace(/^https?:\/\//,'')}" target="_blank" style="color:var(--accent);font-size:.85rem">${w.domain}</a>`
     : `<span style="color:var(--muted);font-size:.82rem">Not set</span>`;
-  const dateStr = w.created_at ? w.created_at.split(' ')[0] : '—';
+  const dateStr = w.created_at ? w.created_at.replace('T', ' ').slice(0, 16) : '—';
+  const changedStr = w.updated_at ? w.updated_at.replace('T', ' ').slice(0, 16) : (w.created_at ? w.created_at.replace('T', ' ').slice(0, 16) : '—');
   const isInactive = w.status === 'inactive';
   return `<tr id="row-${w.website_id}" style="${isInactive?'opacity:.6':''}">
     <td style="font-weight:600">${w.name || '—'}</td>
@@ -704,7 +706,8 @@ function siteRow(w) {
     <td style="text-transform:capitalize">${w.theme || '—'}</td>
     <td>${featureBadges(w)}</td>
     <td id="status-${w.website_id}">${statusBadge(w.status)}</td>
-    <td style="color:var(--muted);font-size:.85rem">${dateStr}</td>
+    <td style="color:var(--muted);font-size:.82rem;white-space:nowrap">${dateStr}</td>
+    <td style="color:var(--muted);font-size:.82rem;white-space:nowrap">${changedStr}</td>
     <td id="actions-${w.website_id}" style="white-space:nowrap">
       <button class="btn btn-secondary btn-sm" ${isInactive?'disabled title="Activate the website to view"':"onclick=\"viewSite('" + w.website_id + "')\" title=\"Open website\""}>👁 View</button>
       <button class="btn btn-secondary btn-sm" style="margin-left:4px" ${isInactive?'disabled title="Activate the website to edit"':"onclick=\"editSite('" + w.website_id + "')\" title=\"Edit details\""}>✏️ Edit</button>
@@ -836,7 +839,7 @@ async function loadAllSites() {
   const tbody = document.getElementById('allSitesBody');
   if (!tbody) return;
   if (!websites.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">No websites yet — <a href="javascript:showPage('build')" style="color:var(--accent)">build one now</a>!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:24px">No websites yet — <a href="javascript:showPage('build')" style="color:var(--accent)">build one now</a>!</td></tr>`;
     return;
   }
   tbody.innerHTML = websites.map(siteRow).join('');
