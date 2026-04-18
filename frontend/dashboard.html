@@ -187,8 +187,8 @@
     </div>
     <div class="table-wrap">
       <div class="table-header"><h3>Recent Websites</h3><button class="btn btn-primary btn-sm" onclick="showPage('build')">+ New Site</button></div>
-      <table><thead><tr><th>Name</th><th>Domain</th><th>Theme</th><th>Features</th><th>Status</th><th>Created</th><th>Last Changed</th><th>Actions</th></tr></thead>
-        <tbody id="recentSitesBody"><tr><td colspan="8" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
+      <table><thead><tr><th>Name</th><th>Domain</th><th>Theme</th><th>Features</th><th>Status</th><th>Created</th><th>Last Changed</th></tr></thead>
+        <tbody id="recentSitesBody"><tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -654,10 +654,10 @@ async function loadOverview() {
   document.getElementById('statPublished').textContent = websites.filter(w => w.status === 'published').length;
   const tbody = document.getElementById('recentSitesBody');
   if (!websites.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:24px">No websites yet — <a href="javascript:showPage('build')" style="color:var(--accent)">build one now</a>!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">No websites yet — <a href="javascript:showPage('build')" style="color:var(--accent)">build one now</a>!</td></tr>`;
     return;
   }
-  tbody.innerHTML = websites.slice(0, 5).map(siteRow).join('');
+  tbody.innerHTML = websites.slice(0, 5).map(siteRowReadOnly).join('');
   loadProductCount();
 }
 
@@ -691,6 +691,38 @@ function statusBadge(status) {
     return `<span class="tag danger">❌ Error</span>`;
   }
   return `<span class="tag draft">📝 Draft</span>`;
+}
+
+function siteRowReadOnly(w) {
+  const domainDisplay = w.domain
+    ? `<a href="https://${w.domain.replace(/^https?:\/\//,'')}" target="_blank" style="color:var(--accent);font-size:.85rem">${w.domain}</a>`
+    : `<span style="color:var(--muted);font-size:.82rem">Not set</span>`;
+  const dateStr = w.created_at ? w.created_at.replace('T', ' ').slice(0, 16) : '—';
+  const changedStr = w.updated_at ? w.updated_at.replace('T', ' ').slice(0, 16) : dateStr;
+  const isInactive = w.status === 'inactive';
+  return `<tr style="${isInactive ? 'opacity:.6' : ''}">
+    <td style="font-weight:600">${w.name || '—'}</td>
+    <td>${domainDisplay}</td>
+    <td style="text-transform:capitalize">${w.theme || '—'}</td>
+    <td>${featureBadges(w)}</td>
+    <td>${statusBadge(w.status)}</td>
+    <td style="color:var(--muted);font-size:.82rem;white-space:nowrap">${dateStr}</td>
+    <td style="color:var(--muted);font-size:.82rem;white-space:nowrap">${changedStr}</td>
+  </tr>`;
+}
+
+function refreshRow(id) {
+  const w = websites.find(x => x.website_id === id);
+  const row = document.getElementById('row-' + id);
+  if (!w || !row) return;
+  // Flash the row to signal an update
+  row.style.transition = 'background .15s';
+  row.style.background = 'rgba(99,102,241,.12)';
+  setTimeout(() => { row.style.background = ''; }, 600);
+  // Re-render the full row in-place
+  const newRow = document.createElement('tbody');
+  newRow.innerHTML = siteRow(w);
+  row.replaceWith(newRow.firstChild);
 }
 
 function siteRow(w) {
@@ -758,7 +790,15 @@ async function saveEditSite() {
   if (r.ok) {
     toast('Website updated ✅');
     closeModal('editSiteModal');
-    loadAllSites();
+    // Update in-memory and refresh just this row
+    const idx = websites.findIndex(x => x.website_id === id);
+    if (idx !== -1) {
+      if (payload.name) websites[idx].name = payload.name;
+      if (payload.domain) websites[idx].domain = payload.domain;
+      if (payload.theme) websites[idx].theme = payload.theme;
+      websites[idx].updated_at = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    }
+    refreshRow(id);
   } else {
     toast('Update failed', false);
   }
@@ -791,26 +831,12 @@ async function deactivateSite(id, currentStatus) {
       });
       if (r.ok) {
         toast(goingOffline ? '⏸ Website is now Offline' : '🟢 Website is now Live');
-        // Update in-memory array
         const idx = websites.findIndex(x => x.website_id === id);
-        if (idx !== -1) websites[idx].status = newStatus;
-        // Directly update the row in the DOM without a full re-fetch
-        const row = document.getElementById('row-' + id);
-        const statusCell = document.getElementById('status-' + id);
-        const actionsCell = document.getElementById('actions-' + id);
-        if (row && statusCell && actionsCell) {
-          row.style.opacity = newStatus === 'inactive' ? '0.6' : '';
-          statusCell.innerHTML = statusBadge(newStatus);
-          const w = idx !== -1 ? websites[idx] : { website_id: id, status: newStatus };
-          actionsCell.innerHTML = `
-            <button class="btn btn-secondary btn-sm" ${newStatus === 'inactive' ? 'disabled title="Activate the website to view"' : `onclick="viewSite('${id}')" title="Open website"`}>👁 View</button>
-            <button class="btn btn-secondary btn-sm" style="margin-left:4px" ${newStatus === 'inactive' ? 'disabled title="Activate the website to edit"' : `onclick="editSite('${id}')" title="Edit details"`}>✏️ Edit</button>
-            <button class="btn ${newStatus === 'inactive' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="${newStatus !== 'inactive' ? 'margin-left:4px' : ''}" onclick="deactivateSite('${id}','${newStatus}')">${newStatus === 'inactive' ? '▶ Activate' : '⏸ Deactivate'}</button>
-            <button class="btn btn-danger btn-sm" style="margin-left:4px" ${newStatus !== 'inactive' ? 'disabled title="Deactivate the website first to delete"' : 'title="Delete permanently"'} onclick="${newStatus === 'inactive' ? `deleteSite('${id}')` : 'void(0)'}">🗑 Delete</button>
-          `;
-        } else {
-          await loadAllSites();
+        if (idx !== -1) {
+          websites[idx].status = newStatus;
+          websites[idx].updated_at = new Date().toISOString().replace('T', ' ').slice(0, 16);
         }
+        refreshRow(id);
       } else {
         toast('Action failed', false);
       }
