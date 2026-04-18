@@ -32,9 +32,15 @@ class ProductCreate(BaseModel):
     name: str
     description: Optional[str] = None
     price: float
+    compare_price: Optional[float] = None   # original price before discount
+    discount_pct: Optional[float] = None    # 0-100
     currency: str = "USD"
     stock: int = 0
+    stock_quantity: Optional[int] = None    # alias
     images: Optional[List[str]] = None
+    image_url: Optional[str] = None         # primary image
+    is_flash_offer: bool = False
+    flash_offer_ends: Optional[str] = None  # ISO datetime
 
 
 class CartItem(BaseModel):
@@ -84,29 +90,46 @@ async def create_product(body: ProductCreate, current_user: dict = Depends(get_c
     _assert_website_owner(body.website_id, current_user["sub"])
     pid = str(uuid.uuid4())
     slug = body.name.lower().replace(" ", "-")
+    stock_qty = body.stock_quantity if body.stock_quantity is not None else body.stock
+    img_url = body.image_url or (body.images[0] if body.images else "")
     db.execute(
         """INSERT INTO products
            (product_id, website_id, category_id, name, slug, description,
-            price, currency, stock, images_json)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,PARSE_JSON(%s))""",
+            price, compare_price, discount_pct, currency, stock, stock_quantity,
+            image_url, images_json, is_flash_offer, flash_offer_ends)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (pid, body.website_id, body.category_id, body.name, slug,
-         body.description or "", body.price, body.currency, body.stock,
-         json.dumps(body.images or [])),
+         body.description or "", body.price,
+         body.compare_price or 0, body.discount_pct or 0,
+         body.currency, stock_qty, stock_qty, img_url,
+         json.dumps(body.images or []),
+         1 if body.is_flash_offer else 0,
+         body.flash_offer_ends or ""),
     )
     return {"product_id": pid}
 
 
 @router.get("/products/{website_id}")
 async def list_products(website_id: str, category_id: Optional[str] = None,
+                        min_price: Optional[float] = None,
+                        max_price: Optional[float] = None,
+                        flash_only: bool = False,
                         request: Request = None):
-    sql = "SELECT * FROM products WHERE website_id = %s AND is_active = TRUE"
-    params: tuple = (website_id,)
+    sql = "SELECT * FROM products WHERE website_id = ? AND is_active = 1"
+    params: list = [website_id]
     if category_id:
-        sql += " AND category_id = %s"
-        params += (category_id,)
+        sql += " AND category_id = ?"
+        params.append(category_id)
+    if min_price is not None:
+        sql += " AND price >= ?"
+        params.append(min_price)
+    if max_price is not None:
+        sql += " AND price <= ?"
+        params.append(max_price)
+    if flash_only:
+        sql += " AND is_flash_offer = 1"
     sql += " ORDER BY name"
-    products = db.execute(sql, params)
-    # Attach localised currency if request available
+    products = db.execute(sql, params) or []
     if request:
         ip = request.client.host if request.client else "unknown"
         code, symbol = currency_from_ip(ip)

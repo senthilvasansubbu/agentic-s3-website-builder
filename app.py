@@ -26,6 +26,8 @@ from api.routes.console import router as console_router
 from api.routes.chatbot import router as chatbot_router
 from api.routes.feedback import router as feedback_router
 from api.routes.monitoring import router as monitoring_router
+from api.routes.team import router as team_router
+from api.routes.commerce import router as commerce_router
 
 app = FastAPI(
     title="Agentic AI Website Builder",
@@ -56,6 +58,8 @@ app.include_router(console_router, prefix="/api/v1")
 app.include_router(chatbot_router, prefix="/api/v1")
 app.include_router(feedback_router,  prefix="/api/v1")
 app.include_router(monitoring_router, prefix="/api/v1")
+app.include_router(team_router,       prefix="/api/v1")
+app.include_router(commerce_router,   prefix="/api/v1")
 
 # ── Frontend pages ─────────────────────────────────────────────────────────────
 FRONTEND = Path(__file__).parent / "frontend"

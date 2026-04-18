@@ -35,6 +35,7 @@ class CreateWebsiteRequest(BaseModel):
     domain: Optional[str] = None
     hosting_env: str = "s3"
     include_shopping_cart: bool = False
+    cart_features: Optional[List[str]] = None  # e.g. ["categories","coupons","flash_offers","ads","email_notify"]
     num_pages: int = 1
     custom_css: Optional[str] = None
 
@@ -88,11 +89,12 @@ async def create_website(body: CreateWebsiteRequest, request: Request,
     db.execute(
         """INSERT INTO websites
            (website_id, user_id, name, title, description, logo_url, domain,
-            hosting_env, theme, custom_css, status)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
+            hosting_env, theme, custom_css, cart_features, status)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
         (website_id, user_id, body.name, body.title, body.description or "",
          body.logo_url or "", body.domain or "", body.hosting_env,
-         body.theme, body.custom_css or ""),
+         body.theme, body.custom_css or "",
+         json.dumps(body.cart_features or [])),
     )
     log_event("website_created", user_id=user_id, website_id=website_id,
               ip_address=request.client.host)
@@ -123,6 +125,35 @@ async def build_website_pages(
         extra_context += "\n\n=== Social Media Trends ===\n" + social_context_for_topic(body.requirements)
 
     full_prompt = body.requirements + extra_context
+
+    # Inject shopping cart feature requirements into the prompt
+    cart_features = []
+    try:
+        import json as _json
+        cf = site.get("cart_features") or "[]"
+        cart_features = _json.loads(cf) if isinstance(cf, str) else cf
+    except Exception:
+        pass
+
+    FEATURE_PROMPTS = {
+        "categories":     "Product listing with category navigation and breadcrumbs.",
+        "price_filter":   "Price range filter slider on product/shop pages.",
+        "images":         "Product image gallery with zoom and multiple images per product.",
+        "discounts":      "Display original price, sale price, and discount percentage badge.",
+        "coupons":        "Coupon code input field at checkout with validation feedback.",
+        "flash_offers":   "Flash sale section with countdown timer and highlighted deal cards.",
+        "ads":            "Advertisement banner placeholders (hero, sidebar, and footer positions).",
+        "email_notify":   "Email subscription opt-in form for promotions and newsletters.",
+        "sms_notify":     "SMS/WhatsApp opt-in checkbox at checkout for order updates.",
+        "whatsapp_notify":"WhatsApp contact button and order notification opt-in.",
+        "reviews":        "Product review and star-rating section on product detail pages.",
+        "wishlist":       "Add-to-wishlist button on product cards.",
+        "search":         "Search bar with autocomplete for products.",
+    }
+    if cart_features:
+        feat_text = "\n".join(f"- {FEATURE_PROMPTS.get(f, f)}" for f in cart_features if f in FEATURE_PROMPTS)
+        if feat_text:
+            full_prompt += f"\n\n=== Required E-commerce Features ===\nThe shopping cart/storefront must include:\n{feat_text}"
 
     # Build via AI crew (or static fallback)
     output_path = build_website(full_prompt)
@@ -206,6 +237,21 @@ async def domain_instructions(website_id: str, current_user: dict = Depends(get_
             site["domain"], site["s3_bucket"] or "", settings.AWS_REGION
         )
     }
+
+
+@router.get("/my")
+async def list_my_websites(current_user: dict = Depends(get_current_user)):
+    """Alias used by user dashboard."""
+    user_id = current_user["sub"]
+    # Also include websites owned by the user's owner (for sub-users)
+    u = db.fetchone("SELECT owner_id FROM users WHERE user_id = ?", (user_id,))
+    owner_id = u.get("owner_id") if u else None
+    effective_id = owner_id if owner_id else user_id
+    return db.execute(
+        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, slug, created_at "
+        "FROM websites WHERE user_id = ? ORDER BY created_at DESC",
+        (effective_id,),
+    ) or []
 
 
 @router.get("")

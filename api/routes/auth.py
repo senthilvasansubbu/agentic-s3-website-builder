@@ -121,9 +121,15 @@ async def login(body: LoginRequest, request: Request):
 @router.get("/me")
 async def me(current_user: dict = Depends(get_current_user)):
     user = db.fetchone(
-        "SELECT user_id, email, full_name, mobile, plan, created_at FROM users WHERE user_id = ?",
+        "SELECT user_id, email, full_name, mobile, plan, owner_id, permissions, created_at FROM users WHERE user_id = ?",
         (current_user["sub"],),
     )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    # Parse permissions JSON
+    import json as _json
+    try:
+        user["permissions"] = _json.loads(user.get("permissions") or "[]")
+    except Exception:
+        user["permissions"] = []
     return user

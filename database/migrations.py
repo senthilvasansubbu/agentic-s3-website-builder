@@ -235,13 +235,87 @@ TABLES = [
         sent_at      TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     )
     """,
+
+    # ── Coupons ───────────────────────────────────────────────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS coupons (
+        coupon_id      VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        website_id     VARCHAR(36)  NOT NULL REFERENCES websites(website_id),
+        code           VARCHAR(50)  NOT NULL,
+        discount_type  VARCHAR(10)  NOT NULL DEFAULT 'percent',
+        discount_value NUMBER(10,2) NOT NULL DEFAULT 0,
+        min_order      NUMBER(10,2) DEFAULT 0,
+        max_uses       INTEGER      DEFAULT 0,
+        uses_count     INTEGER      DEFAULT 0,
+        valid_from     TEXT,
+        valid_until    TEXT,
+        is_active      INTEGER      DEFAULT 1,
+        created_at     TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
+
+    # ── Advertisements ────────────────────────────────────────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS advertisements (
+        ad_id      VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        website_id VARCHAR(36)  NOT NULL REFERENCES websites(website_id),
+        title      VARCHAR(200),
+        image_url  VARCHAR(500),
+        link_url   VARCHAR(500),
+        position   VARCHAR(30)  DEFAULT 'banner',
+        is_active  INTEGER      DEFAULT 1,
+        starts_at  TEXT,
+        ends_at    TEXT,
+        created_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
+
+    # ── Notification campaigns ────────────────────────────────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS notification_campaigns (
+        campaign_id  VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        website_id   VARCHAR(36)  NOT NULL REFERENCES websites(website_id),
+        owner_id     VARCHAR(36)  NOT NULL REFERENCES users(user_id),
+        title        VARCHAR(200) NOT NULL,
+        channel      VARCHAR(20)  NOT NULL,
+        subject      VARCHAR(300),
+        body         TEXT         NOT NULL,
+        status       VARCHAR(20)  DEFAULT 'draft',
+        sent_count   INTEGER      DEFAULT 0,
+        scheduled_at TEXT,
+        sent_at      TEXT,
+        created_at   TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
 ]
 
 
+def _safe_alter(sql: str):
+    """Run an ALTER TABLE silently — ignore if column already exists."""
+    try:
+        from database.snowflake_client import db
+        db.execute(sql)
+    except Exception:
+        pass
+
+
 def run_migrations():
-    print("Running Snowflake migrations…")
+    print("Running migrations…")
+    from database.snowflake_client import db
     for ddl in TABLES:
         db.execute(ddl.strip())
+
+    # ── Additive column migrations (idempotent) ───────────────────────────────
+    _safe_alter("ALTER TABLE users ADD COLUMN owner_id TEXT")
+    _safe_alter("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '[]'")
+    _safe_alter("ALTER TABLE websites ADD COLUMN cart_features TEXT DEFAULT '[]'")
+    _safe_alter("ALTER TABLE products ADD COLUMN image_url TEXT")
+    _safe_alter("ALTER TABLE products ADD COLUMN compare_price REAL DEFAULT 0")
+    _safe_alter("ALTER TABLE products ADD COLUMN discount_pct REAL DEFAULT 0")
+    _safe_alter("ALTER TABLE products ADD COLUMN is_flash_offer INTEGER DEFAULT 0")
+    _safe_alter("ALTER TABLE products ADD COLUMN flash_offer_ends TEXT")
+    _safe_alter("ALTER TABLE products ADD COLUMN stock_quantity INTEGER DEFAULT 0")
+
     print("✅ All tables created / verified.")
 
 
