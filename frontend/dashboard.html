@@ -782,18 +782,17 @@ async function deactivateSite(id, currentStatus) {
     btnClass: goingOffline ? 'btn-danger' : 'btn-primary',
     onConfirm: async () => {
       const r = await fetch(`${API}/websites/${id}`, {
-        method: 'PATCH', headers: { ...headers(), 'Content-Type': 'application/json' },
+        method: 'PATCH', cache: 'no-store', headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       if (r.ok) {
         toast(goingOffline ? '⏸ Website is now Offline' : '🟢 Website is now Live');
-        const site = websites.find(x => x.website_id === id);
-        if (site) {
-          site.status = newStatus;
-          document.getElementById('allSitesBody').innerHTML = websites.map(siteRow).join('');
-        } else {
-          await loadAllSites();
+        // Update in-memory array and force full re-render
+        const idx = websites.findIndex(x => x.website_id === id);
+        if (idx !== -1) {
+          websites[idx] = { ...websites[idx], status: newStatus };
         }
+        await loadAllSites();
       } else {
         toast('Action failed', false);
       }
@@ -820,6 +819,7 @@ async function deleteSite(id) {
 async function loadAllSites() {
   websites = await apiFetch('/websites/my') || [];
   const tbody = document.getElementById('allSitesBody');
+  if (!tbody) return;
   if (!websites.length) {
     tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">No websites yet — <a href="javascript:showPage('build')" style="color:var(--accent)">build one now</a>!</td></tr>`;
     return;
