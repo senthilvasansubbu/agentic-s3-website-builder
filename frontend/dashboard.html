@@ -706,8 +706,8 @@ function siteRow(w) {
     <td id="status-${w.website_id}">${statusBadge(w.status)}</td>
     <td style="color:var(--muted);font-size:.85rem">${dateStr}</td>
     <td id="actions-${w.website_id}" style="white-space:nowrap">
-      ${!isInactive ? `<button class="btn btn-secondary btn-sm" onclick="viewSite('${w.website_id}')" title="Open website">👁 View</button>` : ''}
-      ${!isInactive ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${w.website_id}')" title="Edit details">✏️ Edit</button>` : ''}
+      <button class="btn btn-secondary btn-sm" ${isInactive?'disabled title="Activate the website to view"':"onclick=\"viewSite('" + w.website_id + "')\" title=\"Open website\""}>👁 View</button>
+      <button class="btn btn-secondary btn-sm" style="margin-left:4px" ${isInactive?'disabled title="Activate the website to edit"':"onclick=\"editSite('" + w.website_id + "')\" title=\"Edit details\""}>✏️ Edit</button>
       <button class="btn ${isInactive?'btn-primary':'btn-secondary'} btn-sm" style="${!isInactive?'margin-left:4px':''}" onclick="deactivateSite('${w.website_id}','${w.status}')">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" ${!isInactive?'disabled title="Deactivate the website first to delete"':'title="Delete permanently"'} onclick="${isInactive?`deleteSite('${w.website_id}')`:'void(0)'}">🗑 Delete</button>
     </td>
@@ -800,8 +800,8 @@ async function deactivateSite(id, currentStatus) {
           statusCell.innerHTML = statusBadge(newStatus);
           const w = idx !== -1 ? websites[idx] : { website_id: id, status: newStatus };
           actionsCell.innerHTML = `
-            ${newStatus !== 'inactive' ? `<button class="btn btn-secondary btn-sm" onclick="viewSite('${id}')" title="Open website">👁 View</button>` : ''}
-            ${newStatus !== 'inactive' ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${id}')" title="Edit details">✏️ Edit</button>` : ''}
+            <button class="btn btn-secondary btn-sm" ${newStatus === 'inactive' ? 'disabled title="Activate the website to view"' : `onclick="viewSite('${id}')" title="Open website"`}>👁 View</button>
+            <button class="btn btn-secondary btn-sm" style="margin-left:4px" ${newStatus === 'inactive' ? 'disabled title="Activate the website to edit"' : `onclick="editSite('${id}')" title="Edit details"`}>✏️ Edit</button>
             <button class="btn ${newStatus === 'inactive' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="${newStatus !== 'inactive' ? 'margin-left:4px' : ''}" onclick="deactivateSite('${id}','${newStatus}')">${newStatus === 'inactive' ? '▶ Activate' : '⏸ Deactivate'}</button>
             <button class="btn btn-danger btn-sm" style="margin-left:4px" ${newStatus !== 'inactive' ? 'disabled title="Deactivate the website first to delete"' : 'title="Delete permanently"'} onclick="${newStatus === 'inactive' ? `deleteSite('${id}')` : 'void(0)'}">🗑 Delete</button>
           `;
