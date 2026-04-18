@@ -57,6 +57,7 @@
     .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
     .tag.published { background: rgba(34,197,94,.15); color: var(--success); }
     .tag.draft { background: rgba(245,158,11,.15); color: var(--warn); }
+    .tag.danger { background: rgba(239,68,68,.15); color: var(--danger); }
 
     /* Buttons */
     .btn { padding: 8px 18px; border-radius: 7px; border: none; cursor: pointer; font-size: .85rem; font-weight: 600; transition: opacity .15s; }
@@ -197,9 +198,50 @@
     <p class="subtitle">Manage all your AI-generated websites.</p>
     <div class="table-wrap">
       <div class="table-header"><h3>All Sites</h3><button class="btn btn-primary btn-sm" onclick="showPage('build')">+ New Site</button></div>
-      <table><thead><tr><th>Name</th><th>Slug</th><th>Theme</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="allSitesBody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
+      <table style="table-layout:auto">
+        <thead><tr>
+          <th>Name</th>
+          <th>Domain</th>
+          <th>Theme</th>
+          <th>Features</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody id="allSitesBody"><tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Edit Website Modal -->
+  <div class="modal" id="editSiteModal">
+    <div class="modal-box" style="max-width:520px">
+      <h3 style="margin-bottom:18px">Edit Website</h3>
+      <input type="hidden" id="editSiteId">
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Website Name</label>
+        <input id="editSiteName" placeholder="e.g. My Bakery" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.95rem">
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Domain (e.g. www.mybakery.com)</label>
+        <input id="editSiteDomain" placeholder="www.example.com" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.95rem">
+        <small style="color:var(--muted);font-size:.8rem">Leave blank to use the default preview URL</small>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Theme</label>
+        <select id="editSiteTheme" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.95rem">
+          <option value="modern">Modern</option>
+          <option value="classic">Classic</option>
+          <option value="minimal">Minimal</option>
+          <option value="dark">Dark</option>
+          <option value="nature">Nature</option>
+          <option value="ecommerce">E-Commerce</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-secondary" onclick="closeModal('editSiteModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEditSite()">Save Changes</button>
+      </div>
     </div>
   </div>
 
@@ -613,29 +655,114 @@ async function loadProductCount() {
   document.getElementById('statProducts').textContent = total;
 }
 
-function siteRow(w, withSlug = false) {
-  return `<tr>
-    <td>${w.name || w.website_name || '—'}</td>
-    ${withSlug ? `<td style="color:var(--muted)">${w.slug || '—'}</td>` : ''}
-    <td>${w.theme || '—'}</td>
-    <td><span class="tag ${w.status === 'published' ? 'published' : 'draft'}">${w.status || 'draft'}</span></td>
-    <td>
-      <button class="btn btn-secondary btn-sm" onclick="viewSite('${w.website_id}')">View</button>
-      <button class="btn btn-danger btn-sm" style="margin-left:6px" onclick="deleteSite('${w.website_id}')">Delete</button>
+function featureBadges(w) {
+  const badges = [];
+  try {
+    const cf = typeof w.cart_features === 'string' ? JSON.parse(w.cart_features) : (w.cart_features || []);
+    if (cf.length) badges.push(`<span class="tag published" style="font-size:.72rem;padding:2px 8px">🛒 Cart</span>`);
+  } catch(e) {}
+  if (w.enable_chatbot) badges.push(`<span class="tag" style="font-size:.72rem;padding:2px 8px;background:#e8f4fd;color:#1a73e8">💬 Bot</span>`);
+  return badges.join(' ') || '<span style="color:var(--muted);font-size:.82rem">—</span>';
+}
+
+function statusBadge(status) {
+  const map = {
+    published: 'published',
+    built:     'draft',
+    inactive:  'danger',
+    error:     'danger',
+    draft:     'draft',
+  };
+  const cls = map[status] || 'draft';
+  const icons = { published:'🌐', built:'✅', inactive:'⏸', error:'❌', draft:'📝' };
+  return `<span class="tag ${cls}" style="${status==='inactive'?'background:#fff3cd;color:#856404':''}">${icons[status]||''}${status||'draft'}</span>`;
+}
+
+function siteRow(w) {
+  const domainDisplay = w.domain
+    ? `<a href="https://${w.domain.replace(/^https?:\/\//,'')}" target="_blank" style="color:var(--accent);font-size:.85rem">${w.domain}</a>`
+    : `<span style="color:var(--muted);font-size:.82rem">Not set</span>`;
+  const dateStr = w.created_at ? w.created_at.split(' ')[0] : '—';
+  const isInactive = w.status === 'inactive';
+  return `<tr style="${isInactive?'opacity:.55':''}">
+    <td style="font-weight:600">${w.name || '—'}</td>
+    <td>${domainDisplay}</td>
+    <td style="text-transform:capitalize">${w.theme || '—'}</td>
+    <td>${featureBadges(w)}</td>
+    <td>${statusBadge(w.status)}</td>
+    <td style="color:var(--muted);font-size:.85rem">${dateStr}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-secondary btn-sm" onclick="viewSite('${w.website_id}')" title="Open website">👁 View</button>
+      <button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${w.website_id}')" title="Edit details">✏️ Edit</button>
+      <button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="deactivateSite('${w.website_id}','${w.status}')" title="${isInactive?'Activate':'Deactivate'}">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
+      <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="deleteSite('${w.website_id}')" title="Delete permanently">🗑 Delete</button>
     </td>
   </tr>`;
 }
 
 function viewSite(id) {
   const w = websites.find(x => x.website_id === id);
-  if (w && w.slug) window.open(`/output/${w.slug}/index.html`, '_blank');
-  else toast('Site not published yet', false);
+  if (!w) return;
+  if (w.domain) {
+    const url = w.domain.startsWith('http') ? w.domain : `https://${w.domain}`;
+    window.open(url, '_blank');
+  } else if (w.s3_url) {
+    window.open(w.s3_url, '_blank');
+  } else if (w.name) {
+    // Serve local output file
+    const slug = w.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    window.open(`/output/${slug}/index.html`, '_blank');
+  } else {
+    toast('No URL available for this site yet', false);
+  }
+}
+
+function editSite(id) {
+  const w = websites.find(x => x.website_id === id);
+  if (!w) return;
+  document.getElementById('editSiteId').value = w.website_id;
+  document.getElementById('editSiteName').value = w.name || '';
+  document.getElementById('editSiteDomain').value = w.domain || '';
+  document.getElementById('editSiteTheme').value = w.theme || 'modern';
+  openModal('editSiteModal');
+}
+
+async function saveEditSite() {
+  const id = document.getElementById('editSiteId').value;
+  const payload = {
+    name:   document.getElementById('editSiteName').value.trim() || undefined,
+    domain: document.getElementById('editSiteDomain').value.trim() || undefined,
+    theme:  document.getElementById('editSiteTheme').value || undefined,
+  };
+  const r = await fetch(`${API}/websites/${id}`, {
+    method: 'PATCH', headers: { ...headers(), 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (r.ok) {
+    toast('Website updated ✅');
+    closeModal('editSiteModal');
+    loadAllSites();
+  } else {
+    toast('Update failed', false);
+  }
+}
+
+async function deactivateSite(id, currentStatus) {
+  const newStatus = currentStatus === 'inactive' ? 'built' : 'inactive';
+  const label = newStatus === 'inactive' ? 'Deactivate' : 'Activate';
+  if (!confirm(`${label} this website?`)) return;
+  const r = await fetch(`${API}/websites/${id}`, {
+    method: 'PATCH', headers: { ...headers(), 'Content-Type':'application/json' },
+    body: JSON.stringify({ status: newStatus })
+  });
+  if (r.ok) { toast(`Website ${newStatus === 'inactive' ? 'deactivated ⏸' : 'activated ▶'}`); loadAllSites(); }
+  else toast('Action failed', false);
 }
 
 async function deleteSite(id) {
-  if (!confirm('Delete this website? This cannot be undone.')) return;
+  if (!confirm('Permanently delete this website? This cannot be undone.')) return;
   const r = await fetch(`${API}/websites/${id}`, { method: 'DELETE', headers: headers() });
-  if (r.ok) { toast('Website deleted'); loadOverview(); }
+  if (r.ok) { toast('Website deleted 🗑'); loadAllSites(); loadOverview(); }
   else toast('Could not delete', false);
 }
 
@@ -644,10 +771,10 @@ async function loadAllSites() {
   websites = await apiFetch('/websites/my') || [];
   const tbody = document.getElementById('allSitesBody');
   if (!websites.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">No websites yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">No websites yet — <a href="javascript:showPage('build')" style="color:var(--accent)">build one now</a>!</td></tr>`;
     return;
   }
-  tbody.innerHTML = websites.map(w => siteRow(w, true)).join('');
+  tbody.innerHTML = websites.map(siteRow).join('');
 }
 
 // ── Build Website ──────────────────────────────────────────────────────────

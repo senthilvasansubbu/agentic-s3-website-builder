@@ -58,11 +58,13 @@ class BuildWebsiteRequest(BaseModel):
 
 
 class UpdateWebsiteRequest(BaseModel):
+    name: Optional[str] = None
     title: Optional[str] = None
     logo_url: Optional[str] = None
     domain: Optional[str] = None
     theme: Optional[str] = None
     custom_css: Optional[str] = None
+    status: Optional[str] = None
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -384,6 +386,19 @@ async def update_website(website_id: str, body: UpdateWebsiteRequest,
     return {"message": "Website updated"}
 
 
+@router.delete("/{website_id}")
+async def delete_website(website_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["sub"]
+    site = db.fetchone(
+        "SELECT website_id FROM websites WHERE website_id = %s AND user_id = %s",
+        (website_id, user_id),
+    )
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+    db.execute("DELETE FROM websites WHERE website_id = %s", (website_id,))
+    return {"message": "Website deleted"}
+
+
 @router.get("/{website_id}/domain-instructions")
 async def domain_instructions(website_id: str, current_user: dict = Depends(get_current_user)):
     site = db.fetchone(
@@ -408,7 +423,7 @@ async def list_my_websites(current_user: dict = Depends(get_current_user)):
     owner_id = u.get("owner_id") if u else None
     effective_id = owner_id if owner_id else user_id
     return db.execute(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, created_at "
+        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, enable_chatbot, created_at "
         "FROM websites WHERE user_id = ? ORDER BY created_at DESC",
         (effective_id,),
     ) or []
