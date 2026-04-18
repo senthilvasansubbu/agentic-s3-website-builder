@@ -111,6 +111,14 @@ async def subscribe(plan: str, request: Request,
         return {"message": "Switched to Free plan"}
 
     user = db.fetchone("SELECT stripe_customer_id FROM users WHERE user_id=?", (user_id,))
+
+    # If Stripe is not configured, activate directly (demo/dev mode)
+    stripe_configured = bool(os.getenv("STRIPE_SECRET_KEY", ""))
+    if not stripe_configured:
+        db.execute("UPDATE users SET plan=? WHERE user_id=?", (plan, user_id))
+        _upsert_subscription(user_id, plan, status="active")
+        return {"message": f"Switched to {plan} plan"}
+
     if not user or not user["stripe_customer_id"]:
         raise HTTPException(status_code=400, detail="No Stripe customer linked to account")
 
