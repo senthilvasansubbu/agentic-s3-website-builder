@@ -697,14 +697,14 @@ function siteRow(w) {
     : `<span style="color:var(--muted);font-size:.82rem">Not set</span>`;
   const dateStr = w.created_at ? w.created_at.split(' ')[0] : '—';
   const isInactive = w.status === 'inactive';
-  return `<tr style="${isInactive?'opacity:.6':''}">
+  return `<tr id="row-${w.website_id}" style="${isInactive?'opacity:.6':''}">
     <td style="font-weight:600">${w.name || '—'}</td>
     <td>${domainDisplay}</td>
     <td style="text-transform:capitalize">${w.theme || '—'}</td>
     <td>${featureBadges(w)}</td>
-    <td>${statusBadge(w.status)}</td>
+    <td id="status-${w.website_id}">${statusBadge(w.status)}</td>
     <td style="color:var(--muted);font-size:.85rem">${dateStr}</td>
-    <td style="white-space:nowrap">
+    <td id="actions-${w.website_id}" style="white-space:nowrap">
       ${!isInactive ? `<button class="btn btn-secondary btn-sm" onclick="viewSite('${w.website_id}')" title="Open website">👁 View</button>` : ''}
       ${!isInactive ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${w.website_id}')" title="Edit details">✏️ Edit</button>` : ''}
       <button class="btn ${isInactive?'btn-primary':'btn-secondary'} btn-sm" style="${!isInactive?'margin-left:4px':''}" onclick="deactivateSite('${w.website_id}','${w.status}')">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
@@ -787,12 +787,26 @@ async function deactivateSite(id, currentStatus) {
       });
       if (r.ok) {
         toast(goingOffline ? '⏸ Website is now Offline' : '🟢 Website is now Live');
-        // Update in-memory array and force full re-render
+        // Update in-memory array
         const idx = websites.findIndex(x => x.website_id === id);
-        if (idx !== -1) {
-          websites[idx] = { ...websites[idx], status: newStatus };
+        if (idx !== -1) websites[idx].status = newStatus;
+        // Directly update the row in the DOM without a full re-fetch
+        const row = document.getElementById('row-' + id);
+        const statusCell = document.getElementById('status-' + id);
+        const actionsCell = document.getElementById('actions-' + id);
+        if (row && statusCell && actionsCell) {
+          row.style.opacity = newStatus === 'inactive' ? '0.6' : '';
+          statusCell.innerHTML = statusBadge(newStatus);
+          const w = idx !== -1 ? websites[idx] : { website_id: id, status: newStatus };
+          actionsCell.innerHTML = `
+            ${newStatus !== 'inactive' ? `<button class="btn btn-secondary btn-sm" onclick="viewSite('${id}')" title="Open website">👁 View</button>` : ''}
+            ${newStatus !== 'inactive' ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${id}')" title="Edit details">✏️ Edit</button>` : ''}
+            <button class="btn ${newStatus === 'inactive' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="${newStatus !== 'inactive' ? 'margin-left:4px' : ''}" onclick="deactivateSite('${id}','${newStatus}')">${newStatus === 'inactive' ? '▶ Activate' : '⏸ Deactivate'}</button>
+            <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="deleteSite('${id}')" title="Delete permanently">🗑 Delete</button>
+          `;
+        } else {
+          await loadAllSites();
         }
-        await loadAllSites();
       } else {
         toast('Action failed', false);
       }
