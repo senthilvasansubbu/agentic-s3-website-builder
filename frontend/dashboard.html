@@ -85,6 +85,10 @@
     /* Toggle */
     .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .toggle-row:last-child { border-bottom: none; }
+    .toggle-row.locked { opacity: .4; pointer-events: none; user-select: none; }
+    .toggle-row.locked * { pointer-events: none !important; cursor: not-allowed !important; }
+    .toggle-row.locked .slider { cursor: not-allowed !important; }
+    .toggle-row.locked label { cursor: not-allowed !important; }
     .toggle-label { font-size: .88rem; }
     .toggle-desc { font-size: .76rem; color: var(--muted); margin-top: 2px; }
     .toggle { position: relative; width: 44px; height: 24px; }
@@ -299,8 +303,8 @@
       <div class="theme-grid" id="themeGrid"></div>
 
       <div style="margin-top:20px">
-        <div class="toggle-row">
-          <div><div class="toggle-label">Enable Shopping Cart</div><div class="toggle-desc">Add e-commerce functionality to your site</div></div>
+        <div class="toggle-row" id="toggleRowCart">
+          <div><div class="toggle-label">Enable Shopping Cart <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">Add e-commerce functionality to your site</div></div>
           <label class="toggle"><input type="checkbox" id="buildCart" onchange="toggleCartFeatures()"><span class="slider"></span></label>
         </div>
         <div id="cartFeaturesPanel" style="display:none;margin-top:12px;padding:16px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px">
@@ -325,20 +329,20 @@
           <div><div class="toggle-label">Web Search Enhanced</div><div class="toggle-desc">AI uses live web data for content generation</div></div>
           <label class="toggle"><input type="checkbox" id="buildWebSearch" checked><span class="slider"></span></label>
         </div>
-        <div class="toggle-row">
+        <div class="toggle-row" id="toggleRowSocial">
           <div><div class="toggle-label">Auto-search Social Profiles</div><div class="toggle-desc">If no social URLs entered, agent searches and links official profiles automatically</div></div>
           <label class="toggle"><input type="checkbox" id="buildSocialSearch" onchange="toggleSocialSearch()"><span class="slider"></span></label>
         </div>
-        <div class="toggle-row">
-          <div><div class="toggle-label">Enable Live Stream</div><div class="toggle-desc">Add a Live Stream page with embedded player, chat and schedule</div></div>
+        <div class="toggle-row" id="toggleRowLivestream">
+          <div><div class="toggle-label">Enable Live Stream <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">Add a Live Stream page with embedded player, chat and schedule</div></div>
           <label class="toggle"><input type="checkbox" id="buildLivestream"><span class="slider"></span></label>
         </div>
-        <div class="toggle-row">
-          <div><div class="toggle-label">Enable Blog</div><div class="toggle-desc">Add a Blog page with sample posts and navigation link</div></div>
+        <div class="toggle-row" id="toggleRowBlog">
+          <div><div class="toggle-label">Enable Blog <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">Add a Blog page with sample posts and navigation link</div></div>
           <label class="toggle"><input type="checkbox" id="buildBlog"><span class="slider"></span></label>
         </div>
-        <div class="toggle-row">
-          <div><div class="toggle-label">Enable Chatbot</div><div class="toggle-desc">Add a floating customer-support chat widget to every page</div></div>
+        <div class="toggle-row" id="toggleRowChatbot">
+          <div><div class="toggle-label">Enable Chatbot <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">Add a floating customer-support chat widget to every page</div></div>
           <label class="toggle"><input type="checkbox" id="buildChatbot"><span class="slider"></span></label>
         </div>
       </div>
@@ -566,6 +570,7 @@
 const API = '/api/v1';
 let token = localStorage.getItem('wb_token');
 let currentUser = null;
+let planFeatures = {};  // populated on init from /payments/plan-features
 let websites = [];
 
 const THEMES = [
@@ -607,9 +612,11 @@ function showPage(id) {
   document.getElementById('page-' + id).classList.add('active');
   const item = [...document.querySelectorAll('.nav-item')].find(n => n.getAttribute('onclick')?.includes(`'${id}'`));
   if (item) item.classList.add('active');
+  location.hash = id;
   if (id === 'websites') loadAllSites();
   if (id === 'products') loadProducts();
   if (id === 'billing') loadBilling();
+  if (id === 'build') applyBuildPlanRestrictions();
   if (id === 'feedback') loadFeedback();
   if (id === 'monitoring') loadMonitoring();
   if (id === 'team') loadTeam();
@@ -631,6 +638,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 async function init() {
   currentUser = await apiFetch('/auth/me');
   if (!currentUser) return;
+  planFeatures = await apiFetch('/payments/plan-features') || {};
   document.getElementById('userEmail').textContent = currentUser.email;
   document.getElementById('planBadge').textContent = currentUser.plan;
   document.getElementById('statPlan').textContent = currentUser.plan.toUpperCase();
@@ -653,6 +661,9 @@ async function init() {
   }
 
   loadOverview();
+  const hash = location.hash.replace('#', '');
+  const validPages = ['overview','websites','build','products','billing','feedback','monitoring','team','coupons','notifications'];
+  if (hash && validPages.includes(hash)) showPage(hash);
 }
 
 // ── Overview ───────────────────────────────────────────────────────────────
@@ -901,6 +912,39 @@ function toggleCartFeatures() {
   document.getElementById('cartFeaturesPanel').style.display = enabled ? 'block' : 'none';
 }
 
+function applyBuildPlanRestrictions() {
+  const plan = currentUser?.plan || 'free';
+  // Deny-by-default: if plan-features not yet loaded, assume most restrictive (free)
+  const defaultFeatures = { web_search: true, social_search: false, shopping_cart: false, livestream: false, blog: false, chatbot: false };
+  const features = (planFeatures && planFeatures[plan]) ? planFeatures[plan] : defaultFeatures;
+
+  const mapping = [
+    { row: 'toggleRowCart',       input: 'buildCart',         feature: 'shopping_cart', label: 'Enable Shopping Cart' },
+    { row: 'toggleRowSocial',     input: 'buildSocialSearch', feature: 'social_search', label: 'Auto-search Social Profiles' },
+    { row: 'toggleRowLivestream', input: 'buildLivestream',   feature: 'livestream',    label: 'Enable Live Stream' },
+    { row: 'toggleRowBlog',       input: 'buildBlog',         feature: 'blog',          label: 'Enable Blog' },
+    { row: 'toggleRowChatbot',    input: 'buildChatbot',      feature: 'chatbot',       label: 'Enable Chatbot' },
+  ];
+
+  mapping.forEach(({ row, input, feature }) => {
+    const allowed = !!features[feature];
+    const rowEl = document.getElementById(row);
+    const inputEl = document.getElementById(input);
+    if (rowEl) {
+      rowEl.classList.toggle('locked', !allowed);
+      rowEl.title = allowed ? '' : 'Upgrade your plan to unlock this feature';
+    }
+    if (inputEl) {
+      inputEl.disabled = !allowed;
+      if (!allowed) {
+        inputEl.checked = false;
+        // hide any dependent panel (e.g. cart features panel)
+        if (input === 'buildCart') document.getElementById('cartFeaturesPanel').style.display = 'none';
+      }
+    }
+  });
+}
+
 function toggleSocialSearch() {
   const on = document.getElementById('buildSocialSearch').checked;
   // When agent will auto-search, dim the manual URL inputs and show info hint
@@ -1099,7 +1143,8 @@ async function deleteProduct(id) {
 async function loadBilling() {
   const plans = await apiFetch('/payments/plans') || [];
   const current = currentUser?.plan || 'free';
-  document.getElementById('plansGrid').innerHTML = plans.map(p => `
+  const isSuperuser = currentUser?.plan === 'superuser';
+  document.getElementById('plansGrid').innerHTML = plans.filter(p => p.plan !== 'superuser' || isSuperuser).map(p => `
     <div style="background:var(--card);border:2px solid ${p.plan === current ? 'var(--accent)' : 'var(--border)'};border-radius:10px;padding:20px">
       <div style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.5px">${p.plan}</div>
       <div style="font-size:1.6rem;font-weight:700;margin:8px 0">$${p.price_usd}<span style="font-size:.9rem;font-weight:400;color:var(--muted)">/mo</span></div>

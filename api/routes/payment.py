@@ -99,7 +99,21 @@ async def list_plans():
     ]
 
 
-@router.post("/subscribe/{plan}")
+@router.get("/plan-features")
+async def get_plan_features():
+    """Return the build-feature access map for every plan, read from the DB.
+    Admins can update rows in plan_features to change access without code deploys."""
+    rows = db.execute("SELECT plan, feature, enabled FROM plan_features ORDER BY plan, feature")
+    result: dict = {}
+    for row in rows:
+        plan = row["plan"]
+        if plan not in result:
+            result[plan] = {}
+        result[plan][row["feature"]] = bool(row["enabled"])
+    return result
+
+
+
 async def subscribe(plan: str, request: Request,
                     current_user: dict = Depends(get_current_user)):
     if plan not in PLANS:

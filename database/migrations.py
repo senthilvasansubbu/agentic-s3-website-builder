@@ -287,6 +287,16 @@ TABLES = [
         created_at   TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     )
     """,
+
+    # ── Plan Feature Access ───────────────────────────────────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS plan_features (
+        plan     TEXT NOT NULL,
+        feature  TEXT NOT NULL,
+        enabled  INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (plan, feature)
+    )
+    """,
 ]
 
 
@@ -319,7 +329,33 @@ def run_migrations():
     _safe_alter("ALTER TABLE products ADD COLUMN flash_offer_ends TEXT")
     _safe_alter("ALTER TABLE products ADD COLUMN stock_quantity INTEGER DEFAULT 0")
 
+    # ── Seed plan_features (INSERT OR IGNORE = idempotent) ────────────────────
+    _seed_plan_features()
+
     print("✅ All tables created / verified.")
+
+
+# Feature matrix: plan → feature → enabled
+_PLAN_FEATURE_SEED = {
+    "free":       {"web_search": 1, "social_search": 0, "shopping_cart": 0, "livestream": 0, "blog": 0, "chatbot": 0},
+    "pro":        {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
+    "enterprise": {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
+    "superuser":  {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
+}
+
+
+def _seed_plan_features():
+    """Insert default plan-feature rows; skip rows that already exist."""
+    from database.snowflake_client import db
+    for plan, features in _PLAN_FEATURE_SEED.items():
+        for feature, enabled in features.items():
+            try:
+                db.execute(
+                    "INSERT OR IGNORE INTO plan_features (plan, feature, enabled) VALUES (?, ?, ?)",
+                    (plan, feature, enabled),
+                )
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
