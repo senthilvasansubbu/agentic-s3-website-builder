@@ -666,16 +666,16 @@ function featureBadges(w) {
 }
 
 function statusBadge(status) {
-  const map = {
-    published: 'published',
-    built:     'draft',
-    inactive:  'danger',
-    error:     'danger',
-    draft:     'draft',
-  };
-  const cls = map[status] || 'draft';
-  const icons = { published:'🌐', built:'✅', inactive:'⏸', error:'❌', draft:'📝' };
-  return `<span class="tag ${cls}" style="${status==='inactive'?'background:#fff3cd;color:#856404':''}">${icons[status]||''}${status||'draft'}</span>`;
+  if (status === 'inactive') {
+    return `<span class="tag" style="background:#fff3cd;color:#856404">⏸ Offline</span>`;
+  }
+  if (status === 'published' || status === 'built' || status === 'live') {
+    return `<span class="tag published">🟢 Live</span>`;
+  }
+  if (status === 'error') {
+    return `<span class="tag danger">❌ Error</span>`;
+  }
+  return `<span class="tag draft">📝 Draft</span>`;
 }
 
 function siteRow(w) {
@@ -684,7 +684,7 @@ function siteRow(w) {
     : `<span style="color:var(--muted);font-size:.82rem">Not set</span>`;
   const dateStr = w.created_at ? w.created_at.split(' ')[0] : '—';
   const isInactive = w.status === 'inactive';
-  return `<tr style="${isInactive?'opacity:.55':''}">
+  return `<tr style="${isInactive?'opacity:.6':''}">
     <td style="font-weight:600">${w.name || '—'}</td>
     <td>${domainDisplay}</td>
     <td style="text-transform:capitalize">${w.theme || '—'}</td>
@@ -694,7 +694,7 @@ function siteRow(w) {
     <td style="white-space:nowrap">
       <button class="btn btn-secondary btn-sm" onclick="viewSite('${w.website_id}')" title="Open website">👁 View</button>
       <button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${w.website_id}')" title="Edit details">✏️ Edit</button>
-      <button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="deactivateSite('${w.website_id}','${w.status}')" title="${isInactive?'Activate':'Deactivate'}">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
+      <button class="btn ${isInactive?'btn-primary':'btn-secondary'} btn-sm" style="margin-left:4px" onclick="deactivateSite('${w.website_id}','${w.status}')">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="deleteSite('${w.website_id}')" title="Delete permanently">🗑 Delete</button>
     </td>
   </tr>`;
@@ -748,15 +748,22 @@ async function saveEditSite() {
 }
 
 async function deactivateSite(id, currentStatus) {
-  const newStatus = currentStatus === 'inactive' ? 'built' : 'inactive';
-  const label = newStatus === 'inactive' ? 'Deactivate' : 'Activate';
-  if (!confirm(`${label} this website?`)) return;
+  const goingOffline = currentStatus !== 'inactive';
+  const newStatus = goingOffline ? 'inactive' : 'built';
+  const msg = goingOffline
+    ? 'Deactivate this website? It will show as Offline.'
+    : 'Activate this website? It will show as Live.';
+  if (!confirm(msg)) return;
   const r = await fetch(`${API}/websites/${id}`, {
     method: 'PATCH', headers: { ...headers(), 'Content-Type':'application/json' },
     body: JSON.stringify({ status: newStatus })
   });
-  if (r.ok) { toast(`Website ${newStatus === 'inactive' ? 'deactivated ⏸' : 'activated ▶'}`); loadAllSites(); }
-  else toast('Action failed', false);
+  if (r.ok) {
+    toast(goingOffline ? '⏸ Website is now Offline' : '🟢 Website is now Live');
+    loadAllSites();
+  } else {
+    toast('Action failed', false);
+  }
 }
 
 async function deleteSite(id) {
