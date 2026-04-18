@@ -616,7 +616,7 @@ function showPage(id) {
   if (id === 'websites') loadAllSites();
   if (id === 'products') loadProducts();
   if (id === 'billing') loadBilling();
-  if (id === 'build') applyBuildPlanRestrictions();
+  if (id === 'build') applyBuildPlanRestrictions();  // async — fires and resolves independently
   if (id === 'feedback') loadFeedback();
   if (id === 'monitoring') loadMonitoring();
   if (id === 'team') loadTeam();
@@ -912,11 +912,16 @@ function toggleCartFeatures() {
   document.getElementById('cartFeaturesPanel').style.display = enabled ? 'block' : 'none';
 }
 
-function applyBuildPlanRestrictions() {
+async function applyBuildPlanRestrictions() {
   const plan = currentUser?.plan || 'free';
-  // Deny-by-default: if plan-features not yet loaded, assume most restrictive (free)
+  // Always fetch fresh from API; fall back to cached planFeatures; then deny-by-default
   const defaultFeatures = { web_search: true, social_search: false, shopping_cart: false, livestream: false, blog: false, chatbot: false };
-  const features = (planFeatures && planFeatures[plan]) ? planFeatures[plan] : defaultFeatures;
+  let allFeatures = planFeatures;
+  if (!allFeatures || !allFeatures[plan]) {
+    allFeatures = await apiFetch('/payments/plan-features') || {};
+    if (allFeatures && Object.keys(allFeatures).length) planFeatures = allFeatures; // update cache
+  }
+  const features = (allFeatures && allFeatures[plan]) ? allFeatures[plan] : defaultFeatures;
 
   const mapping = [
     { row: 'toggleRowCart',       input: 'buildCart',         feature: 'shopping_cart', label: 'Enable Shopping Cart' },
@@ -1163,7 +1168,7 @@ async function loadBilling() {
 async function switchPlan(plan) {
   const r = await apiFetch(`/payments/subscribe/${plan}`, { method: 'POST' });
   if (r && r.checkout_url) { window.location.href = r.checkout_url; }
-  else if (r && r.message) { toast(r.message); currentUser.plan = plan; document.getElementById('planBadge').textContent = plan; loadBilling(); }
+  else if (r && r.message) { toast(r.message); currentUser.plan = plan; document.getElementById('planBadge').textContent = plan; loadBilling(); applyBuildPlanRestrictions(); }
   else toast('Could not switch plan', false);
 }
 
