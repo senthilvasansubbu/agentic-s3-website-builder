@@ -50,7 +50,7 @@ class PaymentConfigRequest(BaseModel):
 
 def _upsert_subscription(user_id: str, plan: str, stripe_sub_id: str = None,
                           status: str = "active"):
-    """Write or update the subscriptions row; always refreshes next_billing_date."""
+    """Write or update the subscriptions row; always refreshes current_period_end."""
     next_billing = (datetime.date.today() + datetime.timedelta(days=30)).isoformat()
     existing = db.fetchone(
         "SELECT sub_id FROM subscriptions WHERE user_id = ?", (user_id,)
@@ -58,13 +58,13 @@ def _upsert_subscription(user_id: str, plan: str, stripe_sub_id: str = None,
     if existing:
         db.execute(
             "UPDATE subscriptions SET plan=?, stripe_sub_id=?, status=?, "
-            "next_billing_date=? WHERE user_id=?",
+            "current_period_end=? WHERE user_id=?",
             (plan, stripe_sub_id, status, next_billing, user_id),
         )
     else:
         db.execute(
             "INSERT INTO subscriptions "
-            "(sub_id, user_id, plan, stripe_sub_id, status, next_billing_date) "
+            "(sub_id, user_id, plan, stripe_sub_id, status, current_period_end) "
             "VALUES (?, ?, ?, ?, ?, ?)",
             (str(uuid.uuid4()), user_id, plan, stripe_sub_id, status, next_billing),
         )
@@ -75,9 +75,11 @@ def _upsert_subscription(user_id: str, plan: str, stripe_sub_id: str = None,
 @router.get("/subscription")
 async def get_my_subscription(current_user: dict = Depends(get_current_user)):
     sub = db.fetchone(
-        "SELECT plan, status, next_billing_date, stripe_sub_id FROM subscriptions WHERE user_id=?",
+        "SELECT plan, status, current_period_end FROM subscriptions WHERE user_id=?",
         (current_user["sub"],),
     )
+    if sub:
+        sub["next_billing_date"] = sub.pop("current_period_end", None)
     return sub or {}
 
 
