@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Console — Website Builder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #667eea; --secondary: #764ba2; --accent: #f093fb;
+      --bg: #f0f2f5; --sidebar: #1a202c; --text: #2d3748;
+      --card: #fff; --border: #e2e8f0;
+    }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 260px; background: var(--sidebar); color: #e2e8f0;
+      display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100;
+    }
+    .sidebar-logo {
+      padding: 28px 24px 20px; border-bottom: 1px solid #2d3748;
+      font-size: 1.15rem; font-weight: 700; color: #fff;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-logo span { font-size: 1.5rem; }
+    .sidebar-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+    .nav-section { padding: 8px 24px 4px; font-size: .7rem; font-weight: 700;
+      text-transform: uppercase; color: #4a5568; letter-spacing: 1px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px; padding: 11px 24px;
+      cursor: pointer; transition: background .15s; color: #a0aec0;
+      font-size: .92rem; border-left: 3px solid transparent;
+    }
+    .nav-item:hover { background: #2d3748; color: #fff; }
+    .nav-item.active { background: #2d3748; color: #fff; border-left-color: var(--primary); }
+    .nav-item .icon { font-size: 1.1rem; width: 20px; text-align: center; }
+    .sidebar-footer { padding: 20px 24px; border-top: 1px solid #2d3748; }
+    .user-badge { display: flex; align-items: center; gap: 10px; }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: .9rem;
+    }
+    .user-info small { color: #718096; font-size: .75rem; }
+    .logout-btn { margin-left: auto; background: none; border: none; color: #718096; cursor: pointer; font-size: 1.1rem; }
+
+    /* ── Main ── */
+    .main { margin-left: 260px; flex: 1; display: flex; flex-direction: column; }
+    .topbar {
+      background: #fff; border-bottom: 1px solid var(--border);
+      padding: 0 32px; height: 64px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar h2 { font-size: 1.25rem; color: var(--text); }
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+    .badge { padding: 4px 12px; border-radius: 20px; font-size: .78rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; }
+    .content { padding: 32px; flex: 1; }
+
+    /* ── Stats ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 20px; margin-bottom: 32px; }
+    .stat-card {
+      background: var(--card); border-radius: 12px; padding: 24px;
+      box-shadow: 0 1px 8px rgba(0,0,0,.06);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .stat-icon { font-size: 2rem; width: 52px; height: 52px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; }
+    .stat-icon.blue  { background: #ebf4ff; }
+    .stat-icon.purple{ background: #f3e8ff; }
+    .stat-icon.green { background: #f0fff4; }
+    .stat-icon.orange{ background: #fffaf0; }
+    .stat-val { font-size: 1.8rem; font-weight: 700; color: var(--text); }
+    .stat-label { font-size: .82rem; color: #718096; }
+
+    /* ── Cards / panels ── */
+    .panel {
+      background: var(--card); border-radius: 12px; padding: 28px;
+      box-shadow: 0 1px 8px rgba(0,0,0,.06); margin-bottom: 24px;
+    }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .panel-title { font-size: 1.05rem; font-weight: 700; }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th { text-align: left; padding: 10px 14px; border-bottom: 2px solid var(--border);
+      font-size: .78rem; text-transform: uppercase; color: #718096; }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f7f9fc; }
+    .pill {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: .75rem; font-weight: 600;
+    }
+    .pill.free       { background: #e2e8f0; color: #4a5568; }
+    .pill.pro        { background: #bee3f8; color: #2b6cb0; }
+    .pill.enterprise { background: #d6bcfa; color: #553c9a; }
+    .pill.verified   { background: #c6f6d5; color: #276749; }
+    .pill.pending    { background: #fefcbf; color: #975a16; }
+
+    /* ── Forms ── */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: .84rem; font-weight: 600; color: #4a5568; margin-bottom: 5px; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: .95rem; outline: none; transition: border-color .2s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--primary); }
+
+    /* ── Buttons ── */
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: .9rem; font-weight: 600; cursor: pointer; border: none; transition: opacity .2s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; }
+    .btn-sm { padding: 6px 14px; font-size: .8rem; }
+    .btn-danger { background: #fed7d7; color: #c53030; }
+    .btn-success { background: #c6f6d5; color: #276749; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid var(--border); }
+    .tab { padding: 10px 20px; cursor: pointer; font-weight: 600; font-size: .9rem;
+      color: #718096; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* ── Page sections ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center; z-index: 500; display: none;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 36px;
+      width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .modal-header h3 { font-size: 1.15rem; }
+    .modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #718096; }
+
+    /* ── Chat widget ── */
+    #chatbot-widget {
+      position: fixed; bottom: 28px; right: 28px; z-index: 400;
+    }
+    #chat-toggle {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border: none; color: #fff; font-size: 1.5rem; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(102,126,234,.5);
+    }
+    #chat-box {
+      position: absolute; bottom: 70px; right: 0; width: 340px;
+      background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,.18);
+      display: none; flex-direction: column; overflow: hidden;
+    }
+    #chat-box.open { display: flex; }
+    .chat-head {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff; padding: 16px 20px; font-weight: 700;
+    }
+    .chat-messages { flex: 1; height: 300px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .msg { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: .88rem; line-height: 1.5; }
+    .msg.bot  { background: #f0f2f5; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg.user { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .chat-input { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
+    .chat-input input { flex: 1; padding: 9px 14px; border: 1.5px solid var(--border); border-radius: 8px; outline: none; font-size: .9rem; }
+    .chat-input input:focus { border-color: var(--primary); }
+    .chat-send { padding: 9px 16px; background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
+
+    /* ── Toasts ── */
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      padding: 14px 20px; border-radius: 10px; color: #fff; font-size: .9rem; font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15); animation: slideIn .3s ease;
+      max-width: 340px;
+    }
+    .toast.success { background: #38a169; }
+    .toast.error   { background: #e53e3e; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    @media (max-width: 900px) {
+      .sidebar { width: 60px; }
+      .sidebar-logo span:last-child, .nav-item span:not(.icon), .user-info, .sidebar .nav-section { display: none; }
+      .main { margin-left: 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo"><span>🚀</span><span>WebBuilder</span></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Platform</div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span><span>Dashboard</span></div>
+    <div class="nav-item" onclick="showPage('users')"><span class="icon">👥</span><span>Users</span></div>
+    <div class="nav-item" onclick="showPage('websites')"><span class="icon">🌐</span><span>Websites</span></div>
+    <div class="nav-section">Operations</div>
+    <div class="nav-item" onclick="showPage('workspaces')"><span class="icon">🏗️</span><span>Workspaces</span></div>
+    <div class="nav-item" onclick="showPage('payments')"><span class="icon">💳</span><span>Payments</span></div>
+    <div class="nav-item" onclick="window.location.href='/monitoring'"><span class="icon">📡</span><span>Monitoring</span></div>
+    <div class="nav-item" onclick="showPage('feedback')"><span class="icon">💬</span><span>Feedback</span></div>
+    <div class="nav-section">System</div>
+    <div class="nav-item" onclick="showPage('activity')"><span class="icon">📋</span><span>Activity Log</span></div>
+    <div class="nav-item" onclick="showPage('settings')"><span class="icon">⚙️</span><span>Settings</span></div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="avatar" id="avatar-initials">SA</div>
+      <div class="user-info">
+        <div id="admin-name" style="font-size:.85rem;color:#e2e8f0;font-weight:600">Super Admin</div>
+        <small>Superuser</small>
+      </div>
+      <button class="logout-btn" onclick="logout()" title="Logout">⏏</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main class="main">
+  <div class="topbar">
+    <h2 id="page-title">Dashboard</h2>
+    <div class="topbar-actions">
+      <span class="badge">SUPERUSER</span>
+      <button class="btn btn-primary btn-sm" onclick="showModal('create-user-modal')">+ New User</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── Dashboard Page ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">👥</div>
+          <div><div class="stat-val" id="stat-users">—</div><div class="stat-label">Total Users</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple">🌐</div>
+          <div><div class="stat-val" id="stat-websites">—</div><div class="stat-label">Websites</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✅</div>
+          <div><div class="stat-val" id="stat-live">—</div><div class="stat-label">Live Sites</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">💰</div>
+          <div><div class="stat-val" id="stat-pro">—</div><div class="stat-label">Paid Users</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">Recent Activity</span></div>
+        <table id="activity-table">
+          <thead><tr><th>Event</th><th>User</th><th>Website</th><th>IP</th><th>Time</th></tr></thead>
+          <tbody id="activity-tbody"><tr><td colspan="5" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="panel" style="margin-top:24px">
+        <div class="panel-header"><span class="panel-title">Activity Over Time</span></div>
+        <canvas id="activityChart" height="90"></canvas>
+      </div>
+    </div>
+
+    <!-- ── Users Page ── -->
+    <div class="page" id="page-users">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">All Users</span>
+          <button class="btn btn-primary btn-sm" onclick="showModal('create-user-modal')">+ Create User</button>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Verified</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="users-tbody"><tr><td colspan="6" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Websites Page ── -->
+    <div class="page" id="page-websites">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">All Websites</span></div>
+        <table>
+          <thead><tr><th>Name</th><th>Theme</th><th>Status</th><th>Domain</th><th>Created</th></tr></thead>
+          <tbody id="websites-tbody"><tr><td colspan="5" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Workspaces Page ── -->
+    <div class="page" id="page-workspaces">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Workspace Setup</span>
+          <button class="btn btn-primary btn-sm" onclick="showModal('workspace-modal')">+ Setup Workspace</button>
+        </div>
+        <p style="color:#718096;font-size:.9rem">Configure a user's website workspace — assign theme, domain, S3 bucket, payment gateway, and shopping cart settings.</p>
+        <div id="workspace-list" style="margin-top:20px;color:#a0aec0">Loading…</div>
+      </div>
+
+      <div class="panel" style="margin-top:20px">
+        <div class="panel-header"><span class="panel-title">Deploy to S3</span></div>
+        <p style="color:#718096;font-size:.9rem;margin-bottom:12px">Push a generated website to its S3 bucket for public hosting.</p>
+        <div id="deploy-list" style="color:#a0aec0">Loading…</div>
+      </div>
+    </div>
+
+    <!-- ── Payments Page ── -->
+    <div class="page" id="page-payments">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">Subscription Plans</span></div>
+        <div id="plans-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-top:8px"></div>
+      </div>
+    </div>
+
+    <!-- ── Feedback Page ── -->
+    <div class="page" id="page-feedback">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">Customer Feedback</span></div>
+        <table>
+          <thead><tr><th>Website</th><th>Name</th><th>Rating</th><th>Message</th><th>Date</th></tr></thead>
+          <tbody id="feedback-tbody"><tr><td colspan="5" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Activity Page ── -->
+    <div class="page" id="page-activity">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">Full Activity Log</span></div>
+        <table>
+          <thead><tr><th>Event</th><th>User</th><th>Website</th><th>IP</th><th>Country</th><th>Time</th></tr></thead>
+          <tbody id="full-activity-tbody"><tr><td colspan="6" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Settings Page ── -->
+    <div class="page" id="page-settings">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">Platform Settings</span></div>
+        <div class="form-row">
+          <div class="field"><label>Platform Name</label><input id="s-platform-name" value="Agentic AI Website Builder"></div>
+          <div class="field"><label>Support Email</label><input id="s-support-email" value="support@websitebuilder.ai"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Default Theme</label>
+            <select id="s-theme">
+              <option>modern</option><option>classic</option><option>minimal</option>
+              <option>dark</option><option>nature</option><option>ecommerce</option>
+            </select>
+          </div>
+          <div class="field"><label>Free Plan Page Limit</label><input id="s-free-pages" value="10" type="number"></div>
+        </div>
+        <button class="btn btn-primary" onclick="showToast('Settings saved (demo)', 'success')">Save Settings</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">Change Admin Password</span></div>
+        <div class="form-row">
+          <div class="field"><label>New Password</label><input type="password" id="new-pass"></div>
+          <div class="field"><label>Confirm Password</label><input type="password" id="confirm-pass"></div>
+        </div>
+        <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<!-- ── Modals ── -->
+<div class="modal-overlay" id="create-user-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Create New User</h3>
+      <button class="modal-close" onclick="closeModal('create-user-modal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Full Name</label><input id="new-name" placeholder="Jane Smith"></div>
+      <div class="field"><label>Email</label><input type="email" id="new-email" placeholder="jane@example.com"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Password</label><input type="password" id="new-user-pass" placeholder="Temporary password"></div>
+      <div class="field"><label>Plan</label>
+        <select id="new-plan">
+          <option value="free">Free</option>
+          <option value="pro">Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Mobile (optional)</label><input id="new-mobile" placeholder="+1 555 000 0000"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="createUser()">Create User</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="workspace-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Setup User Workspace</h3>
+      <button class="modal-close" onclick="closeModal('workspace-modal')">✕</button>
+    </div>
+    <div class="field"><label>User Email</label><input id="ws-email" placeholder="user@example.com"></div>
+    <div class="form-row">
+      <div class="field"><label>Website Name</label><input id="ws-name" placeholder="My Awesome Shop"></div>
+      <div class="field"><label>Theme</label>
+        <select id="ws-theme">
+          <option>modern</option><option>ecommerce</option><option>classic</option>
+          <option>minimal</option><option>dark</option><option>nature</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Custom Domain (optional)</label><input id="ws-domain" placeholder="myshop.com"></div>
+      <div class="field"><label>Hosting</label>
+        <select id="ws-hosting"><option value="s3">AWS S3</option><option value="local">Local</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Include Shopping Cart?</label>
+      <select id="ws-cart"><option value="false">No</option><option value="true">Yes</option></select>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="setupWorkspace()">Create Workspace</button>
+  </div>
+</div>
+
+<!-- ── Chatbot Widget ── -->
+<div id="chatbot-widget">
+  <div id="chat-box">
+    <div class="chat-head">🤖 AI Assistant</div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="msg bot">Hi! I'm your AI assistant. Ask me anything about the platform, building websites, or managing users.</div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chat-input" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="chat-send" onclick="sendChat()">➤</button>
+    </div>
+  </div>
+  <button id="chat-toggle" onclick="toggleChat()">🤖</button>
+</div>
+
+<!-- ── Toast container ── -->
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const API = '/api/v1';
+let token = localStorage.getItem('wb_token');
+
+// ── Auth guard ──────────────────────────────────────────────────────────────
+if (!token) { window.location.href = '/login'; }
+
+async function apiFetch(url, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const res = await fetch(API + url, opts);
+  if (res.status === 401) { logout(); return null; }
+  return res.json();
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+const pageTitles = { dashboard:'Dashboard', users:'Users', websites:'Websites',
+  workspaces:'Workspaces', payments:'Payments & Plans', feedback:'Feedback',
+  activity:'Activity Log', settings:'Settings' };
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(name)) n.classList.add('active');
+  });
+  document.getElementById('page-title').textContent = pageTitles[name] || name;
+  loadPageData(name);
+}
+
+function loadPageData(name) {
+  if (name === 'dashboard') { loadStats(); loadActivity(); }
+  else if (name === 'users') loadUsers();
+  else if (name === 'websites') loadWebsites();
+  else if (name === 'workspaces') loadWorkspaces();
+  else if (name === 'payments') loadPlans();
+  else if (name === 'feedback') loadFeedback();
+  else if (name === 'activity') loadFullActivity();
+}
+
+// ── Stats ────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  const data = await apiFetch('/admin/stats');
+  if (!data) return;
+  document.getElementById('stat-users').textContent    = data.total_users   ?? '—';
+  document.getElementById('stat-websites').textContent = data.total_websites ?? '—';
+  document.getElementById('stat-live').textContent     = data.live_websites  ?? '—';
+  document.getElementById('stat-pro').textContent      = (data.pro_plan_users ?? 0) + (data.enterprise_users ?? 0);
+}
+
+// ── Activity ─────────────────────────────────────────────────────────────────
+async function loadActivity() {
+  const rows = await apiFetch('/admin/activity?limit=8');
+  const tbody = document.getElementById('activity-tbody');
+  if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0">No activity yet</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr><td><b>${r.event}</b></td><td>${r.user_id ? r.user_id.slice(0,8)+'…' : '—'}</td>
+    <td>${r.website_id ? r.website_id.slice(0,8)+'…' : '—'}</td>
+    <td>${r.ip_address || '—'}</td><td>${fmtDate(r.created_at)}</td></tr>
+  `).join('');
+  renderActivityChart(rows);
+}
+
+async function loadFullActivity() {
+  const rows = await apiFetch('/admin/activity?limit=100');
+  const tbody = document.getElementById('full-activity-tbody');
+  if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0">No data</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr><td><b>${r.event}</b></td><td>${r.user_id ? r.user_id.slice(0,8)+'…' : '—'}</td>
+    <td>${r.website_id ? r.website_id.slice(0,8)+'…' : '—'}</td>
+    <td>${r.ip_address||'—'}</td><td>${r.country||'—'}</td><td>${fmtDate(r.created_at)}</td></tr>
+  `).join('');
+}
+
+// ── Users ────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const rows = await apiFetch('/admin/customers?limit=100');
+  const tbody = document.getElementById('users-tbody');
+  if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0">No users</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><b>${r.full_name || '—'}</b></td>
+      <td>${r.email}</td>
+      <td><span class="pill ${r.plan}">${r.plan}</span></td>
+      <td><span class="pill ${r.is_verified ? 'verified' : 'pending'}">${r.is_verified ? 'Verified' : 'Pending'}</span></td>
+      <td>${fmtDate(r.created_at)}</td>
+      <td>
+        <button class="btn btn-sm btn-success" onclick="verifyUser('${r.user_id}')">✓ Verify</button>
+        <button class="btn btn-sm" onclick="impersonate('${r.email}')">👤</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function createUser() {
+  const body = {
+    email: document.getElementById('new-email').value,
+    password: document.getElementById('new-user-pass').value,
+    full_name: document.getElementById('new-name').value,
+    mobile: document.getElementById('new-mobile').value,
+    otp_channel: 'email',
+  };
+  const res = await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(body) });
+  if (res && res.user_id) {
+    // Auto-verify and set plan
+    await apiFetch('/admin/verify-user/' + res.user_id, { method: 'POST' });
+    await apiFetch('/admin/set-plan/' + res.user_id + '/' + document.getElementById('new-plan').value, { method: 'POST' });
+    showToast('User created successfully!', 'success');
+    closeModal('create-user-modal');
+    loadUsers();
+  } else {
+    showToast(res?.detail || 'Failed to create user', 'error');
+  }
+}
+
+async function verifyUser(userId) {
+  const res = await apiFetch('/admin/verify-user/' + userId, { method: 'POST' });
+  showToast(res?.message || 'Done', 'success');
+  loadUsers();
+}
+
+function impersonate(email) {
+  showToast('Impersonation: ' + email + ' (coming soon)', 'success');
+}
+
+// ── Websites ─────────────────────────────────────────────────────────────────
+async function loadWebsites() {
+  const rows = await apiFetch('/admin/websites');
+  const tbody = document.getElementById('websites-tbody');
+  if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0">No websites</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><b>${r.name}</b><br><small style="color:#718096">${r.title||''}</small></td>
+      <td>${r.theme}</td>
+      <td><span class="pill ${r.status === 'live' ? 'verified' : 'pending'}">${r.status}</span></td>
+      <td>${r.domain || r.s3_url || '—'}</td>
+      <td>${fmtDate(r.created_at)}</td>
+    </tr>
+  `).join('');
+}
+
+// ── Workspaces ────────────────────────────────────────────────────────────────
+async function loadWorkspaces() {
+  const rows = await apiFetch('/admin/websites');
+  const el = document.getElementById('workspace-list');
+  if (!rows || !rows.length) { el.innerHTML = '<p style="color:#a0aec0">No workspaces configured yet.</p>'; return; }
+  el.innerHTML = `<table><thead><tr><th>Website</th><th>Owner</th><th>Theme</th><th>Status</th><th>Created</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td><b>${r.name}</b></td><td>${r.user_id ? r.user_id.slice(0,8)+'…' : '—'}</td><td>${r.theme}</td><td>${r.status}</td><td>${fmtDate(r.created_at)}</td></tr>`).join('') +
+    `</tbody></table>`;
+
+  // Populate deploy list
+  const dl = document.getElementById('deploy-list');
+  dl.innerHTML = `<table><thead><tr><th>Website</th><th>Status</th><th>S3 URL</th><th>Action</th></tr></thead><tbody>` +
+    rows.map(r => `<tr>
+      <td><b>${r.name}</b></td>
+      <td><span class="pill ${r.status === 'live' ? 'verified' : 'pending'}">${r.status}</span></td>
+      <td>${r.s3_url ? `<a href="${r.s3_url}" target="_blank" style="color:#6366f1">${r.s3_url.slice(0,40)}…</a>` : '—'}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="deploySite('${r.website_id}', this)">🚀 Deploy</button></td>
+    </tr>`).join('') +
+    `</tbody></table>`;
+}
+
+async function deploySite(websiteId, btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ Deploying…';
+  const res = await apiFetch('/websites/' + websiteId + '/deploy', { method: 'POST' });
+  if (res && res.s3_url) {
+    showToast('Deployed! ' + res.s3_url, 'success');
+    btn.textContent = '✅ Deployed';
+  } else {
+    showToast(res?.detail || res?.message || 'Deploy failed', 'error');
+    btn.disabled = false;
+    btn.textContent = '🚀 Deploy';
+  }
+}
+
+async function setupWorkspace() {
+  const email = document.getElementById('ws-email').value;
+  // Look up user
+  const users = await apiFetch('/admin/customers?limit=500');
+  const user = users?.find(u => u.email === email);
+  if (!user) { showToast('User not found: ' + email, 'error'); return; }
+
+  const body = {
+    name: document.getElementById('ws-name').value,
+    title: document.getElementById('ws-name').value,
+    theme: document.getElementById('ws-theme').value,
+    domain: document.getElementById('ws-domain').value,
+    hosting_env: document.getElementById('ws-hosting').value,
+    include_shopping_cart: document.getElementById('ws-cart').value === 'true',
+    num_pages: 1,
+  };
+
+  // Create website on behalf of user (admin route)
+  const res = await apiFetch('/admin/create-workspace/' + user.user_id, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+  if (res && res.website_id) {
+    showToast('Workspace created!', 'success');
+    closeModal('workspace-modal');
+    loadWorkspaces();
+  } else {
+    showToast(res?.detail || 'Failed', 'error');
+  }
+}
+
+// ── Plans ─────────────────────────────────────────────────────────────────────
+async function loadPlans() {
+  const plans = await apiFetch('/payments/plans');
+  const el = document.getElementById('plans-list');
+  if (!plans) return;
+  const colors = { free: '#e2e8f0', pro: '#bee3f8', enterprise: '#d6bcfa' };
+  el.innerHTML = plans.map(p => `
+    <div style="border-radius:12px;padding:24px;background:${colors[p.plan]||'#e2e8f0'}">
+      <h3 style="font-size:1.1rem">${p.label}</h3>
+      <div style="font-size:1.8rem;font-weight:700;margin:8px 0">$${p.price_usd}<small style="font-size:.8rem;font-weight:400">/mo</small></div>
+      <ul style="list-style:none;font-size:.85rem;display:flex;flex-direction:column;gap:6px">
+        <li>📄 ${p.max_pages === 999 ? 'Unlimited' : p.max_pages} pages</li>
+        <li>${p.shopping_cart ? '✅' : '❌'} Shopping cart</li>
+        <li>${p.custom_domain ? '✅' : '❌'} Custom domain</li>
+        <li>${p.analytics ? '✅' : '❌'} Analytics</li>
+      </ul>
+    </div>
+  `).join('');
+}
+
+// ── Feedback ─────────────────────────────────────────────────────────────────
+async function loadFeedback() {
+  const rows = await apiFetch('/admin/feedback');
+  const tbody = document.getElementById('feedback-tbody');
+  if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0">No feedback yet</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr><td>${r.website_id?.slice(0,8)||'—'}</td><td>${r.name||'Anonymous'}</td>
+    <td>${'⭐'.repeat(r.rating||0)}</td><td>${r.message||''}</td><td>${fmtDate(r.created_at)}</td></tr>
+  `).join('');
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+async function changePassword() {
+  const np = document.getElementById('new-pass').value;
+  const cp = document.getElementById('confirm-pass').value;
+  if (!np || np !== cp) { showToast('Passwords do not match', 'error'); return; }
+  const res = await apiFetch('/admin/change-password', { method: 'POST', body: JSON.stringify({ new_password: np }) });
+  showToast(res?.message || 'Password updated', 'success');
+}
+
+// ── Chatbot ───────────────────────────────────────────────────────────────────
+function toggleChat() {
+  document.getElementById('chat-box').classList.toggle('open');
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  appendMsg(msg, 'user');
+  appendMsg('…', 'bot', 'typing-indicator');
+
+  try {
+    const res = await apiFetch('/chatbot/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message: msg, context: 'admin_console' }),
+    });
+    removeTyping();
+    appendMsg(res?.reply || 'Sorry, I could not process that.', 'bot');
+  } catch {
+    removeTyping();
+    appendMsg('Connection error. Please try again.', 'bot');
+  }
+}
+
+function appendMsg(text, role, id = '') {
+  const el = document.createElement('div');
+  el.className = 'msg ' + role;
+  if (id) el.id = id;
+  el.textContent = text;
+  const box = document.getElementById('chat-messages');
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+function removeTyping() { document.getElementById('typing-indicator')?.remove(); }
+
+// ── Modals ────────────────────────────────────────────────────────────────────
+function showModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ── Toasts ────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+function logout() {
+  localStorage.removeItem('wb_token');
+  localStorage.removeItem('wb_user_id');
+  localStorage.removeItem('wb_plan');
+  window.location.href = '/login';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleString(); } catch { return d; }
+}
+
+let _actChart = null;
+function renderActivityChart(rows) {
+  const counts = {};
+  rows.forEach(r => {
+    const day = (r.created_at || '').slice(0, 10);
+    if (day) counts[day] = (counts[day] || 0) + 1;
+  });
+  const labels = Object.keys(counts).sort();
+  const data   = labels.map(l => counts[l]);
+  const ctx    = document.getElementById('activityChart');
+  if (!ctx) return;
+  if (_actChart) _actChart.destroy();
+  _actChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Events', data, backgroundColor: 'rgba(99,102,241,.7)', borderRadius: 4 }],
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#718096' }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { ticks: { color: '#718096', precision: 0 }, grid: { color: 'rgba(255,255,255,.05)' } },
+      },
+    },
+  });
+}
+
+// Load initial data
+loadStats();
+loadActivity();
+</script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitoring — Website Builder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #667eea; --secondary: #764ba2; --bg: #f0f2f5;
+      --sidebar: #1a202c; --text: #2d3748; --card: #fff; --border: #e2e8f0;
+      --ok: #38a169; --warn: #d69e2e; --crit: #e53e3e; --info: #3182ce;
+    }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 260px; background: var(--sidebar); color: #e2e8f0;
+      display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100;
+    }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid #2d3748;
+      font-size: 1.15rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+    .sidebar-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+    .nav-section { padding: 8px 24px 4px; font-size: .7rem; font-weight: 700;
+      text-transform: uppercase; color: #4a5568; letter-spacing: 1px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 24px;
+      cursor: pointer; transition: background .15s; color: #a0aec0; font-size: .92rem;
+      border-left: 3px solid transparent; text-decoration: none; }
+    .nav-item:hover { background: #2d3748; color: #fff; }
+    .nav-item.active { background: #2d3748; color: #fff; border-left-color: var(--primary); }
+    .nav-item .icon { font-size: 1.1rem; width: 20px; text-align: center; }
+    .sidebar-footer { padding: 20px 24px; border-top: 1px solid #2d3748; }
+
+    /* ── Main ─────────────────────────────────────────────────────────────── */
+    .main { margin-left: 260px; flex: 1; display: flex; flex-direction: column; }
+    .topbar { background: #fff; border-bottom: 1px solid var(--border); padding: 0 32px;
+      height: 64px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50; }
+    .topbar h2 { font-size: 1.25rem; }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; }
+    .content { padding: 32px; }
+
+    /* ── Status bar ───────────────────────────────────────────────────────── */
+    .status-banner { border-radius: 12px; padding: 16px 24px; margin-bottom: 28px;
+      display: flex; align-items: center; gap: 14px; font-weight: 700; font-size: 1rem; }
+    .status-banner.ok   { background: #f0fff4; border: 1.5px solid #9ae6b4; color: #276749; }
+    .status-banner.warn { background: #fffbeb; border: 1.5px solid #f6e05e; color: #744210; }
+    .status-banner.crit { background: #fff5f5; border: 1.5px solid #fc8181; color: #9b2c2c; }
+    .pulse { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    .pulse.ok   { background: var(--ok); box-shadow: 0 0 0 4px #c6f6d5; animation: pulse 2s infinite; }
+    .pulse.warn { background: var(--warn); box-shadow: 0 0 0 4px #fefcbf; animation: pulse 2s infinite; }
+    .pulse.crit { background: var(--crit); box-shadow: 0 0 0 4px #fed7d7; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+    /* ── Grid ─────────────────────────────────────────────────────────────── */
+    .checks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px; margin-bottom: 32px; }
+    .check-card { background: var(--card); border-radius: 12px; padding: 20px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.06); border-left: 4px solid #e2e8f0;
+      display: flex; align-items: flex-start; gap: 14px; }
+    .check-card.ok   { border-left-color: var(--ok); }
+    .check-card.warning  { border-left-color: var(--warn); }
+    .check-card.critical { border-left-color: var(--crit); }
+    .check-card.info { border-left-color: var(--info); }
+    .check-icon { font-size: 1.8rem; }
+    .check-name { font-weight: 700; font-size: .95rem; }
+    .check-detail { font-size: .82rem; color: #718096; margin-top: 3px; }
+    .check-meta { font-size: .75rem; color: #a0aec0; margin-top: 6px; }
+    .badge-status { display: inline-block; padding: 2px 10px; border-radius: 20px;
+      font-size: .72rem; font-weight: 700; text-transform: uppercase; }
+    .badge-status.ok   { background: #c6f6d5; color: #276749; }
+    .badge-status.warning  { background: #fefcbf; color: #744210; }
+    .badge-status.critical { background: #fed7d7; color: #9b2c2c; }
+    .badge-status.info { background: #bee3f8; color: #2b6cb0; }
+
+    /* ── Panel ─────────────────────────────────────────────────────────────── */
+    .panel { background: var(--card); border-radius: 12px; padding: 24px 28px;
+      box-shadow: 0 1px 8px rgba(0,0,0,.06); margin-bottom: 24px; }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .panel-title { font-size: 1.05rem; font-weight: 700; }
+
+    /* ── Tabs ──────────────────────────────────────────────────────────────── */
+    .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 24px; }
+    .tab { padding: 10px 20px; cursor: pointer; font-weight: 600; font-size: .9rem;
+      color: #718096; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Table ─────────────────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    th { text-align: left; padding: 9px 14px; border-bottom: 2px solid var(--border);
+      font-size: .75rem; text-transform: uppercase; color: #718096; }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f7f9fc; }
+    .severity-crit { color: var(--crit); font-weight: 700; }
+    .severity-warn { color: var(--warn); font-weight: 700; }
+
+    /* ── Escalation ────────────────────────────────────────────────────────── */
+    .escalation-row td:first-child { border-left: 3px solid var(--crit); }
+
+    /* ── Buttons ───────────────────────────────────────────────────────────── */
+    .btn { padding: 9px 18px; border-radius: 8px; font-size: .88rem; font-weight: 600;
+      cursor: pointer; border: none; transition: opacity .2s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; }
+    .btn-sm { padding: 5px 12px; font-size: .78rem; }
+    .btn-resolve { background: #c6f6d5; color: #276749; }
+    .btn-danger  { background: #fed7d7; color: #c53030; }
+
+    /* ── Toast ─────────────────────────────────────────────────────────────── */
+    #toast { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+    .toast { padding: 14px 20px; border-radius: 10px; color: #fff; font-size: .9rem;
+      font-weight: 600; margin-bottom: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+    .toast.success { background: #38a169; }
+    .toast.error   { background: #e53e3e; }
+    .toast.info    { background: #3182ce; }
+
+    /* ── Refresh indicator ─────────────────────────────────────────────────── */
+    .refresh-label { font-size: .8rem; color: #a0aec0; }
+    #next-refresh { font-weight: 700; color: var(--primary); }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo"><span>🚀</span><span>WebBuilder</span></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Platform</div>
+    <a class="nav-item" href="/console"><span class="icon">📊</span><span>Dashboard</span></a>
+    <a class="nav-item" href="/console"><span class="icon">👥</span><span>Users</span></a>
+    <a class="nav-item" href="/console"><span class="icon">🌐</span><span>Websites</span></a>
+    <div class="nav-section">Operations</div>
+    <a class="nav-item active" href="/monitoring"><span class="icon">📡</span><span>Monitoring</span></a>
+    <a class="nav-item" href="/console"><span class="icon">💳</span><span>Payments</span></a>
+    <a class="nav-item" href="/console"><span class="icon">💬</span><span>Feedback</span></a>
+    <div class="nav-section">System</div>
+    <a class="nav-item" href="/console"><span class="icon">⚙️</span><span>Settings</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">SA</div>
+      <div>
+        <div style="font-size:.85rem;color:#e2e8f0;font-weight:600">Super Admin</div>
+        <small style="color:#718096">Superuser</small>
+      </div>
+      <button onclick="logout()" style="margin-left:auto;background:none;border:none;color:#718096;cursor:pointer;font-size:1.1rem" title="Logout">⏏</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
+<main class="main">
+  <div class="topbar">
+    <h2>Platform Monitoring</h2>
+    <div class="topbar-actions">
+      <span class="refresh-label">Auto-refresh in <span id="next-refresh">60</span>s</span>
+      <button class="btn btn-primary btn-sm" onclick="runChecks()">▶ Run Now</button>
+      <button class="btn btn-sm" onclick="runReminders()" style="background:#fefcbf;color:#744210">💳 Run Reminders</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Overall status banner -->
+    <div id="status-banner" class="status-banner ok">
+      <div class="pulse ok" id="status-pulse"></div>
+      <div id="status-text">Loading system status…</div>
+    </div>
+
+    <!-- ── Tabs ─────────────────────────────────────────────────────────────── -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('platform')">🖥 Platform</div>
+      <div class="tab" onclick="switchTab('websites')">🌐 Websites</div>
+      <div class="tab" onclick="switchTab('incidents')">🚨 Incidents <span id="incident-badge" style="background:#fed7d7;color:#c53030;border-radius:20px;padding:2px 8px;font-size:.75rem;margin-left:4px">0</span></div>
+      <div class="tab" onclick="switchTab('escalation')">⚠️ Escalation</div>
+      <div class="tab" onclick="switchTab('defaulters')">💳 Payment Defaults</div>
+      <div class="tab" onclick="switchTab('notifications')">📨 Notifications</div>
+    </div>
+
+    <!-- ── Platform tab ──────────────────────────────────────────────────────── -->
+    <div class="tab-content active" id="tab-platform">
+      <h3 style="margin-bottom:16px;font-size:.95rem;color:#718096">PLATFORM HEALTH CHECKS</h3>
+      <div class="checks-grid" id="platform-checks">
+        <div style="color:#a0aec0;padding:40px;grid-column:1/-1;text-align:center">Loading…</div>
+      </div>
+    </div>
+
+    <!-- ── Websites tab ──────────────────────────────────────────────────────── -->
+    <div class="tab-content" id="tab-websites">
+      <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center">
+        <select id="website-select" class="field-inline" onchange="loadWebsiteChecks()" style="padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.9rem">
+          <option value="">— Select a website —</option>
+        </select>
+      </div>
+      <div class="checks-grid" id="website-checks">
+        <div style="color:#a0aec0;padding:40px;grid-column:1/-1;text-align:center">Select a website above</div>
+      </div>
+    </div>
+
+    <!-- ── Incidents tab ─────────────────────────────────────────────────────── -->
+    <div class="tab-content" id="tab-incidents">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Open Incidents</span>
+          <button class="btn btn-sm btn-primary" onclick="loadIncidents()">↻ Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>Website</th><th>Check</th><th>Severity</th><th>Detail</th><th>Since</th><th>Action</th></tr></thead>
+          <tbody id="incidents-tbody"><tr><td colspan="6" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Escalation tab ────────────────────────────────────────────────────── -->
+    <div class="tab-content" id="tab-escalation">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">⚠️ Escalation Report — Unresolved Issues (&gt;1 hour)</span>
+        </div>
+        <p style="font-size:.85rem;color:#718096;margin-bottom:16px">
+          These incidents have been open for more than 1 hour without resolution and require immediate admin attention.
+        </p>
+        <table>
+          <thead><tr><th>Website</th><th>Owner</th><th>Check</th><th>Severity</th><th>Detail</th><th>Open Since</th></tr></thead>
+          <tbody id="escalation-tbody"><tr><td colspan="6" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Defaulters tab ────────────────────────────────────────────────────── -->
+    <div class="tab-content" id="tab-defaulters">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">💳 Payment Defaulters</span>
+          <button class="btn btn-sm" onclick="runReminders()" style="background:#fefcbf;color:#744210">Run Reminders Now</button>
+        </div>
+        <p style="font-size:.85rem;color:#718096;margin-bottom:16px">
+          Users who have received all 3 overdue payment reminders (email + SMS + WhatsApp) with no payment.
+        </p>
+        <table>
+          <thead><tr><th>User</th><th>Email</th><th>Plan</th><th>Due Date</th><th>Reminders Sent</th><th>Status</th></tr></thead>
+          <tbody id="defaulters-tbody"><tr><td colspan="6" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">📋 Reminder History</span></div>
+        <table>
+          <thead><tr><th>User</th><th>Type</th><th>Channel</th><th>Due Date</th><th>Amount</th><th>Status</th><th>Sent</th></tr></thead>
+          <tbody id="reminders-tbody"><tr><td colspan="7" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Notifications tab ─────────────────────────────────────────────────── -->
+    <div class="tab-content" id="tab-notifications">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">📨 Notification Log (last 100)</span></div>
+        <table>
+          <thead><tr><th>Channel</th><th>To</th><th>Subject</th><th>Status</th><th>Error</th><th>Sent At</th></tr></thead>
+          <tbody id="notif-tbody"><tr><td colspan="6" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<div id="toast"></div>
+
+<script>
+const API = '/api/v1';
+const token = localStorage.getItem('wb_token');
+if (!token) window.location.href = '/login';
+
+async function apiFetch(url, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const res = await fetch(API + url, opts);
+  if (res.status === 401) { logout(); return null; }
+  try { return await res.json(); } catch { return null; }
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['platform','websites','incidents','escalation','defaulters','notifications'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'platform')       loadPlatformChecks();
+  if (name === 'websites')       loadWebsiteList();
+  if (name === 'incidents')      loadIncidents();
+  if (name === 'escalation')     loadEscalation();
+  if (name === 'defaulters')     loadDefaulters();
+  if (name === 'notifications')  loadNotifications();
+}
+
+// ── Check icons ───────────────────────────────────────────────────────────────
+const CHECK_ICON = {
+  website_uptime:    '🌐', ssl_certificate: '🔒', response_time:  '⚡',
+  shopping_cart:     '🛒', payment_gateway: '💳', database_health:'🗄',
+  s3_hosting:        '📦', email_service:   '📧', sms_service:     '📱',
+  api_health:        '🔌',
+};
+const CHECK_LABEL = {
+  website_uptime:    'Website Uptime',    ssl_certificate: 'SSL Certificate',
+  response_time:     'Response Time',     shopping_cart:   'Shopping Cart',
+  payment_gateway:   'Payment Gateway',   database_health: 'Database Health',
+  s3_hosting:        'S3 / Hosting',      email_service:   'Email Service',
+  sms_service:       'SMS / WhatsApp',    api_health:      'Platform API',
+};
+
+function renderCheckCards(rows, containerId) {
+  const el = document.getElementById(containerId);
+  if (!rows || !rows.length) {
+    el.innerHTML = '<div style="color:#a0aec0;padding:40px;grid-column:1/-1;text-align:center">No data yet — click ▶ Run Now to run checks</div>';
+    return;
+  }
+  el.innerHTML = rows.map(r => `
+    <div class="check-card ${r.status}">
+      <div class="check-icon">${CHECK_ICON[r.check_type] || '🔍'}</div>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="check-name">${CHECK_LABEL[r.check_type] || r.check_type}</span>
+          <span class="badge-status ${r.status}">${r.status}</span>
+        </div>
+        <div class="check-detail">${r.detail || '—'}</div>
+        <div class="check-meta">
+          ${r.latency_ms != null ? `⚡ ${r.latency_ms}ms &nbsp;` : ''}
+          🕐 ${fmtDate(r.checked_at)}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Platform checks ───────────────────────────────────────────────────────────
+async function loadPlatformChecks() {
+  const rows = await apiFetch('/monitoring/platform');
+  renderCheckCards(rows, 'platform-checks');
+  updateStatusBanner(rows);
+}
+
+function updateStatusBanner(rows) {
+  if (!rows) return;
+  const crits = rows.filter(r => r.status === 'critical').length;
+  const warns  = rows.filter(r => r.status === 'warning').length;
+  const banner = document.getElementById('status-banner');
+  const pulse  = document.getElementById('status-pulse');
+  const text   = document.getElementById('status-text');
+
+  if (crits > 0) {
+    banner.className = 'status-banner crit';
+    pulse.className  = 'pulse crit';
+    text.textContent = `🔴 ${crits} critical issue(s) detected — immediate action required`;
+  } else if (warns > 0) {
+    banner.className = 'status-banner warn';
+    pulse.className  = 'pulse warn';
+    text.textContent = `🟡 ${warns} warning(s) — platform is degraded`;
+  } else {
+    banner.className = 'status-banner ok';
+    pulse.className  = 'pulse ok';
+    text.textContent = '✅ All systems operational';
+  }
+}
+
+// ── Website dropdown ──────────────────────────────────────────────────────────
+async function loadWebsiteList() {
+  const rows = await apiFetch('/admin/websites');
+  const sel  = document.getElementById('website-select');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Select a website —</option>';
+  (rows || []).forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.website_id;
+    opt.textContent = `${r.name} (${r.status})`;
+    sel.appendChild(opt);
+  });
+  if (current) sel.value = current;
+}
+
+async function loadWebsiteChecks() {
+  const wid = document.getElementById('website-select').value;
+  if (!wid) return;
+  const rows = await apiFetch('/monitoring/website/' + wid);
+  renderCheckCards(rows, 'website-checks');
+}
+
+// ── Incidents ─────────────────────────────────────────────────────────────────
+async function loadIncidents() {
+  const rows = await apiFetch('/monitoring/incidents');
+  const tbody = document.getElementById('incidents-tbody');
+  document.getElementById('incident-badge').textContent = rows?.length || 0;
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0">✅ No open incidents</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.website_name || 'Platform'}</td>
+      <td>${CHECK_LABEL[r.check_type] || r.check_type}</td>
+      <td class="severity-${r.severity === 'critical' ? 'crit' : 'warn'}">${r.severity?.toUpperCase()}</td>
+      <td style="max-width:280px;white-space:pre-wrap">${r.detail || '—'}</td>
+      <td>${fmtDate(r.created_at)}</td>
+      <td><button class="btn btn-sm btn-resolve" onclick="resolveIncident('${r.incident_id}')">✓ Resolve</button></td>
+    </tr>
+  `).join('');
+}
+
+async function resolveIncident(id) {
+  const res = await apiFetch('/monitoring/incidents/' + id + '/resolve', { method: 'POST' });
+  showToast(res?.message || 'Resolved', 'success');
+  loadIncidents();
+}
+
+// ── Escalation ─────────────────────────────────────────────────────────────────
+async function loadEscalation() {
+  const rows = await apiFetch('/monitoring/escalation');
+  const tbody = document.getElementById('escalation-tbody');
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0">✅ No escalated incidents</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr class="escalation-row">
+      <td><b>${r.website_name || 'Platform'}</b></td>
+      <td>${r.owner_email || '—'}</td>
+      <td>${CHECK_LABEL[r.check_type] || r.check_type}</td>
+      <td class="severity-${r.severity === 'critical' ? 'crit' : 'warn'}">${r.severity?.toUpperCase()}</td>
+      <td style="max-width:260px">${r.detail || '—'}</td>
+      <td>${fmtDate(r.created_at)}</td>
+    </tr>
+  `).join('');
+}
+
+// ── Defaulters ────────────────────────────────────────────────────────────────
+async function loadDefaulters() {
+  const [defaulters, reminders] = await Promise.all([
+    apiFetch('/monitoring/defaulters'),
+    apiFetch('/monitoring/reminders'),
+  ]);
+
+  const dt = document.getElementById('defaulters-tbody');
+  if (!defaulters || !defaulters.length) {
+    dt.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0">✅ No payment defaults</td></tr>';
+  } else {
+    dt.innerHTML = defaulters.map(r => `
+      <tr>
+        <td><b>${r.full_name || '—'}</b></td>
+        <td>${r.email}</td>
+        <td>${r.plan}</td>
+        <td>${r.next_billing_date || '—'}</td>
+        <td>${r.reminders_sent || 0}</td>
+        <td><span style="background:#fed7d7;color:#9b2c2c;padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:700">DEFAULTED</span></td>
+      </tr>
+    `).join('');
+  }
+
+  const rt = document.getElementById('reminders-tbody');
+  if (!reminders || !reminders.length) {
+    rt.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0">No reminders sent yet</td></tr>';
+  } else {
+    const iconMap = { email:'📧', sms:'📱', whatsapp:'💬' };
+    rt.innerHTML = reminders.map(r => `
+      <tr>
+        <td>${r.email || r.user_id?.slice(0,8) || '—'}</td>
+        <td>${r.reminder_type}</td>
+        <td>${iconMap[r.channel] || ''} ${r.channel}</td>
+        <td>${r.due_date || '—'}</td>
+        <td>${r.amount != null ? '$' + parseFloat(r.amount).toFixed(2) : '—'}</td>
+        <td><span style="background:${r.status==='sent'?'#c6f6d5':'#fed7d7'};color:${r.status==='sent'?'#276749':'#9b2c2c'};padding:2px 8px;border-radius:20px;font-size:.75rem;font-weight:700">${r.status}</span></td>
+        <td>${fmtDate(r.sent_at)}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+async function loadNotifications() {
+  const rows = await apiFetch('/monitoring/notifications');
+  const tbody = document.getElementById('notif-tbody');
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0">No notifications sent yet</td></tr>';
+    return;
+  }
+  const iconMap = { email:'📧', sms:'📱', whatsapp:'💬' };
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${iconMap[r.channel]||''} ${r.channel}</td>
+      <td>${r.destination}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.subject || '—'}</td>
+      <td><span style="background:${r.status==='sent'?'#c6f6d5':r.status==='skipped'?'#fefcbf':'#fed7d7'};color:${r.status==='sent'?'#276749':r.status==='skipped'?'#744210':'#9b2c2c'};padding:2px 8px;border-radius:20px;font-size:.75rem;font-weight:700">${r.status}</span></td>
+      <td style="color:#c53030;font-size:.8rem">${r.error || ''}</td>
+      <td>${fmtDate(r.sent_at)}</td>
+    </tr>
+  `).join('');
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+async function runChecks() {
+  showToast('Running monitoring sweep…', 'info');
+  const res = await apiFetch('/monitoring/run', { method: 'POST' });
+  showToast(res?.message || 'Sweep started', 'success');
+  setTimeout(() => { loadPlatformChecks(); loadIncidents(); }, 3000);
+}
+
+async function runReminders() {
+  showToast('Running payment reminder cycle…', 'info');
+  const res = await apiFetch('/monitoring/reminders/run', { method: 'POST' });
+  showToast(res?.message || 'Done', 'success');
+  setTimeout(loadDefaulters, 3000);
+}
+
+// ── Auto-refresh ──────────────────────────────────────────────────────────────
+let countdown = 60;
+setInterval(() => {
+  countdown--;
+  document.getElementById('next-refresh').textContent = countdown;
+  if (countdown <= 0) {
+    countdown = 60;
+    loadPlatformChecks();
+    loadIncidents();
+  }
+}, 1000);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleString(); } catch { return d; }
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function logout() {
+  localStorage.clear();
+  window.location.href = '/login';
+}
+
+// ── Initial load ──────────────────────────────────────────────────────────────
+loadPlatformChecks();
+loadIncidents();
+</script>
+</body>
+</html>

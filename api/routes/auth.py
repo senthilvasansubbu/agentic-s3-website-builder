@@ -56,7 +56,7 @@ class LoginRequest(BaseModel):
 
 @router.post("/register")
 async def register(body: RegisterRequest, request: Request):
-    existing = db.fetchone("SELECT user_id FROM users WHERE email = %s", (body.email,))
+    existing = db.fetchone("SELECT user_id FROM users WHERE email = ?", (body.email,))
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
 
@@ -64,7 +64,7 @@ async def register(body: RegisterRequest, request: Request):
     pw_hash = hash_password(body.password)
     db.execute(
         """INSERT INTO users (user_id, email, password_hash, full_name, mobile)
-           VALUES (%s, %s, %s, %s, %s)""",
+           VALUES (?, ?, ?, ?, ?)""",
         (user_id, body.email, pw_hash, body.full_name or "", body.mobile or ""),
     )
 
@@ -72,7 +72,7 @@ async def register(body: RegisterRequest, request: Request):
     stripe_id = create_stripe_customer(body.email, body.full_name or "")
     if stripe_id:
         db.execute(
-            "UPDATE users SET stripe_customer_id = %s WHERE user_id = %s",
+            "UPDATE users SET stripe_customer_id = ? WHERE user_id = ?",
             (stripe_id, user_id),
         )
 
@@ -92,7 +92,7 @@ async def verify_otp_endpoint(body: VerifyOTPRequest, request: Request):
     ok = verify_otp(body.user_id, body.otp_code, body.channel)
     if not ok:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
-    db.execute("UPDATE users SET is_verified = TRUE WHERE user_id = %s", (body.user_id,))
+    db.execute("UPDATE users SET is_verified = TRUE WHERE user_id = ?", (body.user_id,))
     log_event("user_verified", user_id=body.user_id, ip_address=request.client.host)
     return {"message": "Account verified successfully"}
 
@@ -100,7 +100,7 @@ async def verify_otp_endpoint(body: VerifyOTPRequest, request: Request):
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
     user = db.fetchone(
-        "SELECT user_id, password_hash, full_name, is_verified, plan FROM users WHERE email = %s",
+        "SELECT user_id, password_hash, full_name, is_verified, plan FROM users WHERE email = ?",
         (body.email,),
     )
     if not user or not verify_password(body.password, user["password_hash"]):
@@ -121,7 +121,7 @@ async def login(body: LoginRequest, request: Request):
 @router.get("/me")
 async def me(current_user: dict = Depends(get_current_user)):
     user = db.fetchone(
-        "SELECT user_id, email, full_name, mobile, plan, created_at FROM users WHERE user_id = %s",
+        "SELECT user_id, email, full_name, mobile, plan, created_at FROM users WHERE user_id = ?",
         (current_user["sub"],),
     )
     if not user:

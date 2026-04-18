@@ -31,4 +31,5 @@ tavily-python==0.7.4
 # Utilities
 python-dotenv==1.1.1
 pydantic[email]==2.11.3
+apscheduler>=3.10.0
 

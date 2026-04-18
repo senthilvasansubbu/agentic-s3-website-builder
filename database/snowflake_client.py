@@ -35,8 +35,10 @@ def _adapt_sql_for_sqlite(sql: str) -> str:
     sql = re.sub(r"VARCHAR\(\d+\)", "TEXT", sql, flags=re.IGNORECASE)
     sql = re.sub(r"NUMBER\(\d+,\d+\)", "REAL", sql, flags=re.IGNORECASE)
     sql = re.sub(r"\bVARIANT\b", "TEXT", sql, flags=re.IGNORECASE)
-    sql = re.sub(r"PARSE_JSON\((%s|'[^']*')\)", r"\1", sql, flags=re.IGNORECASE)
+    sql = re.sub(r"PARSE_JSON\((%s|\?|'[^']*')\)", r"\1", sql, flags=re.IGNORECASE)
     sql = re.sub(r"REFERENCES \w+\(\w+\)", "", sql, flags=re.IGNORECASE)
+    # Normalise placeholders: Snowflake uses %s, SQLite requires ?
+    sql = sql.replace("%s", "?")
     return sql
 
 

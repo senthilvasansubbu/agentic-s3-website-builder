@@ -8,9 +8,11 @@ Or:
     python app.py
 """
 import os
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,6 +22,10 @@ from api.routes.website_builder import router as website_router
 from api.routes.shopping_cart import router as shop_router
 from api.routes.payment import router as payment_router
 from api.routes.admin import router as admin_router
+from api.routes.console import router as console_router
+from api.routes.chatbot import router as chatbot_router
+from api.routes.feedback import router as feedback_router
+from api.routes.monitoring import router as monitoring_router
 
 app = FastAPI(
     title="Agentic AI Website Builder",
@@ -46,7 +52,65 @@ app.include_router(website_router, prefix="/api/v1")
 app.include_router(shop_router,    prefix="/api/v1")
 app.include_router(payment_router, prefix="/api/v1")
 app.include_router(admin_router,   prefix="/api/v1")
+app.include_router(console_router, prefix="/api/v1")
+app.include_router(chatbot_router, prefix="/api/v1")
+app.include_router(feedback_router,  prefix="/api/v1")
+app.include_router(monitoring_router, prefix="/api/v1")
 
+# ── Frontend pages ─────────────────────────────────────────────────────────────
+FRONTEND = Path(__file__).parent / "frontend"
+
+def _read_html(name: str) -> str:
+    return (FRONTEND / name).read_text()
+
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+async def login_page():
+    return HTMLResponse(_read_html("login.html"))
+
+@app.get("/console", response_class=HTMLResponse, include_in_schema=False)
+async def console_page():
+    return HTMLResponse(_read_html("console.html"))
+
+@app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_page():
+    return HTMLResponse(_read_html("dashboard.html"))
+
+@app.get("/monitoring", response_class=HTMLResponse, include_in_schema=False)
+async def monitoring_page():
+    return HTMLResponse(_read_html("monitoring.html"))
+
+
+# ── Background scheduler ───────────────────────────────────────────────────────
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from services.monitoring_service import run_all_checks
+from services.payment_reminder_service import run_payment_reminders
+from database.migrations import run_migrations
+
+def _start_scheduler():
+    scheduler = BackgroundScheduler(daemon=True)
+    check_interval = int(os.getenv("MONITOR_INTERVAL_MINUTES", "5"))
+    scheduler.add_job(
+        run_all_checks,
+        trigger=IntervalTrigger(minutes=check_interval),
+        id="monitoring",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        run_payment_reminders,
+        trigger=IntervalTrigger(hours=24),
+        id="payment_reminders",
+        replace_existing=True,
+    )
+    scheduler.start()
+    print(f"✅ Scheduler started — monitoring every {check_interval}min | reminders daily")
+    return scheduler
+
+@app.on_event("startup")
+async def startup():
+    run_migrations()
+    _start_scheduler()
 
 # ── Global exception handler ───────────────────────────────────────────────────
 @app.exception_handler(Exception)
@@ -60,13 +124,9 @@ async def health():
     return {"status": "ok", "version": app.version}
 
 
-@app.get("/", tags=["system"])
+@app.get("/", response_class=HTMLResponse, tags=["system"])
 async def root():
-    return {
-        "message": "Welcome to Agentic AI Website Builder API",
-        "docs": "/docs",
-        "version": app.version,
-    }
+    return RedirectResponse(url="/login")
 
 
 # ── Dev entrypoint ─────────────────────────────────────────────────────────────

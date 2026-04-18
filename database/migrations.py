@@ -133,6 +133,7 @@ TABLES = [
         stripe_sub_id       VARCHAR(120),
         status              VARCHAR(20)  DEFAULT 'active',
         current_period_end  TIMESTAMP_NTZ,
+        next_billing_date   TEXT,
         created_at          TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     )
     """,
@@ -158,10 +159,80 @@ TABLES = [
         website_id         VARCHAR(36)  NOT NULL REFERENCES websites(website_id),
         gateway            VARCHAR(30)  DEFAULT 'stripe',
         publishable_key    VARCHAR(200),
-        secret_key_enc     VARCHAR(500),   -- AES-encrypted at rest
+        secret_key_enc     VARCHAR(500),
         webhook_secret_enc VARCHAR(500),
-        enabled_methods    VARIANT,        -- ["card","paypal","apple_pay",...]
+        enabled_methods    VARIANT,
         created_at         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
+
+    # ── Customer feedback ─────────────────────────────────────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS feedback (
+        feedback_id VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        website_id  VARCHAR(36)  REFERENCES websites(website_id),
+        name        VARCHAR(120),
+        email       VARCHAR(200),
+        rating      INTEGER      DEFAULT 5,
+        message     TEXT,
+        created_at  TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
+
+    # ── Monitor checks — one row per check type per website ───────────────────
+    """
+    CREATE TABLE IF NOT EXISTS monitor_checks (
+        check_id     VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        website_id   VARCHAR(36)  REFERENCES websites(website_id),
+        check_type   VARCHAR(60)  NOT NULL,
+        status       VARCHAR(20)  NOT NULL,
+        latency_ms   INTEGER,
+        detail       TEXT,
+        checked_at   TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
+
+    # ── Monitor incidents — open/resolved outage records ─────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS monitor_incidents (
+        incident_id  VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        website_id   VARCHAR(36)  REFERENCES websites(website_id),
+        check_type   VARCHAR(60)  NOT NULL,
+        severity     VARCHAR(20)  DEFAULT 'warning',
+        status       VARCHAR(20)  DEFAULT 'open',
+        detail       TEXT,
+        notified_at  TIMESTAMP_NTZ,
+        resolved_at  TIMESTAMP_NTZ,
+        created_at   TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
+
+    # ── Payment reminders & escalation log ───────────────────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS payment_reminders (
+        reminder_id   VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        user_id       VARCHAR(36)  REFERENCES users(user_id),
+        reminder_type VARCHAR(40)  NOT NULL,
+        channel       VARCHAR(20)  NOT NULL,
+        status        VARCHAR(20)  DEFAULT 'sent',
+        due_date      TEXT,
+        amount        REAL,
+        sent_at       TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
+
+    # ── Notification log ─────────────────────────────────────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS notification_log (
+        log_id       VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        user_id      VARCHAR(36),
+        channel      VARCHAR(20)  NOT NULL,
+        destination  VARCHAR(200) NOT NULL,
+        subject      VARCHAR(300),
+        body         TEXT,
+        status       VARCHAR(20)  DEFAULT 'sent',
+        error        TEXT,
+        sent_at      TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     )
     """,
 ]
