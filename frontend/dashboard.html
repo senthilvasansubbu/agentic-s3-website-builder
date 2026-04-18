@@ -65,6 +65,7 @@
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-secondary { background: rgba(99,102,241,.15); color: var(--accent); border: 1px solid rgba(99,102,241,.3); }
     .btn-danger { background: rgba(239,68,68,.12); color: var(--danger); border: 1px solid rgba(239,68,68,.25); }
+    .btn:disabled { opacity: .38; cursor: not-allowed; pointer-events: none; }
     .btn-sm { padding: 5px 12px; font-size: .78rem; }
 
     /* Form */
@@ -708,7 +709,7 @@ function siteRow(w) {
       ${!isInactive ? `<button class="btn btn-secondary btn-sm" onclick="viewSite('${w.website_id}')" title="Open website">👁 View</button>` : ''}
       ${!isInactive ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${w.website_id}')" title="Edit details">✏️ Edit</button>` : ''}
       <button class="btn ${isInactive?'btn-primary':'btn-secondary'} btn-sm" style="${!isInactive?'margin-left:4px':''}" onclick="deactivateSite('${w.website_id}','${w.status}')">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
-      <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="deleteSite('${w.website_id}')" title="Delete permanently">🗑 Delete</button>
+      <button class="btn btn-danger btn-sm" style="margin-left:4px" ${!isInactive?'disabled title="Deactivate the website first to delete"':'title="Delete permanently"'} onclick="${isInactive?`deleteSite('${w.website_id}')`:'void(0)'}">🗑 Delete</button>
     </td>
   </tr>`;
 }
@@ -802,7 +803,7 @@ async function deactivateSite(id, currentStatus) {
             ${newStatus !== 'inactive' ? `<button class="btn btn-secondary btn-sm" onclick="viewSite('${id}')" title="Open website">👁 View</button>` : ''}
             ${newStatus !== 'inactive' ? `<button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="editSite('${id}')" title="Edit details">✏️ Edit</button>` : ''}
             <button class="btn ${newStatus === 'inactive' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="${newStatus !== 'inactive' ? 'margin-left:4px' : ''}" onclick="deactivateSite('${id}','${newStatus}')">${newStatus === 'inactive' ? '▶ Activate' : '⏸ Deactivate'}</button>
-            <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="deleteSite('${id}')" title="Delete permanently">🗑 Delete</button>
+            <button class="btn btn-danger btn-sm" style="margin-left:4px" ${newStatus !== 'inactive' ? 'disabled title="Deactivate the website first to delete"' : 'title="Delete permanently"'} onclick="${newStatus === 'inactive' ? `deleteSite('${id}')` : 'void(0)'}">🗑 Delete</button>
           `;
         } else {
           await loadAllSites();
