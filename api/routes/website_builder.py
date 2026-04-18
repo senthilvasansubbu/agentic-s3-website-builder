@@ -4,6 +4,8 @@ Website builder API routes — create, list, build, deploy, customise websites.
 import uuid
 import json
 import os
+import logging
+import time
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, List
@@ -20,6 +22,7 @@ from services.payment_service import PLANS
 from config.settings import settings
 
 router = APIRouter(prefix="/websites", tags=["websites"])
+logger = logging.getLogger("website_builder.api")
 
 FREE_PAGE_LIMIT = 10
 
@@ -118,20 +121,37 @@ async def build_website_pages(
     request: Request,
     current_user: dict = Depends(get_current_user),
 ):
+    trace_id = str(uuid.uuid4())[:8]
+    t0 = time.time()
     user_id = current_user["sub"]
+    logger.info("[%s] ▶ BUILD REQUEST  website_id=%s  user=%s  cart=%s  web_search=%s  social_search=%s",
+                trace_id, website_id, user_id,
+                body.categories, body.use_web_search, body.use_social_search)
+
     site = db.fetchone(
         "SELECT * FROM websites WHERE website_id = %s AND user_id = %s",
         (website_id, user_id),
     )
     if not site:
+        logger.warning("[%s] 404 website_id=%s not found for user=%s", trace_id, website_id, user_id)
         raise HTTPException(status_code=404, detail="Website not found")
+
+    logger.info("[%s] 🔍 website found: name=%r  theme=%s  cart_features=%s  chatbot=%s",
+                trace_id, site.get("name"), site.get("theme"),
+                site.get("cart_features"), site.get("enable_chatbot"))
 
     # Gather web/social content
     extra_context = ""
     if body.use_web_search:
+        logger.info("[%s] 🌐 Running web search...", trace_id)
+        t1 = time.time()
         extra_context += "\n\n=== Web Research ===\n" + search_for_website_content(body.requirements)
+        logger.info("[%s] 🌐 Web search done in %.1fs", trace_id, time.time()-t1)
     if body.use_social_search:
+        logger.info("[%s] 📱 Running social media search...", trace_id)
+        t1 = time.time()
         extra_context += "\n\n=== Social Media Trends ===\n" + social_context_for_topic(body.requirements)
+        logger.info("[%s] 📱 Social search done in %.1fs", trace_id, time.time()-t1)
 
     full_prompt = body.requirements + extra_context
 
@@ -280,8 +300,22 @@ async def build_website_pages(
 
     full_prompt += "\n".join(enrichment_lines)
 
+    logger.info("[%s] 🏗  Prompt ready (%d chars, %d cart features, chatbot=%s) — calling build_website",
+                trace_id, len(full_prompt), len(cart_features), bool(site.get("enable_chatbot")))
+
     # Build via AI crew (or static fallback)
-    output_path = build_website(full_prompt)
+    try:
+        t1 = time.time()
+        output_path = build_website(full_prompt)
+        logger.info("[%s] ✅ build_website completed in %.1fs  output=%s",
+                    trace_id, time.time()-t1, output_path)
+    except Exception as exc:
+        logger.exception("[%s] ❌ build_website FAILED after %.1fs: %s", trace_id, time.time()-t0, exc)
+        db.execute(
+            "UPDATE websites SET status = 'error', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+            (website_id,),
+        )
+        raise HTTPException(status_code=500, detail=f"Build failed: {exc}")
 
     db.execute(
         "UPDATE websites SET status = 'built', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
@@ -289,7 +323,8 @@ async def build_website_pages(
     )
     log_event("website_built", user_id=user_id, website_id=website_id,
               ip_address=request.client.host)
-    return {"message": "Website built successfully", "output": output_path}
+    logger.info("[%s] 🎉 BUILD COMPLETE  website_id=%s  total=%.1fs", trace_id, website_id, time.time()-t0)
+    return {"message": "Website built successfully", "output": output_path, "trace_id": trace_id}
 
 
 @router.post("/{website_id}/deploy")
@@ -373,7 +408,7 @@ async def list_my_websites(current_user: dict = Depends(get_current_user)):
     owner_id = u.get("owner_id") if u else None
     effective_id = owner_id if owner_id else user_id
     return db.execute(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, slug, created_at "
+        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, created_at "
         "FROM websites WHERE user_id = ? ORDER BY created_at DESC",
         (effective_id,),
     ) or []

@@ -1,7 +1,12 @@
+import logging
+import time
+import uuid as _uuid
 from crewai import Crew, Process, Task
 from agents.designer_agent import designer_agent
 from agents.developer_agent import developer_agent
 from config.settings import settings
+
+logger = logging.getLogger("website_builder.crew")
 
 
 def _generate_static_fallback(user_requirements: str) -> str:
@@ -539,16 +544,23 @@ def build_website(user_requirements: str, project_name: str = "") -> dict:
     """
     from tools.html_generator import generate_html, get_website_dir
 
+    trace_id = str(_uuid.uuid4())[:8]
+    t0 = time.time()
+    logger.info("[%s] ▶ build_website START  project=%r  ai=%s",
+                trace_id, project_name or "(auto)",
+                "enabled" if settings.OPENAI_API_KEY else "disabled (fallback)")
+
     # Derive project name from requirements if not provided
     if not project_name:
         project_name = " ".join(user_requirements.split()[:5]).title()
 
     if not settings.OPENAI_API_KEY:
-        print("⚠️  No OPENAI_API_KEY found — generating static template website instead.")
+        logger.warning("[%s] ⚠  No OPENAI_API_KEY — generating static fallback", trace_id)
+        t1 = time.time()
         html_code = _generate_static_fallback(user_requirements)
         filepath = generate_html({}, html_code, project_name, page_name="index")
         site_dir = get_website_dir(project_name)
-        print(f"✅ Website saved to: {site_dir}")
+        logger.info("[%s] ✅ static fallback saved to %s  (%.1fs)", trace_id, site_dir, time.time()-t0)
         return {
             "status": "success",
             "result": html_code,
@@ -556,22 +568,25 @@ def build_website(user_requirements: str, project_name: str = "") -> dict:
             "index": filepath,
             "requirements": user_requirements,
             "fallback": True,
+            "trace_id": trace_id,
         }
 
+    logger.info("[%s] 🧠 Kicking off CrewAI pipeline…", trace_id)
     crew = create_website_crew()
-
+    t1 = time.time()
     result = crew.kickoff(
         inputs={
             "user_requirements": user_requirements,
             "project_name": project_name,
         }
     )
+    logger.info("[%s] 🎨 CrewAI finished in %.1fs — saving output", trace_id, time.time()-t1)
 
     # Save AI-generated HTML
     html_code = str(result)
     filepath = generate_html({}, html_code, project_name, page_name="index")
     site_dir = get_website_dir(project_name)
-    print(f"✅ Website saved to: {site_dir}")
+    logger.info("[%s] ✅ AI website saved to %s  (total %.1fs)", trace_id, site_dir, time.time()-t0)
 
     return {
         "status": "success",
@@ -579,5 +594,6 @@ def build_website(user_requirements: str, project_name: str = "") -> dict:
         "output_dir": site_dir,
         "index": filepath,
         "requirements": user_requirements,
+        "trace_id": trace_id,
     }
 

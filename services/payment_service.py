@@ -41,6 +41,15 @@ PLANS: Dict[str, Dict[str, Any]] = {
         "custom_domain": True,
         "analytics": True,
     },
+    "superuser": {
+        "label": "Superuser",
+        "price_usd": 0,
+        "stripe_price_id": None,
+        "max_pages": 9999,
+        "shopping_cart": True,
+        "custom_domain": True,
+        "analytics": True,
+    },
 }
 
 

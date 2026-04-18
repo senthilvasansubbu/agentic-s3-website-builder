@@ -8,6 +8,8 @@ Or:
     python app.py
 """
 import os
+import logging
+import logging.config
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +18,39 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ── Logging setup ──────────────────────────────────────────────────────────────
+logging.config.dictConfig({
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "detailed": {
+            "format": "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "detailed",
+            "stream": "ext://sys.stdout",
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "detailed",
+            "filename": "logs/website_builder.log",
+            "maxBytes": 5_000_000,
+            "backupCount": 3,
+            "encoding": "utf-8",
+        },
+    },
+    "loggers": {
+        "website_builder": {"level": "DEBUG", "handlers": ["console", "file"], "propagate": False},
+    },
+    "root": {"level": "INFO", "handlers": ["console"]},
+})
+
+os.makedirs("logs", exist_ok=True)
 
 from api.routes.auth import router as auth_router
 from api.routes.website_builder import router as website_router
