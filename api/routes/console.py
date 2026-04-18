@@ -12,7 +12,8 @@ router = APIRouter(prefix="/admin", tags=["admin-console"])
 
 
 def _require_superuser(current=Depends(get_current_user)):
-    if current.get("plan") not in ("superuser", "enterprise"):
+    user = db.fetchone("SELECT plan FROM users WHERE user_id=?", (current["sub"],))
+    if not user or user.get("plan") not in ("superuser", "enterprise"):
         raise HTTPException(status_code=403, detail="Superuser access required")
     return current
 
