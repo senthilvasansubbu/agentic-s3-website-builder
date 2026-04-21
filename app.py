@@ -112,7 +112,38 @@ _output_dir = Path(__file__).parent / "output"
 _output_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/output", _StaticFiles(directory=str(_output_dir)), name="output")
 
-# ── Frontend pages ─────────────────────────────────────────────────────────────
+# Serve docs folder (reports, exported documents)
+_docs_dir = Path(__file__).parent / "docs"
+_docs_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/docs-files", _StaticFiles(directory=str(_docs_dir)), name="docs")
+
+@app.get("/downloads", response_class=HTMLResponse, include_in_schema=False)
+async def docs_index():
+    """Browser-accessible listing of all files in the docs/ folder."""
+    files = sorted(_docs_dir.iterdir()) if _docs_dir.exists() else []
+    rows = "".join(
+        f'<tr><td><a href="/docs-files/{f.name}" download>{f.name}</a></td>'
+        f'<td style="color:#888;padding-left:24px">{f.stat().st_size // 1024} KB</td></tr>'
+        for f in files if f.is_file()
+    )
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Docs — Website Builder</title>
+    <style>
+      body{{font-family:system-ui,sans-serif;max-width:700px;margin:60px auto;padding:0 20px;background:#f9fafb}}
+      h1{{font-size:1.4rem;color:#4f46e5;margin-bottom:24px}}
+      table{{width:100%;border-collapse:collapse}}
+      tr{{border-bottom:1px solid #e5e7eb}}
+      td{{padding:12px 8px;font-size:.95rem}}
+      a{{color:#4f46e5;text-decoration:none;font-weight:600}}
+      a:hover{{text-decoration:underline}}
+      .empty{{color:#9ca3af;font-style:italic}}
+    </style></head><body>
+    <h1>📄 Project Documents</h1>
+    {'<table>'+rows+'</table>' if rows else '<p class="empty">No files yet.</p>'}
+    </body></html>"""
+    return HTMLResponse(html)
+
+
 FRONTEND = Path(__file__).parent / "frontend"
 
 def _read_html(name: str) -> str:
