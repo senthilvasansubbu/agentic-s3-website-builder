@@ -1770,20 +1770,50 @@ function switchBuildTab(tab) {
 let stagedWebsiteId = null;
 let currentStagingUrl = null;
 
+function _normStatus(v) {
+  return String(v || '').trim().toLowerCase();
+}
+
+function _previewUrlFromLocalPath(localPath) {
+  const raw = String(localPath || '').trim();
+  if (!raw) return null;
+
+  // Accept both relative paths like "output/staging/site" and absolute paths
+  // that contain "/output/...".
+  const unix = raw.replace(/\\/g, '/');
+  const outputIdx = unix.indexOf('/output/');
+  const rel = outputIdx >= 0
+    ? unix.slice(outputIdx + '/output/'.length)
+    : unix.replace(/^output\//, '').replace(/^\.\//, '');
+
+  const clean = rel.replace(/^\/+/, '').replace(/\/+$/, '');
+  if (!clean) return null;
+  return `/output/${clean}/index.html`;
+}
+
 async function loadStagingWebsites() {
   const sites = await _fetchMyWebsites();
   const sel = document.getElementById('stagingSiteSelect');
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">— Choose a website —</option>';
-  const eligible = sites.filter(s =>
-    ['built', 'staged', 'live'].includes(s.build_status) ||
-    ['built', 'staged', 'live'].includes(s.status)
-  );
+  const eligible = sites.filter(s => {
+    const buildStatus = _normStatus(s.build_status);
+    const status = _normStatus(s.status);
+    return Boolean(s.local_path) ||
+      ['built', 'staged', 'live', 'published'].includes(buildStatus) ||
+      ['built', 'staged', 'live', 'published'].includes(status);
+  });
   eligible.forEach(w => {
-    const label = `${w.name || w.website_id} · ${w.status || w.build_status}`;
+    const state = _normStatus(w.build_status) || _normStatus(w.status) || 'draft';
+    const label = `${w.name || w.website_id} · ${state}`;
     sel.innerHTML += `<option value="${w.website_id}" ${w.website_id === cur ? 'selected' : ''}>${label}</option>`;
   });
+
+  if (!eligible.length) {
+    document.getElementById('stagingStatusBar').textContent = 'No staged or built websites found for this account.';
+  }
+
   // Re-load if a site was already selected
   if (cur && eligible.find(w => w.website_id === cur)) loadStagedSite(cur);
 }
@@ -1812,12 +1842,10 @@ async function loadStagedSite(preselect) {
   // Derive preview URL from local_path
   let previewUrl = null;
   if (w) {
-    if (w.local_path) {
-      const slug = w.local_path.replace(/^output[/\\]/, '').replace(/[/\\]$/, '').replace(/\\/g, '/');
-      previewUrl = `/output/${slug}/index.html`;
-    } else if (w.name) {
+    previewUrl = _previewUrlFromLocalPath(w.local_path);
+    if (!previewUrl && w.name) {
       const slug = w.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '');
-      previewUrl = `/output/${slug}/index.html`;
+      previewUrl = `/output/staging/${slug}/index.html`;
     }
   }
 

@@ -80,6 +80,9 @@ class SQLiteClient:
         results = self.execute(sql, params)
         return results[0] if results else None
 
+    def fetchall(self, sql: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
+        return self.execute(sql, params)
+
 
 # ── Snowflake backend ──────────────────────────────────────────────────────────
 
@@ -127,6 +130,9 @@ class SnowflakeClient:
     def fetchone(self, sql: str, params: Optional[tuple] = None) -> Optional[Dict[str, Any]]:
         rows = self.execute(sql, params)
         return rows[0] if rows else None
+
+    def fetchall(self, sql: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
+        return self.execute(sql, params)
 
 
 # ── Auto-select backend ────────────────────────────────────────────────────────
