@@ -61,13 +61,35 @@ async function apiFetch(path, opts = {}) {
   return r.json();
 }
 
-function toast(msg, success = true) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.background = success ? 'var(--accent)' : 'var(--danger)';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+// toast() is provided by /static/frontend/toast.js (loaded before this script)
+// Kept as a no-op fallback in case the external script fails to load.
+if (typeof toast === 'undefined') {
+  window.toast = function toast(msg, success = true) {
+    const t = document.getElementById('toast');
+    if (!t) { console.warn('[toast]', msg); return; }
+    t.textContent = msg;
+    t.style.background = success ? 'var(--accent, #6366f1)' : 'var(--danger, #ef4444)';
+    t.classList.add('show');
+    clearTimeout(t._hideTimer);
+    t._hideTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  };
 }
+
+/**
+ * Returns a debounced version of fn that delays invocation by `wait` ms.
+ * Useful for oninput handlers that trigger expensive DOM updates.
+ */
+function _debounce(fn, wait = 120) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
+// Debounced wrappers for hot oninput paths
+const _previewFieldStyleDebounced = _debounce((fid) => previewFieldStyle(fid), 120);
+const _previewBgDebounced         = _debounce(() => previewBg(), 120);
 
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -152,9 +174,16 @@ async function init() {
   else showPage('overview');
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+/** Fetch all websites for the current user (unwraps paginated envelope). */
+async function _fetchMyWebsites() {
+  const data = await apiFetch('/websites/my?limit=200') || {};
+  return Array.isArray(data) ? data : (data.items || []);
+}
+
 // ── Overview ───────────────────────────────────────────────────────────────
 async function loadOverview() {
-  websites = await apiFetch('/websites/my') || [];
+  websites = await _fetchMyWebsites();
   document.getElementById('statSites').textContent = websites.length;
   document.getElementById('statPublished').textContent = websites.filter(w => w.status === 'published').length;
   const tbody = document.getElementById('recentSitesBody');
@@ -375,7 +404,7 @@ async function deleteSite(id) {
 
 // ── All Sites ──────────────────────────────────────────────────────────────
 async function loadAllSites() {
-  websites = await apiFetch('/websites/my') || [];
+  websites = await _fetchMyWebsites();
   const tbody = document.getElementById('allSitesBody');
   if (!tbody) return;
   if (!websites.length) {
@@ -814,12 +843,13 @@ async function buildWebsite() {
     return;
   }
 
-  // Step 3: poll build-status until complete
+  // Step 3: stream build-status via SSE until complete
   const stageLabels = {
     queued:  { msg: '⏳ Build queued — waiting for worker…',     pct: 10 },
     running: { msg: '🤖 AI agents are building your website…',   pct: 55 },
     built:   { msg: '✅ Website generated successfully!',         pct: 100 },
     error:   { msg: '❌ Build failed.',                           pct: 100 },
+    timeout: { msg: '⚠️ Build is taking longer than expected. Check My Websites for status.', pct: 100 },
   };
 
   const setStage = (status, errorMsg) => {
@@ -827,7 +857,7 @@ async function buildWebsite() {
     document.getElementById('buildProgressMsg').textContent = errorMsg ? `❌ ${errorMsg}` : s.msg;
     document.getElementById('buildProgressBar').style.width = s.pct + '%';
     document.getElementById('buildStageLabel').textContent  = 'Stage: ' + status;
-    if (status === 'built' || status === 'error') {
+    if (['built', 'error', 'timeout'].includes(status)) {
       document.getElementById('buildSpinner').style.display = 'none';
     }
   };
@@ -835,19 +865,17 @@ async function buildWebsite() {
   setStage('queued');
 
   await new Promise(resolve => {
-    let attempts = 0;
-    const maxAttempts = 90;  // 90 × 3s = 4.5 min timeout
-    const poll = setInterval(async () => {
-      attempts++;
+    const es = new EventSource(
+      `${API}/../api/v1/websites/${created.website_id}/build-stream?token=${encodeURIComponent(token)}`
+    );
+    es.onmessage = async (e) => {
       try {
-        const status = await apiFetch(`/websites/${created.website_id}/build-status`);
-        if (!status) { clearInterval(poll); resolve(); return; }
-
-        setStage(status.build_status, status.error);
-
-        if (status.complete) {
-          clearInterval(poll);
-          if (status.success) {
+        const data = JSON.parse(e.data);
+        const status = data.build_status || 'queued';
+        setStage(status, data.error);
+        if (['built', 'error', 'timeout', 'not_found'].includes(status)) {
+          es.close();
+          if (status === 'built') {
             toast('Website built! Opening Staging Area…');
             setTimeout(async () => {
               resetBuildForm();
@@ -856,21 +884,14 @@ async function buildWebsite() {
               showPage('staging');
               loadStagedSite(created.website_id);
             }, 1500);
-          } else {
-            toast(status.error || 'Build failed. Please try again.', false);
+          } else if (status === 'error') {
+            toast(data.error || 'Build failed. Please try again.', false);
           }
           resolve();
-        } else if (attempts >= maxAttempts) {
-          clearInterval(poll);
-          document.getElementById('buildProgressMsg').textContent = '⚠️ Build is taking longer than expected. Check My Websites for status.';
-          document.getElementById('buildSpinner').style.display = 'none';
-          resolve();
         }
-      } catch (e) {
-        clearInterval(poll);
-        resolve();
-      }
-    }, 3000);
+      } catch (_) {}
+    };
+    es.onerror = () => { es.close(); resolve(); };
   });
 }
 
@@ -896,7 +917,7 @@ function populateImportSiteDropdown() {
 async function loadCartItems() {
   const tbody = document.getElementById('cartItemsBody');
   tbody.innerHTML = '<tr><td colspan="12" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr>';
-  websites = await apiFetch('/websites/my') || [];
+  websites = await _fetchMyWebsites();
 
   const cartSites = _cartSites();
   populateImportSiteDropdown();
@@ -1345,7 +1366,7 @@ async function switchPlan(plan) {
 // ── Feedback ───────────────────────────────────────────────────────────────
 async function loadFeedback() {
   const list = document.getElementById('feedbackList');
-  websites = await apiFetch('/websites/my') || [];
+  websites = await _fetchMyWebsites();
   if (!websites.length) { list.innerHTML = '<p style="color:var(--muted)">No websites yet.</p>'; return; }
   let all = [];
   for (const w of websites) {
@@ -1387,7 +1408,7 @@ async function loadMonitoring() {
 
 // ── Coupons ────────────────────────────────────────────────────────────────
 async function initCouponPage() {
-  websites = await apiFetch('/websites/my') || [];
+  websites = await _fetchMyWebsites();
   const sel = document.getElementById('couponSiteFilter');
   sel.innerHTML = '<option value="">Select website…</option>' + websites.map(w => `<option value="${w.website_id}">${w.name || w.website_name}</option>`).join('');
 }
@@ -1444,7 +1465,7 @@ async function deleteCoupon(id) {
 
 // ── Campaigns ──────────────────────────────────────────────────────────────
 async function initCampaignPage() {
-  websites = await apiFetch('/websites/my') || [];
+  websites = await _fetchMyWebsites();
   const sel = document.getElementById('campaignSiteFilter');
   sel.innerHTML = '<option value="">Select website…</option>' + websites.map(w => `<option value="${w.website_id}">${w.name || w.website_name}</option>`).join('');
 }
@@ -1570,7 +1591,8 @@ async function loadClientServices() {
   const tbody = document.getElementById('servicesBody');
   tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr>';
 
-  const clients = await apiFetch('/clients/') || [];
+  const data = await apiFetch('/clients/?limit=200') || {};
+  const clients = Array.isArray(data) ? data : (data.items || []);
   if (!clients.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">No clients onboarded yet. Go to <a href="javascript:showPage(\'clients\')" style="color:var(--accent)">Clients</a> to add one.</td></tr>';
     return;
@@ -1630,7 +1652,8 @@ async function toggleClientService(clientId, service, enabled, checkboxEl) {
 async function loadClients() {
   const tbody = document.getElementById('clientsBody');
   tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr>';
-  const clients = await apiFetch('/clients/') || [];
+  const data = await apiFetch('/clients/?limit=200') || {};
+  const clients = Array.isArray(data) ? data : (data.items || []);
   if (!clients.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">No clients onboarded yet.</td></tr>';
     return;
@@ -1688,7 +1711,7 @@ async function toggleClient(id, activate) {
 async function populateClientWebsiteSelect() {
   const sel = document.getElementById('clientWebsite');
   if (sel.options.length > 1) return;         // already populated
-  const sites = await apiFetch('/websites/my') || [];
+  const sites = await _fetchMyWebsites();
   sel.innerHTML = '<option value="">— select website —</option>' +
     sites.map(s => `<option value="${s.website_id}">${s.name}</option>`).join('');
 }
@@ -1748,7 +1771,7 @@ let stagedWebsiteId = null;
 let currentStagingUrl = null;
 
 async function loadStagingWebsites() {
-  const sites = await apiFetch('/websites/my') || [];
+  const sites = await _fetchMyWebsites();
   const sel = document.getElementById('stagingSiteSelect');
   if (!sel) return;
   const cur = sel.value;
@@ -1781,7 +1804,7 @@ async function loadStagedSite(preselect) {
   // Find the site object (may have just been built; refresh if necessary)
   let w = (websites || []).find(x => x.website_id === id);
   if (!w) {
-    const fresh = await apiFetch('/websites/my') || [];
+    const fresh = await _fetchMyWebsites();
     websites = fresh;
     w = fresh.find(x => x.website_id === id);
   }
@@ -2200,123 +2223,136 @@ function openSecEditor(idx) {
   editor.style.display = 'flex';
 
   const fields = document.getElementById('secEditorFields');
-  fields.innerHTML = '';
-
-  // Helper: read computed styles from an iframe element into an init object for _styleBar
-  const iframeView = el.ownerDocument.defaultView;
-  function _elInit(domEl) {
-    if (!domEl) return {};
-    const cs = iframeView.getComputedStyle(domEl);
-    const rawColor = domEl.style.color || cs.color || '';
-    return {
-      font:   domEl.style.fontFamily || '',
-      size:   domEl.style.fontSize   || '',
-      weight: domEl.style.fontWeight || '',
-      color:  rawColor ? _rgbToHex(rawColor) : '#111827',
-      bold:   (cs.fontWeight >= 600) || domEl.style.fontWeight === 'bold',
-      italic: cs.fontStyle === 'italic' || domEl.style.fontStyle === 'italic',
-    };
-  }
-
-  // ── Gather editable elements ───────────────────────────────────────────
-  let fieldIdx = 0;
-
-  // Always show Logo / Image + Brand Name only for the first section (nav/header)
-  const logo = el.querySelector('img');
-  if (activeSectionIndex === 0) {
-    fieldIdx++;
-    fields.innerHTML += _imgField(fieldIdx, 'Logo / Image', logo ? logo.src : '', logo ? logo.alt : '', `img-${fieldIdx}`);
-
-    // Brand Name — either sibling of logo img, or text-only logo element
-    let brandEl = null;
-    if (logo) {
-      const sib = logo.nextElementSibling;
-      if (sib && sib.tagName !== 'IMG' && sib.textContent.trim().length > 0 && sib.textContent.trim().length < 120)
-        brandEl = sib;
-    }
-    if (!brandEl) {
-      const textLogo = el.querySelector('.logo, .brand, .site-title, [class*="logo"], [class*="brand"]');
-      if (textLogo && textLogo.textContent.trim().length < 120) brandEl = textLogo;
-    }
-    fieldIdx++;
-    fields.innerHTML += _textField(fieldIdx, 'Brand Name / Site Title', brandEl ? brandEl.textContent.trim() : '', `txt-${fieldIdx}`, _elInit(brandEl));
-    fields._brandEl  = brandEl;   // store so _getFidTargets / applySecEdits can use it
-    fields._brandFid = `txt-${fieldIdx}`;
-  }
-
-  // Headings — track each one so _getFidTargets can map by index
-  const _headingEls = [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
-  const _headingStartField = fieldIdx + 1; // field number where headings begin
-  _headingEls.forEach(h => {
-    fieldIdx++;
-    fields.innerHTML += _textField(fieldIdx, h.tagName, h.innerText.trim(), `txt-${fieldIdx}`, _elInit(h));
-  });
-
-  // Paragraphs — track start field
-  const _paraStartField = fieldIdx + 1;
-  const _paraEls = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
-  _paraEls.forEach(p => {
-    const text = p.innerText.trim();
-    fieldIdx++;
-    fields.innerHTML += _textareaField(fieldIdx, 'Paragraph', text.slice(0, 600), `para-${fieldIdx}`, _elInit(p));
-  });
-
-  // Nav links / anchor texts
-  // Collect fid→anchor mapping BEFORE any innerHTML += calls that would destroy elements
-  const _linkFidToAnchor = new Map();
-  el.querySelectorAll('a').forEach((a) => {
-    const text = a.innerText.trim();
-    const href = a.getAttribute('href') || '';
-    if (!text || text.length > 60) return;
-    fieldIdx++;
-    const fid = `link-${fieldIdx}`;
-    fields.innerHTML += _linkField(fieldIdx, 'Link', text, href, fid);
-    _linkFidToAnchor.set(fid, a);
-  });
-
-  // Additional images (skip already-shown logo)
-  el.querySelectorAll('img').forEach((img, i) => {
-    if (i === 0 && activeSectionIndex === 0 && logo) return; // already shown as Logo
-    fieldIdx++;
-    fields.innerHTML += _imgField(fieldIdx, `Image ${i+1}`, img.src, img.alt, `img-${fieldIdx}`);
-  });
-
-  // Store heading/para index maps so _getFidTargets can use them
-  fields._headingEls     = _headingEls;
-  fields._headingStart   = _headingStartField;
-  fields._paraEls        = _paraEls;
-  fields._paraStart      = _paraStartField;
-  // _brandEl / _brandFid already set above (section 0 only)
-
-  // ── Background editor (always shown at bottom) ──────────────────────────
-  const computed = el.ownerDocument.defaultView.getComputedStyle(el);
-  const bgImage  = computed.backgroundImage !== 'none' ? computed.backgroundImage : (el.style.backgroundImage || '');
-  const bgColor  = el.style.backgroundColor || computed.backgroundColor || '';
-  // Extract URL from bg-image string if present
-  const bgUrlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
-  const bgUrl = bgUrlMatch ? bgUrlMatch[1] : '';
-  fields.innerHTML += _bgField(bgUrl, bgColor);
-
-  if (fieldIdx === 0 && !bgUrl && !bgColor) {
-    fields.innerHTML = '<p style="font-size:.82rem;color:var(--muted);text-align:center;padding:24px">No editable text or images detected in this section.</p>';
-  }
-
-  // Stamp _anchorEl on each link field div AFTER all innerHTML += calls are done.
-  // (innerHTML += destroys and recreates all existing child elements, losing JS properties.
-  //  We do this final pass on stable DOM nodes to set the live anchor reference.)
-  const _anchorElsList = [];
-  _linkFidToAnchor.forEach((anchor, fid) => {
-    const div = fields.querySelector(`[data-fid="${fid}"]`);
-    if (div) {
-      div._anchorEl = anchor;
-      _anchorElsList.push(anchor);
-    }
-  });
-  fields._anchorEls = _anchorElsList;
-
-  // Store refs so applySecEdits can find elements by our field IDs
+  // Show shimmer immediately so the panel opens without blank flash
+  fields.innerHTML = '<div style="padding:20px 0;text-align:center;color:var(--muted);font-size:.8rem">Loading fields…</div>';
   fields._sectionEl = el;
   editor._sectionEl = el;
+
+  // Defer heavy DOM work one frame so the panel renders first
+  requestAnimationFrame(() => {
+    // Guard: user may have switched sections before the frame fired
+    if (activeSectionIndex !== idx) return;
+
+    // Helper: read computed styles from an iframe element into an init object for _styleBar
+    const iframeView = el.ownerDocument.defaultView;
+    function _elInit(domEl) {
+      if (!domEl) return {};
+      const cs = iframeView.getComputedStyle(domEl);
+      const rawColor = domEl.style.color || cs.color || '';
+      return {
+        font:   domEl.style.fontFamily || '',
+        size:   domEl.style.fontSize   || '',
+        weight: domEl.style.fontWeight || '',
+        color:  rawColor ? _rgbToHex(rawColor) : '#111827',
+        bold:   (cs.fontWeight >= 600) || domEl.style.fontWeight === 'bold',
+        italic: cs.fontStyle === 'italic' || domEl.style.fontStyle === 'italic',
+      };
+    }
+
+    // ── Gather editable elements ───────────────────────────────────────────
+    // Collect all HTML into one string — avoids O(n²) innerHTML re-parses
+    const htmlChunks = [];
+    let fieldIdx = 0;
+
+    // Metadata to store on fields after single innerHTML set
+    let brandEl = null, brandFid = '';
+
+    // Always show Logo / Image + Brand Name only for the first section (nav/header)
+    const logo = el.querySelector('img');
+    if (activeSectionIndex === 0) {
+      fieldIdx++;
+      htmlChunks.push(_imgField(fieldIdx, 'Logo / Image', logo ? logo.src : '', logo ? logo.alt : '', `img-${fieldIdx}`));
+
+      // Brand Name — either sibling of logo img, or text-only logo element
+      if (logo) {
+        const sib = logo.nextElementSibling;
+        if (sib && sib.tagName !== 'IMG' && sib.textContent.trim().length > 0 && sib.textContent.trim().length < 120)
+          brandEl = sib;
+      }
+      if (!brandEl) {
+        const textLogo = el.querySelector('.logo, .brand, .site-title, [class*="logo"], [class*="brand"]');
+        if (textLogo && textLogo.textContent.trim().length < 120) brandEl = textLogo;
+      }
+      fieldIdx++;
+      brandFid = `txt-${fieldIdx}`;
+      htmlChunks.push(_textField(fieldIdx, 'Brand Name / Site Title', brandEl ? brandEl.textContent.trim() : '', brandFid, _elInit(brandEl)));
+    }
+
+    // Headings — track each one so _getFidTargets can map by index
+    const _headingEls = [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
+    const _headingStartField = fieldIdx + 1;
+    _headingEls.forEach(h => {
+      fieldIdx++;
+      htmlChunks.push(_textField(fieldIdx, h.tagName, h.innerText.trim(), `txt-${fieldIdx}`, _elInit(h)));
+    });
+
+    // Paragraphs — track start field
+    const _paraStartField = fieldIdx + 1;
+    const _paraEls = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
+    _paraEls.forEach(p => {
+      const text = p.innerText.trim();
+      fieldIdx++;
+      htmlChunks.push(_textareaField(fieldIdx, 'Paragraph', text.slice(0, 600), `para-${fieldIdx}`, _elInit(p)));
+    });
+
+    // Nav links / anchor texts — collect anchor refs before any innerHTML write
+    const _linkFidToAnchor = new Map();
+    el.querySelectorAll('a').forEach((a) => {
+      const text = a.innerText.trim();
+      const href = a.getAttribute('href') || '';
+      if (!text || text.length > 60) return;
+      fieldIdx++;
+      const fid = `link-${fieldIdx}`;
+      htmlChunks.push(_linkField(fieldIdx, 'Link', text, href, fid));
+      _linkFidToAnchor.set(fid, a);
+    });
+
+    // Additional images (skip already-shown logo)
+    el.querySelectorAll('img').forEach((img, i) => {
+      if (i === 0 && activeSectionIndex === 0 && logo) return;
+      fieldIdx++;
+      htmlChunks.push(_imgField(fieldIdx, `Image ${i+1}`, img.src, img.alt, `img-${fieldIdx}`));
+    });
+
+    // ── Background editor (always shown at bottom) ──────────────────────────
+    const computed = iframeView.getComputedStyle(el);
+    const bgImage  = computed.backgroundImage !== 'none' ? computed.backgroundImage : (el.style.backgroundImage || '');
+    const bgColor  = el.style.backgroundColor || computed.backgroundColor || '';
+    const bgUrlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
+    const bgUrl = bgUrlMatch ? bgUrlMatch[1] : '';
+    htmlChunks.push(_bgField(bgUrl, bgColor));
+
+    if (fieldIdx === 0 && !bgUrl && !bgColor) {
+      fields.innerHTML = '<p style="font-size:.82rem;color:var(--muted);text-align:center;padding:24px">No editable text or images detected in this section.</p>';
+    } else {
+      // Single innerHTML write — eliminates O(n²) DOM rebuilds from repeated +=
+      fields.innerHTML = htmlChunks.join('');
+    }
+
+    // Stamp metadata on stable DOM nodes (after innerHTML is final)
+    if (brandEl) {
+      fields._brandEl  = brandEl;
+      fields._brandFid = brandFid;
+    }
+    fields._headingEls   = _headingEls;
+    fields._headingStart = _headingStartField;
+    fields._paraEls      = _paraEls;
+    fields._paraStart    = _paraStartField;
+
+    // Stamp _anchorEl on each link field div
+    const _anchorElsList = [];
+    _linkFidToAnchor.forEach((anchor, fid) => {
+      const div = fields.querySelector(`[data-fid="${fid}"]`);
+      if (div) {
+        div._anchorEl = anchor;
+        _anchorElsList.push(anchor);
+      }
+    });
+    fields._anchorEls = _anchorElsList;
+
+    fields._sectionEl = el;
+    editor._sectionEl = el;
+  }); // end requestAnimationFrame
 }
 
 function _bgField(bgUrl, bgColor) {
@@ -2329,19 +2365,19 @@ function _bgField(bgUrl, bgColor) {
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
       <div>
         <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Colour</label>
-        <input type="color" id="secBgColor" value="${_esc(hexColor)}" oninput="previewBg()" onchange="previewBg()"
+        <input type="color" id="secBgColor" value="${_esc(hexColor)}" oninput="_previewBgDebounced()" onchange="previewBg()"
           style="width:42px;height:32px;padding:2px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg)">
       </div>
       <div style="flex:1">
         <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Colour opacity</label>
-        <input type="range" id="secBgOpacity" min="0" max="100" value="100" oninput="document.getElementById('secBgOpacityVal').textContent=this.value+'%';previewBg()"
+        <input type="range" id="secBgOpacity" min="0" max="100" value="100" oninput="document.getElementById('secBgOpacityVal').textContent=this.value+'%';_previewBgDebounced()"
           style="width:100%">
         <span id="secBgOpacityVal" style="font-size:.7rem;color:var(--muted)">100%</span>
       </div>
     </div>
     <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Background Image URL</label>
     <input type="text" id="secBgUrl" value="${_esc(bgUrl)}" placeholder="https://… or leave blank for colour only"
-      oninput="previewBg()"
+      oninput="_previewBgDebounced()"
       style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-bottom:6px"
       onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
     ${thumb}
@@ -2360,7 +2396,7 @@ function _bgField(bgUrl, bgColor) {
     </div>
     <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
       <label style="font-size:.7rem;color:var(--muted)">Overlay darkness:</label>
-      <input type="range" id="secBgOverlay" min="0" max="80" value="0" oninput="document.getElementById('secBgOverlayVal').textContent=this.value+'%';previewBg()"
+      <input type="range" id="secBgOverlay" min="0" max="80" value="0" oninput="document.getElementById('secBgOverlayVal').textContent=this.value+'%';_previewBgDebounced()"
         style="flex:1">
       <span id="secBgOverlayVal" style="font-size:.7rem;color:var(--muted);white-space:nowrap">0%</span>
     </div>
@@ -2527,7 +2563,7 @@ function _styleBar(fid, init = {}) {
       style="padding:3px 5px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.72rem;width:84px"
       onchange="previewFieldStyle('${fid}')">${wOpts}</select>
     <input type="color" data-fid="${fid}-color" value="${initColor}" title="Text colour"
-      oninput="previewFieldStyle('${fid}')" onchange="previewFieldStyle('${fid}')"
+      oninput="_previewFieldStyleDebounced('${fid}')" onchange="previewFieldStyle('${fid}')"
       style="width:30px;height:26px;padding:1px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:var(--bg)">
     <button data-fid="${fid}-bold" title="Bold" onclick="toggleStyleBtn(this,'${fid}','bold')"
       style="width:26px;height:26px;border:1px solid var(--border);border-radius:5px;background:var(--bg);cursor:pointer;font-weight:700;color:var(--text);font-size:.85rem;${isBold}">B</button>
@@ -3289,7 +3325,7 @@ async function goLive() {
 
 // ── Edit Website ───────────────────────────────────────────────────────────
 async function loadEditWebsiteOptions() {
-  const sites = await apiFetch('/websites/my') || [];
+  const sites = await _fetchMyWebsites();
   const sel = document.getElementById('editWebsitePicker');
   if (!sel) return;
   sel.innerHTML = '<option value="">— Choose a website —</option>';
@@ -3362,36 +3398,36 @@ async function rebuildWebsite() {
     running: { msg: '🤖 AI agents rebuilding your website…', pct: 55 },
     built:   { msg: '✅ Rebuild complete!',                   pct: 100 },
     error:   { msg: '❌ Rebuild failed.',                     pct: 100 },
+    timeout: { msg: '⚠️ Taking longer than expected. Check My Websites for status.', pct: 100 },
   };
 
   await new Promise(resolve => {
-    let attempts = 0;
-    const poll = setInterval(async () => {
-      attempts++;
-      const status = await apiFetch(`/websites/${id}/build-status`);
-      if (!status) { clearInterval(poll); resolve(); return; }
-      const s = stageLabels[status.build_status] || stageLabels.queued;
-      msgEl.textContent = status.error ? `❌ ${status.error}` : s.msg;
-      barEl.style.width = s.pct + '%';
-      if (status.complete) {
-        clearInterval(poll);
-        spinnerEl.style.display = 'none';
-        if (status.success) {
-          toast('Rebuild complete! Opening Staging Area…');
-          await loadAllSites();
-          await loadStagingWebsites();
-          setTimeout(() => { showPage('staging'); loadStagedSite(id); }, 1500);
-        } else {
-          toast(status.error || 'Rebuild failed. Please try again.', false);
+    const es = new EventSource(
+      `${API}/../api/v1/websites/${id}/build-stream?token=${encodeURIComponent(token)}`
+    );
+    es.onmessage = async (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        const status = data.build_status || 'queued';
+        const s = stageLabels[status] || stageLabels.queued;
+        msgEl.textContent = data.error ? `❌ ${data.error}` : s.msg;
+        barEl.style.width = s.pct + '%';
+        if (['built', 'error', 'timeout', 'not_found'].includes(status)) {
+          es.close();
+          spinnerEl.style.display = 'none';
+          if (status === 'built') {
+            toast('Rebuild complete! Opening Staging Area…');
+            await loadAllSites();
+            await loadStagingWebsites();
+            setTimeout(() => { showPage('staging'); loadStagedSite(id); }, 1500);
+          } else if (status === 'error') {
+            toast(data.error || 'Rebuild failed. Please try again.', false);
+          }
+          resolve();
         }
-        resolve();
-      } else if (attempts >= 90) {
-        clearInterval(poll);
-        spinnerEl.style.display = 'none';
-        msgEl.textContent = '⚠️ Taking longer than expected. Check My Websites for status.';
-        resolve();
-      }
-    }, 3000);
+      } catch (_) {}
+    };
+    es.onerror = () => { es.close(); spinnerEl.style.display = 'none'; resolve(); };
   });
 }
 

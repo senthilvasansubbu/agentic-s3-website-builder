@@ -44,27 +44,42 @@ class ClientUpdate(BaseModel):
 
 @router.get("/")
 async def list_clients(
-    limit: int = Query(100, ge=1, le=1000),
+    page:  int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=200),
     current: dict = Depends(require_app_user_or_above),
 ):
-    """List all client users onboarded by the current app_user."""
-    rows = db.execute(
+    """List client users onboarded by the current app_user (paginated)."""
+    offset = (page - 1) * limit
+    user_id = current["sub"]
+
+    total_row = db.fetchone(
+        "SELECT COUNT(*) AS cnt FROM users WHERE role = 'client' AND owner_id = %s",
+        (user_id,),
+    )
+    total = total_row["cnt"] if total_row else 0
+
+    rows = db.fetchall(
         """SELECT u.user_id, u.email, u.full_name, u.mobile,
                   u.client_website_id, u.permissions, u.is_active, u.created_at,
                   w.name AS website_name, w.domain
            FROM users u
            LEFT JOIN websites w ON w.website_id = u.client_website_id
-           WHERE u.role = 'client' AND u.owner_id = ?
-           ORDER BY u.created_at DESC LIMIT ?""",
-        [current["sub"], limit],
+           WHERE u.role = 'client' AND u.owner_id = %s
+           ORDER BY u.created_at DESC LIMIT %s OFFSET %s""",
+        (user_id, limit, offset),
     )
-    result = rows or []
-    for r in result:
+    items = rows or []
+    for r in items:
         try:
             r["permissions"] = _json.loads(r.get("permissions") or "[]")
         except Exception:
             r["permissions"] = []
-    return result
+    return {
+        "items": items,
+        "total": total,
+        "page":  page,
+        "pages": max(1, -(-total // limit)),  # ceil division
+    }
 
 
 @router.post("/", status_code=201)

@@ -6,7 +6,9 @@ import json
 import os
 import logging
 import time
-from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
+import asyncio
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -354,6 +356,63 @@ async def get_build_status(
     return response
 
 
+@router.get("/{website_id}/build-stream")
+async def build_status_stream(
+    website_id: str,
+    request: Request,
+    token: str = Query(default=""),
+):
+    """
+    Server-Sent Events stream for real-time build progress.
+
+    Auth: pass JWT as ?token=<bearer> (EventSource can't set headers).
+    Emits JSON events every 2 seconds until build_status is 'built' or 'error'.
+    """
+    from services.auth_service import decode_access_token
+    payload = decode_access_token(token)
+    if not payload:
+        # Return an error event and close
+        async def _auth_error():
+            yield f"data: {json.dumps({'error': 'unauthorized'})}\n\n"
+        return StreamingResponse(_auth_error(), media_type="text/event-stream")
+
+    user_id = payload.get("sub")
+
+    async def _event_generator():
+        max_ticks = 150          # 5 min (150 × 2s)
+        ticks = 0
+        while ticks < max_ticks:
+            site = db.fetchone(
+                """SELECT build_status, build_error FROM websites
+                   WHERE website_id = %s AND user_id = %s""",
+                (website_id, user_id),
+            )
+            if not site:
+                yield f"data: {json.dumps({'build_status': 'not_found'})}\n\n"
+                return
+
+            status = site.get("build_status") or "idle"
+            payload_data = json.dumps({"build_status": status, "error": site.get("build_error")})
+            yield f"data: {payload_data}\n\n"
+
+            if status in ("built", "error"):
+                return
+
+            await asyncio.sleep(2)
+            ticks += 1
+
+        yield f"data: {json.dumps({'build_status': 'timeout'})}\n\n"
+
+    return StreamingResponse(
+        _event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.get("/{website_id}/staged-html")
 async def get_staged_html(
     website_id: str,
@@ -521,46 +580,77 @@ async def domain_instructions(website_id: str, current_user: dict = Depends(get_
 
 
 @router.get("/my")
-async def list_my_websites(current_user: dict = Depends(require_client_or_above)):
-    """Return websites visible to the current user.
+async def list_my_websites(
+    page:  int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: dict = Depends(require_client_or_above),
+):
+    """Return websites visible to the current user (paginated).
     - app_user: all their own websites
     - client: only their single linked website (client_website_id)
     - sub-user (owner_id set): their owner's websites
     """
     user_id = current_user["sub"]
     role = current_user.get("role", "app_user")
+    offset = (page - 1) * limit
 
     if role == "client":
         # Clients see only the one website they are linked to
         u = db.fetchone("SELECT client_website_id FROM users WHERE user_id = ?", (user_id,))
         website_id = u.get("client_website_id") if u else None
         if not website_id:
-            return []
+            return {"items": [], "total": 0, "page": page, "pages": 1}
         site = db.fetchone(
             "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, "
             "enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
             "FROM websites WHERE website_id = ?",
             (website_id,),
         )
-        return [site] if site else []
+        items = [site] if site else []
+        return {"items": items, "total": len(items), "page": 1, "pages": 1}
 
     # app_user / superuser — also follow owner_id for sub-users
     u = db.fetchone("SELECT owner_id FROM users WHERE user_id = ?", (user_id,))
     owner_id = u.get("owner_id") if u else None
     effective_id = owner_id if owner_id else user_id
-    return db.execute(
+
+    total_row = db.fetchone("SELECT COUNT(*) AS cnt FROM websites WHERE user_id = ?", (effective_id,))
+    total = total_row["cnt"] if total_row else 0
+
+    items = db.fetchall(
         "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
-        "FROM websites WHERE user_id = ? ORDER BY created_at DESC",
-        (effective_id,),
+        "FROM websites WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (effective_id, limit, offset),
     ) or []
+    return {"items": items, "total": total, "page": page, "pages": max(1, -(-total // limit))}
 
 
 @router.get("")
-async def list_websites(current_user: dict = Depends(get_current_user)):
-    return db.execute(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, local_path, build_status, created_at FROM websites WHERE user_id = %s ORDER BY created_at DESC",
-        (current_user["sub"],),
+async def list_websites(
+    page:  int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=200),
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = current_user["sub"]
+    offset  = (page - 1) * limit
+
+    total_row = db.fetchone(
+        "SELECT COUNT(*) AS cnt FROM websites WHERE user_id = %s",
+        (user_id,),
     )
+    total = total_row["cnt"] if total_row else 0
+
+    items = db.fetchall(
+        "SELECT website_id, name, title, theme, status, domain, s3_url, local_path, build_status, created_at"
+        " FROM websites WHERE user_id = %s ORDER BY created_at DESC LIMIT %s OFFSET %s",
+        (user_id, limit, offset),
+    ) or []
+    return {
+        "items": items,
+        "total": total,
+        "page":  page,
+        "pages": max(1, -(-total // limit)),
+    }
 
 
 @router.get("/themes")
