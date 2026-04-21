@@ -210,7 +210,7 @@ def _generate_static_fallback(user_requirements: str, theme_key: str = "modern")
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{biz_name}</title>
   <meta name="description" content="{description[:160]}"/>
-  <link href="https://fonts.googleapis.com/css2?family={t['font_heading'].replace(' ', '+')}:wght@600;700&family={t['font_body'].replace(' ', '+')}:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family={t['font_heading'].split(',')[0].strip().strip(chr(39)).replace(' ', '+')}:wght@600;700&family={t['font_body'].split(',')[0].strip().strip(chr(39)).replace(' ', '+')}:wght@300;400;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     :root {{
@@ -355,15 +355,36 @@ def _generate_static_fallback(user_requirements: str, theme_key: str = "modern")
     .reveal {{ opacity: 0; transform: translateY(30px); transition: opacity .6s ease, transform .6s ease; }}
     .reveal.visible {{ opacity: 1; transform: translateY(0); }}
 
-    /* ── Responsive ── */
+    /* ── Responsive: tablet ── */
     @media (max-width: 900px) {{
-      .about-strip, .contact-grid, .footer-grid {{ grid-template-columns: 1fr; }}
+      .about-strip, .contact-grid {{
+        grid-template-columns: 1fr !important; gap: 32px;
+      }}
       .about-strip img {{ height: 240px; }}
+      .footer-grid {{ grid-template-columns: 1fr 1fr !important; }}
+      .section {{ padding: 64px 5%; }}
+      .hero h1 {{ font-size: clamp(1.8rem, 5vw, 3rem); }}
+      .cat-grid, .testi-grid {{ grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }}
     }}
     @media (max-width: 640px) {{
-      .nav-links {{ display: none; }}
+      nav {{ padding: 0 16px; }}
+      .nav-links {{ display: none; flex-direction: column; position: absolute; top: 72px;
+        left: 0; right: 0; background: rgba(20,20,30,.97); padding: 20px 16px;
+        gap: 12px; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,.3); list-style: none; }}
+      .nav-links.open {{ display: flex; }}
       .hamburger {{ display: block; }}
+      .section {{ padding: 48px 16px; }}
+      .hero {{ padding: 60px 16px; min-height: 70vh; }}
+      .hero h1 {{ font-size: clamp(1.6rem, 7vw, 2.4rem); }}
+      .hero p  {{ font-size: .95rem; }}
+      .hero-btns {{ flex-direction: column; align-items: center; }}
+      .hero-btns .btn, .hero-btns a {{ width: 100% !important; max-width: 320px; text-align: center; box-sizing: border-box; }}
+      .cat-grid, .testi-grid {{ grid-template-columns: 1fr; }}
+      .footer-grid {{ grid-template-columns: 1fr !important; }}
+      .footer-bottom {{ flex-direction: column; gap: 12px; text-align: center; }}
       .form-row {{ grid-template-columns: 1fr; }}
+      .section-header h2 {{ font-size: 1.6rem; }}
+      .booking-form {{ padding: 24px 16px; }}
     }}
   </style>
 </head>
@@ -376,7 +397,7 @@ def _generate_static_fallback(user_requirements: str, theme_key: str = "modern")
   <ul class="nav-links">
     {nav_items_html}
   </ul>
-  <button class="hamburger" onclick="document.querySelector('.nav-links').style.display = document.querySelector('.nav-links').style.display === 'flex' ? 'none' : 'flex'; document.querySelector('.nav-links').style.flexDirection='column'; document.querySelector('.nav-links').style.position='absolute'; document.querySelector('.nav-links').style.top='72px'; document.querySelector('.nav-links').style.left='0'; document.querySelector('.nav-links').style.right='0'; document.querySelector('.nav-links').style.background='#fff'; document.querySelector('.nav-links').style.padding='20px 5%';">☰</button>
+  <button class="hamburger" onclick="document.querySelector('.nav-links').classList.toggle('open');this.textContent=document.querySelector('.nav-links').classList.contains('open')?'✕':'☰'">☰</button>
 </nav>
 
 <!-- ── Hero ── -->

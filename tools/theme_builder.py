@@ -202,13 +202,48 @@ footer {{ background: #1a202c; color: #a0aec0; padding: 60px 40px 30px; }}
 .footer-col a:hover {{ color: #fff; }}
 .footer-bottom {{ border-top: 1px solid #2d3748; padding-top: 24px; text-align: center; font-size: .85rem; }}
 
-/* Responsive */
-@media (max-width: 768px) {{
-  .navbar {{ padding: 12px 20px; }}
-  .nav-links {{ display: none; }}
-  .section {{ padding: 48px 20px; }}
-  .hero {{ padding: 60px 20px; }}
+/* ── Hamburger button (hidden on desktop) ── */
+.hamburger {{ display: none; background: none; border: none; font-size: 1.6rem; cursor: pointer; color: #fff; padding: 4px 8px; }}
+
+/* ── Responsive: tablet ── */
+@media (max-width: 900px) {{
+  .grid-2, .grid-3, .grid-4,
+  .about-strip, .contact-grid, .footer-grid,
+  [class*="two-col"], [class*="three-col"] {{
+    grid-template-columns: 1fr !important;
+  }}
+  .section {{ padding: 64px 5%; }}
+  .hero h1 {{ font-size: clamp(1.8rem, 5vw, 3rem); }}
+  .card-grid, .cat-grid, .testi-grid, .product-grid {{
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }}
+  .footer-grid {{ grid-template-columns: 1fr 1fr !important; }}
+}}
+
+/* ── Responsive: mobile ── */
+@media (max-width: 640px) {{
+  .navbar {{ padding: 10px 16px; }}
+  .nav-links {{ display: none; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0;
+    background: rgba(30,30,40,.97); padding: 20px 16px; gap: 12px; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,.3); }}
+  .nav-links.open {{ display: flex; }}
+  .hamburger {{ display: block; }}
+  .section {{ padding: 48px 16px; }}
+  .hero {{ padding: 60px 16px; min-height: 70vh; }}
+  .hero h1 {{ font-size: clamp(1.6rem, 7vw, 2.4rem); }}
+  .hero p  {{ font-size: .95rem; }}
+  .hero-btns {{ flex-direction: column; align-items: center; }}
+  .hero-btns .btn {{ width: 100%; max-width: 320px; text-align: center; }}
+  .card-grid, .cat-grid, .testi-grid, .product-grid {{
+    grid-template-columns: 1fr;
+  }}
+  .about-strip, .contact-grid {{ gap: 32px; }}
+  .footer-grid {{ grid-template-columns: 1fr !important; }}
+  .footer-bottom {{ flex-direction: column; gap: 12px; text-align: center; }}
+  .form-row {{ grid-template-columns: 1fr; }}
   #cart-sidebar {{ width: 100vw; }}
+  .section-header h2 {{ font-size: 1.6rem; }}
+  table {{ font-size: .82rem; }}
+  .booking-form {{ padding: 24px 16px; }}
 }}
 """
     if custom_overrides:

@@ -186,6 +186,9 @@
     .chat-footer input:focus { border-color: var(--accent); }
     .chat-footer button { padding: 8px 14px; background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: .85rem; }
   </style>
+  <!-- Cropper.js for image crop -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
 </head>
 <body>
 
@@ -3048,6 +3051,7 @@ async function loadStagedSite(preselect) {
       // Snapshot original state for Reset
       try {
         if (frame.contentDocument) {
+          _injectResponsiveEnhancements(frame.contentDocument);
           _originalHTML = frame.contentDocument.documentElement.outerHTML;
           _historyStack = [];
           _updateUndoBtn();
@@ -3677,22 +3681,25 @@ function _applyBgToEl(el) {
 async function uploadBgImage(inputEl) {
   const file = inputEl.files[0];
   if (!file) return;
-  const fd = new FormData();
-  fd.append('file', file);
-  const r = await fetch(`${API}/shop/upload-image`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: fd,
+  inputEl.value = '';
+  openImageEditor(file, async blob => {
+    const fd = new FormData();
+    fd.append('file', blob, 'image.png');
+    const r = await fetch(`${API}/shop/upload-image`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd,
+    });
+    if (r.ok) {
+      const data = await r.json();
+      const url = window.location.origin + (data.full_url || data.thumb_url || '');
+      const inp = document.getElementById('secBgUrl');
+      if (inp) { inp.value = url; previewBg(); }
+      toast('Background image uploaded ✅');
+    } else {
+      toast('Upload failed', false);
+    }
   });
-  if (r.ok) {
-    const data = await r.json();
-    const url = window.location.origin + (data.full_url || data.thumb_url || '');
-    const inp = document.getElementById('secBgUrl');
-    if (inp) { inp.value = url; previewBg(); }
-    toast('Background image uploaded ✅');
-  } else {
-    toast('Upload failed', false);
-  }
 }
 
 function clearBg() {
@@ -4081,34 +4088,41 @@ function applySecEdits() {
 
   toast('Changes applied to preview ✅ — click 💾 Save Changes to persist');
   document.getElementById('stagingStatusBar').textContent = 'Preview updated — unsaved. Click 💾 Save Changes.';
+  // Re-inject responsive enhancements in case hamburger was part of the edited section
+  try { _injectResponsiveEnhancements(frame.contentDocument); } catch(_) {}
 }
 
 async function uploadSectionImage(inputEl, fid) {
   const file = inputEl.files[0];
   if (!file) return;
-  const fd = new FormData();
-  fd.append('file', file);
-  const base = window.location.origin;
-  const r = await fetch(`${API}/shop/upload-image`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: fd,
-  });
-  if (r.ok) {
-    const data = await r.json();
-    const url = base + (data.full_url || data.thumb_url || '');
-    const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
-    if (srcEl) srcEl.value = url;
-    // Show thumbnail preview
-    const wrap = inputEl.closest('[data-fid]');
-    if (wrap) {
-      const existing = wrap.querySelector('img');
-      if (existing) existing.src = url;
+  // Reset file input so the same file can be re-picked after editing
+  inputEl.value = '';
+  openImageEditor(file, async blob => {
+    const fd = new FormData();
+    fd.append('file', blob, 'image.png');
+    const base = window.location.origin;
+    const r = await fetch(`${API}/shop/upload-image`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd,
+    });
+    if (r.ok) {
+      const data = await r.json();
+      const url = base + (data.full_url || data.thumb_url || '');
+      const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
+      if (srcEl) srcEl.value = url;
+      // Show thumbnail preview
+      const wrap = srcEl?.closest('[data-fid]');
+      if (wrap) {
+        const existing = wrap.querySelector('img');
+        if (existing) existing.src = url;
+        else { const img = document.createElement('img'); img.src = url; img.style.cssText='height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px'; wrap.prepend(img); }
+      }
+      toast('Image uploaded ✅');
+    } else {
+      toast('Image upload failed', false);
     }
-    toast('Image uploaded ✅');
-  } else {
-    toast('Image upload failed', false);
-  }
+  });
 }
 
 function clearSectionImage(fid) {
@@ -4131,6 +4145,142 @@ function closeSecEditor() {
   }
 }
 
+/* Inject full responsive CSS + fix hamburger into any loaded iframe document.
+   This runs after iframe load so it survives regardless of what's saved in the HTML file. */
+function _injectResponsiveEnhancements(doc) {
+  if (!doc || !doc.head) return;
+
+  // Remove any old injected style so we don't duplicate on re-load
+  const old = doc.getElementById('__wb_responsive');
+  if (old) old.remove();
+
+  const style = doc.createElement('style');
+  style.id = '__wb_responsive';
+  style.textContent = `
+    .hamburger { display: none !important; background: none; border: none;
+      font-size: 1.6rem; cursor: pointer; color: #fff; padding: 4px 8px; z-index: 1001; position: relative; }
+
+    /* ── Tablet ── */
+    @media (max-width: 900px) {
+      .about-strip, .contact-grid {
+        grid-template-columns: 1fr !important; gap: 32px !important;
+      }
+      .about-strip img { height: 240px !important; }
+      .footer-grid { grid-template-columns: 1fr 1fr !important; }
+      .section { padding: 64px 5% !important; }
+      .hero h1 { font-size: clamp(1.8rem, 5vw, 3rem) !important; }
+      .cat-grid, .testi-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important; }
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 640px) {
+      nav { position: relative !important; }
+      .nav-links { display: none !important; }
+      .hamburger { display: block !important; }
+      .section { padding: 48px 16px !important; }
+      .hero { padding: 60px 16px !important; min-height: 70vh !important; }
+      .hero h1 { font-size: clamp(1.6rem, 7vw, 2.4rem) !important; }
+      .hero p  { font-size: .95rem !important; }
+      .hero-btns { flex-direction: column !important; align-items: center !important; }
+      .hero-btns .btn, .hero-btns a {
+        width: 100% !important; max-width: 320px !important;
+        text-align: center !important; box-sizing: border-box !important;
+      }
+      .cat-grid, .testi-grid { grid-template-columns: 1fr !important; }
+      .footer-grid { grid-template-columns: 1fr !important; }
+      .footer-bottom { flex-direction: column !important; gap: 12px !important; text-align: center !important; }
+      .form-row { grid-template-columns: 1fr !important; }
+      .section-header h2 { font-size: 1.6rem !important; }
+      .booking-form { padding: 24px 16px !important; }
+    }
+  `;
+  doc.head.appendChild(style);
+
+  // Fix hamburger: use inline styles directly (beats any CSS specificity)
+  const hamburger = doc.querySelector('.hamburger');
+  const navLinks  = doc.querySelector('.nav-links');
+  const nav       = doc.querySelector('nav');
+  if (hamburger && navLinks) {
+    navLinks._wbOpen = false;
+
+    // ── open/close helpers ──────────────────────────────────────────────
+    const openMenu = () => {
+      navLinks._wbOpen = true;
+      navLinks.style.setProperty('display',        'flex',               'important');
+      navLinks.style.setProperty('flex-direction', 'column',             'important');
+      navLinks.style.setProperty('position',       'absolute',           'important');
+      navLinks.style.setProperty('top',            '72px',               'important');
+      navLinks.style.setProperty('left',           '0',                  'important');
+      navLinks.style.setProperty('right',          '0',                  'important');
+      navLinks.style.setProperty('background',     'rgba(20,20,34,.97)', 'important');
+      navLinks.style.setProperty('padding',        '20px 16px',          'important');
+      navLinks.style.setProperty('z-index',        '1000',               'important');
+      navLinks.style.setProperty('box-shadow',     '0 8px 24px rgba(0,0,0,.5)', 'important');
+      hamburger.textContent = '✕';
+    };
+    const closeMenu = () => {
+      navLinks._wbOpen = false;
+      navLinks.style.removeProperty('display');
+      navLinks.style.removeProperty('flex-direction');
+      navLinks.style.removeProperty('position');
+      navLinks.style.removeProperty('top');
+      navLinks.style.removeProperty('left');
+      navLinks.style.removeProperty('right');
+      navLinks.style.removeProperty('background');
+      navLinks.style.removeProperty('padding');
+      navLinks.style.removeProperty('z-index');
+      navLinks.style.removeProperty('box-shadow');
+      hamburger.textContent = '☰';
+    };
+
+    hamburger.onclick = (e) => {
+      e.stopPropagation();
+      navLinks._wbOpen ? closeMenu() : openMenu();
+    };
+    hamburger.textContent = '☰';
+
+    // Close when a nav link is clicked (use capture so it fires before navigation)
+    navLinks.addEventListener('click', (e) => {
+      if (e.target.closest('a')) { setTimeout(closeMenu, 50); }
+    }, true);
+
+    // Close when clicking outside the nav
+    doc.addEventListener('click', (e) => {
+      if (navLinks._wbOpen && !navLinks.contains(e.target) && e.target !== hamburger) {
+        closeMenu();
+      }
+    });
+
+    // Close on hash navigation
+    try { doc.defaultView.addEventListener('hashchange', () => setTimeout(closeMenu, 50)); } catch(_) {}
+
+    // ── ResizeObserver: show/hide hamburger based on iframe body width ──
+    // (CSS media query only responds to iframe viewport; this also handles
+    //  cases where the iframe is narrowed by the dashboard panel layout)
+    const applyMobileMode = (isMobile) => {
+      if (isMobile) {
+        hamburger.style.setProperty('display', 'block', 'important');
+        if (!navLinks._wbOpen) {
+          navLinks.style.setProperty('display', 'none', 'important');
+        }
+      } else {
+        hamburger.style.removeProperty('display');
+        navLinks.style.removeProperty('display');
+        if (navLinks._wbOpen) closeMenu();
+      }
+    };
+    try {
+      const ro = new doc.defaultView.ResizeObserver(entries => {
+        const w = entries[0].contentRect.width;
+        applyMobileMode(w <= 640);
+      });
+      ro.observe(doc.body);
+      // Run once immediately
+      applyMobileMode(doc.body.getBoundingClientRect().width <= 640);
+    } catch(_) {}
+  }
+}
+
 function stagingRefresh() {
   const frame = document.getElementById('stagingIframe');
   if (!currentStagingUrl) { toast('No preview loaded yet', false); return; }
@@ -4144,7 +4294,10 @@ function stagingRefresh() {
   btn.disabled = true; btn.textContent = '⟳ …';
   const loading = document.getElementById('stagingLoading');
   loading.style.display = 'flex';
-  frame.onload = () => { loading.style.display = 'none'; btn.disabled = false; btn.textContent = '⟳ Refresh'; };
+  frame.onload = () => {
+    loading.style.display = 'none'; btn.disabled = false; btn.textContent = '⟳ Refresh';
+    try { if (frame.contentDocument) _injectResponsiveEnhancements(frame.contentDocument); } catch(_) {}
+  };
   frame.src = currentStagingUrl.split('?')[0] + '?t=' + Date.now();
 }
 
@@ -4469,6 +4622,355 @@ async function rebuildWebsite() {
   });
 }
 
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     IMAGE EDITOR MODAL
+     Opens when user picks a file via any "Upload Image" button.
+     Provides: Crop · Resize · Brightness · Contrast · Saturation · Sharpen
+     On "Apply & Upload" → canvas.toBlob → POST to server → URL returned.
+════════════════════════════════════════════════════════════════════════ -->
+<div id="imgEditorModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center">
+  <div style="background:var(--sidebar);border:1px solid var(--border);border-radius:14px;width:min(96vw,900px);max-height:96vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <span style="font-weight:700;font-size:1rem;color:var(--text)">🖼 Image Editor</span>
+      <button onclick="_imgEdClose()" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button class="_imgtab" data-tab="crop"    onclick="_imgTab('crop')"    style="flex:1;padding:10px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:.82rem;font-weight:700;border-right:1px solid var(--border)">✂️ Crop</button>
+      <button class="_imgtab" data-tab="resize"  onclick="_imgTab('resize')"  style="flex:1;padding:10px;background:var(--sidebar);color:var(--muted);border:none;cursor:pointer;font-size:.82rem;font-weight:600;border-right:1px solid var(--border)">📐 Resize</button>
+      <button class="_imgtab" data-tab="enhance" onclick="_imgTab('enhance')" style="flex:1;padding:10px;background:var(--sidebar);color:var(--muted);border:none;cursor:pointer;font-size:.82rem;font-weight:600">✨ Enhance</button>
+    </div>
+
+    <!-- Body -->
+    <div style="display:flex;flex:1;overflow:hidden;min-height:0">
+
+      <!-- Canvas area -->
+      <div style="flex:1;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;min-width:0">
+        <!-- Crop tab: shows original image with Cropper -->
+        <div id="_imgCropWrap" style="max-width:100%;max-height:100%">
+          <img id="_imgCropSrc" style="max-width:100%;display:block">
+        </div>
+        <!-- Resize / Enhance tab: shows canvas with filters -->
+        <canvas id="_imgCanvas" style="display:none;max-width:100%;max-height:100%;border:none"></canvas>
+      </div>
+
+      <!-- Controls panel -->
+      <div style="width:220px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:12px">
+
+        <!-- CROP controls -->
+        <div id="_imgCtrlCrop" style="display:flex;flex-direction:column;gap:10px">
+          <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--accent)">Aspect Ratio</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            <button onclick="_cropAR('free')"    class="_arBtn" style="flex:1;min-width:48%;padding:5px 4px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">Free</button>
+            <button onclick="_cropAR(1,1)"       class="_arBtn" style="flex:1;min-width:48%;padding:5px 4px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">1 : 1</button>
+            <button onclick="_cropAR(16,9)"      class="_arBtn" style="flex:1;min-width:48%;padding:5px 4px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">16 : 9</button>
+            <button onclick="_cropAR(4,3)"       class="_arBtn" style="flex:1;min-width:48%;padding:5px 4px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">4 : 3</button>
+            <button onclick="_cropAR(3,2)"       class="_arBtn" style="flex:1;min-width:48%;padding:5px 4px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">3 : 2</button>
+            <button onclick="_cropAR(2,3)"       class="_arBtn" style="flex:1;min-width:48%;padding:5px 4px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">Portrait</button>
+          </div>
+          <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--accent);margin-top:4px">Rotate</label>
+          <div style="display:flex;gap:6px">
+            <button onclick="_cropRotate(-90)" style="flex:1;padding:6px;font-size:.8rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">↺ 90°</button>
+            <button onclick="_cropRotate(90)"  style="flex:1;padding:6px;font-size:.8rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">↻ 90°</button>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="_cropFlip('h')" style="flex:1;padding:6px;font-size:.75rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">⇔ Flip H</button>
+            <button onclick="_cropFlip('v')" style="flex:1;padding:6px;font-size:.75rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">⇕ Flip V</button>
+          </div>
+          <button onclick="_cropCommit()" style="margin-top:4px;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:.82rem">✔ Commit Crop</button>
+        </div>
+
+        <!-- RESIZE controls -->
+        <div id="_imgCtrlResize" style="display:none;flex-direction:column;gap:10px">
+          <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--accent)">Dimensions (px)</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div style="flex:1">
+              <label style="font-size:.68rem;color:var(--muted)">Width</label>
+              <input id="_rsW" type="number" min="10" max="4000" style="width:100%;padding:5px 8px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.82rem;outline:none" oninput="_rsSync('w')">
+            </div>
+            <span style="color:var(--muted);margin-top:14px">×</span>
+            <div style="flex:1">
+              <label style="font-size:.68rem;color:var(--muted)">Height</label>
+              <input id="_rsH" type="number" min="10" max="4000" style="width:100%;padding:5px 8px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.82rem;outline:none" oninput="_rsSync('h')">
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text);cursor:pointer">
+            <input type="checkbox" id="_rsLock" checked style="accent-color:var(--accent)"> Lock aspect ratio
+          </label>
+          <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--accent);margin-top:4px">Presets</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            <button onclick="_rsPreset(1200,630)"  style="flex:1;min-width:48%;padding:5px 3px;font-size:.68rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">OG / Banner<br><span style="color:var(--muted)">1200×630</span></button>
+            <button onclick="_rsPreset(800,600)"   style="flex:1;min-width:48%;padding:5px 3px;font-size:.68rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">Standard<br><span style="color:var(--muted)">800×600</span></button>
+            <button onclick="_rsPreset(400,400)"   style="flex:1;min-width:48%;padding:5px 3px;font-size:.68rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">Square<br><span style="color:var(--muted)">400×400</span></button>
+            <button onclick="_rsPreset(1920,1080)" style="flex:1;min-width:48%;padding:5px 3px;font-size:.68rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">Full HD<br><span style="color:var(--muted)">1920×1080</span></button>
+          </div>
+          <button onclick="_rsApply()" style="margin-top:4px;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:.82rem">✔ Apply Resize</button>
+        </div>
+
+        <!-- ENHANCE controls -->
+        <div id="_imgCtrlEnhance" style="display:none;flex-direction:column;gap:10px">
+          <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--accent)">Adjustments</label>
+          ${['Brightness:_enBr:100:50:150','Contrast:_enCo:100:50:150','Saturation:_enSa:100:0:200','Blur:_enBl:0:0:10:0.1'].map(s => {
+            const [label,id,val,min,max,step='1'] = s.split(':');
+            return `<div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                <label style="font-size:.72rem;color:var(--muted)">${label}</label>
+                <span id="${id}Val" style="font-size:.72rem;color:var(--muted)">${val}${label==='Blur'?'px':'%'}</span>
+              </div>
+              <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"
+                oninput="document.getElementById('${id}Val').textContent=this.value+'${label==='Blur'?'px':'%'}';_enhancePreview()"
+                style="width:100%;accent-color:var(--accent)">
+            </div>`;
+          }).join('')}
+          <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--accent);margin-top:4px">Presets</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            <button onclick="_enhPreset(110,110,120,0)"  style="flex:1;min-width:48%;padding:5px 3px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">✨ Vivid</button>
+            <button onclick="_enhPreset(105,90,80,0)"    style="flex:1;min-width:48%;padding:5px 3px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">🎞 Matte</button>
+            <button onclick="_enhPreset(100,100,0,0)"    style="flex:1;min-width:48%;padding:5px 3px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">⬛ B&W</button>
+            <button onclick="_enhPreset(100,100,100,0)"  style="flex:1;min-width:48%;padding:5px 3px;font-size:.72rem;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);cursor:pointer">↺ Reset</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:1px solid var(--border);flex-shrink:0;gap:10px">
+      <span id="_imgEdInfo" style="font-size:.75rem;color:var(--muted)"></span>
+      <div style="display:flex;gap:8px">
+        <button onclick="_imgEdClose()" style="padding:8px 18px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:.84rem">Cancel</button>
+        <button onclick="_imgEdApplyUpload()" style="padding:8px 22px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-size:.84rem">⬆ Apply & Upload</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// IMAGE EDITOR STATE
+// ═══════════════════════════════════════════════════
+let _imgCropper     = null;   // Cropper.js instance
+let _imgOrigBlob    = null;   // original File object
+let _imgWorkingImg  = null;   // HTMLImageElement used for canvas ops
+let _imgCallback    = null;   // fn(blob) called after Apply & Upload
+let _imgCurrentTab  = 'crop';
+let _imgFlipX       = 1;      // 1 or -1
+let _imgFlipY       = 1;
+
+/* Open the editor. callback(blob) will receive the processed image blob */
+function openImageEditor(file, callback) {
+  _imgCallback   = callback;
+  _imgOrigBlob   = file;
+  _imgFlipX      = 1; _imgFlipY = 1;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const src = e.target.result;
+    // Load into crop img
+    const cropImg = document.getElementById('_imgCropSrc');
+    cropImg.src   = src;
+    // Preload working image for canvas ops
+    _imgWorkingImg = new Image();
+    _imgWorkingImg.onload = () => {
+      _imgUpdateInfo(_imgWorkingImg.naturalWidth, _imgWorkingImg.naturalHeight);
+      // Init resize fields
+      document.getElementById('_rsW').value = _imgWorkingImg.naturalWidth;
+      document.getElementById('_rsH').value = _imgWorkingImg.naturalHeight;
+    };
+    _imgWorkingImg.src = src;
+
+    const modal = document.getElementById('imgEditorModal');
+    modal.style.display = 'flex';
+
+    // Init cropper after image loads
+    cropImg.onload = () => {
+      if (_imgCropper) { _imgCropper.destroy(); _imgCropper = null; }
+      _imgCropper = new Cropper(cropImg, { viewMode: 1, autoCropArea: 1, responsive: true });
+    };
+    // If already loaded (cached)
+    if (cropImg.complete && cropImg.naturalWidth) cropImg.onload();
+  };
+  reader.readAsDataURL(file);
+  _imgTab('crop');
+}
+
+function _imgEdClose() {
+  document.getElementById('imgEditorModal').style.display = 'none';
+  if (_imgCropper) { _imgCropper.destroy(); _imgCropper = null; }
+}
+
+function _imgTab(tab) {
+  _imgCurrentTab = tab;
+  const tabs = ['crop','resize','enhance'];
+  tabs.forEach(t => {
+    const btn  = document.querySelector(`._imgtab[data-tab="${t}"]`);
+    const ctrl = document.getElementById(`_imgCtrl${t.charAt(0).toUpperCase()+t.slice(1)}`);
+    const active = t === tab;
+    if (btn)  { btn.style.background  = active ? 'var(--accent)' : 'var(--sidebar)'; btn.style.color = active ? '#fff' : 'var(--muted)'; }
+    if (ctrl) ctrl.style.display = active ? 'flex' : 'none';
+  });
+
+  const canvas = document.getElementById('_imgCanvas');
+  const cropWrap = document.getElementById('_imgCropWrap');
+  if (tab === 'crop') {
+    canvas.style.display   = 'none';
+    cropWrap.style.display = '';
+  } else {
+    canvas.style.display   = 'block';
+    cropWrap.style.display = 'none';
+    _renderCanvas();
+  }
+}
+
+function _imgUpdateInfo(w, h) {
+  document.getElementById('_imgEdInfo').textContent = `${w} × ${h} px`;
+}
+
+// ── CROP ────────────────────────────────────────────
+function _cropAR(w, h) {
+  if (!_imgCropper) return;
+  if (w === 'free') _imgCropper.setAspectRatio(NaN);
+  else              _imgCropper.setAspectRatio(w / h);
+}
+function _cropRotate(deg)   { _imgCropper?.rotate(deg); }
+function _cropFlip(axis) {
+  if (!_imgCropper) return;
+  if (axis === 'h') { _imgFlipX *= -1; _imgCropper.scaleX(_imgFlipX); }
+  else              { _imgFlipY *= -1; _imgCropper.scaleY(_imgFlipY); }
+}
+function _cropCommit() {
+  if (!_imgCropper) return;
+  const croppedCanvas = _imgCropper.getCroppedCanvas({ imageSmoothingQuality: 'high' });
+  croppedCanvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const newImg = new Image();
+    newImg.onload = () => {
+      _imgWorkingImg = newImg;
+      _imgUpdateInfo(newImg.naturalWidth, newImg.naturalHeight);
+      document.getElementById('_rsW').value = newImg.naturalWidth;
+      document.getElementById('_rsH').value = newImg.naturalHeight;
+      // Reinit cropper on the new cropped image
+      const cropImg  = document.getElementById('_imgCropSrc');
+      cropImg.src    = url;
+      cropImg.onload = () => {
+        if (_imgCropper) { _imgCropper.destroy(); _imgCropper = null; }
+        _imgCropper = new Cropper(cropImg, { viewMode: 1, autoCropArea: 1, responsive: true });
+      };
+      if (cropImg.complete) cropImg.onload();
+    };
+    newImg.src = url;
+    _imgOrigBlob = blob; // update working blob
+  }, 'image/png');
+}
+
+// ── RESIZE ──────────────────────────────────────────
+let _rsOrigW = 0, _rsOrigH = 0;
+function _rsSync(changed) {
+  if (!document.getElementById('_rsLock').checked) return;
+  if (!_imgWorkingImg) return;
+  const w = _imgWorkingImg.naturalWidth;
+  const h = _imgWorkingImg.naturalHeight;
+  const ratio = w / h;
+  if (changed === 'w') {
+    const nw = parseInt(document.getElementById('_rsW').value) || 0;
+    document.getElementById('_rsH').value = Math.round(nw / ratio);
+  } else {
+    const nh = parseInt(document.getElementById('_rsH').value) || 0;
+    document.getElementById('_rsW').value = Math.round(nh * ratio);
+  }
+}
+function _rsPreset(w, h) {
+  document.getElementById('_rsW').value = w;
+  document.getElementById('_rsH').value = h;
+}
+function _rsApply() {
+  if (!_imgWorkingImg) return;
+  const w = parseInt(document.getElementById('_rsW').value) || _imgWorkingImg.naturalWidth;
+  const h = parseInt(document.getElementById('_rsH').value) || _imgWorkingImg.naturalHeight;
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = w; offscreen.height = h;
+  offscreen.getContext('2d').drawImage(_imgWorkingImg, 0, 0, w, h);
+  offscreen.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const ni   = new Image();
+    ni.onload  = () => {
+      _imgWorkingImg = ni;
+      _imgUpdateInfo(w, h);
+      _renderCanvas();
+      // also refresh crop tab src
+      const cropImg = document.getElementById('_imgCropSrc');
+      cropImg.src   = url;
+      if (_imgCropper) { _imgCropper.destroy(); _imgCropper = null; }
+    };
+    ni.src  = url;
+    _imgOrigBlob = blob;
+  }, 'image/png');
+}
+
+// ── ENHANCE ─────────────────────────────────────────
+function _enhancePreview() { _renderCanvas(); }
+function _enhPreset(br, co, sa, bl) {
+  document.getElementById('_enBr').value = br; document.getElementById('_enBrVal').textContent = br + '%';
+  document.getElementById('_enCo').value = co; document.getElementById('_enCoVal').textContent = co + '%';
+  document.getElementById('_enSa').value = sa; document.getElementById('_enSaVal').textContent = sa + '%';
+  document.getElementById('_enBl').value = bl; document.getElementById('_enBlVal').textContent = bl + 'px';
+  _renderCanvas();
+}
+
+function _renderCanvas() {
+  if (!_imgWorkingImg) return;
+  const canvas  = document.getElementById('_imgCanvas');
+  const ctx     = canvas.getContext('2d');
+  canvas.width  = _imgWorkingImg.naturalWidth;
+  canvas.height = _imgWorkingImg.naturalHeight;
+
+  const br = document.getElementById('_enBr')?.value ?? 100;
+  const co = document.getElementById('_enCo')?.value ?? 100;
+  const sa = document.getElementById('_enSa')?.value ?? 100;
+  const bl = document.getElementById('_enBl')?.value ?? 0;
+
+  ctx.filter = `brightness(${br}%) contrast(${co}%) saturate(${sa}%) blur(${bl}px)`;
+  ctx.drawImage(_imgWorkingImg, 0, 0);
+  ctx.filter = 'none';
+  _imgUpdateInfo(canvas.width, canvas.height);
+}
+
+// ── APPLY & UPLOAD ───────────────────────────────────
+async function _imgEdApplyUpload() {
+  // 1. Commit crop if on crop tab (or if cropper exists)
+  const finalBlob = await new Promise(resolve => {
+    if (_imgCurrentTab === 'crop' && _imgCropper) {
+      _imgCropper.getCroppedCanvas({ imageSmoothingQuality: 'high' }).toBlob(resolve, 'image/png');
+    } else {
+      // Render canvas with enhancements onto the working image
+      const canvas = document.createElement('canvas');
+      const img    = _imgWorkingImg;
+      if (!img) { resolve(_imgOrigBlob); return; }
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      const br  = document.getElementById('_enBr')?.value ?? 100;
+      const co  = document.getElementById('_enCo')?.value ?? 100;
+      const sa  = document.getElementById('_enSa')?.value ?? 100;
+      const bl  = document.getElementById('_enBl')?.value ?? 0;
+      ctx.filter = `brightness(${br}%) contrast(${co}%) saturate(${sa}%) blur(${bl}px)`;
+      ctx.drawImage(img, 0, 0);
+      ctx.filter = 'none';
+      canvas.toBlob(resolve, 'image/png');
+    }
+  });
+
+  _imgEdClose();
+
+  const cb = _imgCallback;
+  _imgCallback = null;
+  if (cb) cb(finalBlob);
+}
 </script>
 </body>
 </html>

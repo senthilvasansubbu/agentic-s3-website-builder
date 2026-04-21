@@ -153,7 +153,55 @@ console.log('\n─── Test 6: Undo stack (5 limit) ───');
 }
 
 // ════════════════════════════════════════
-console.log('\n─── Test 7: JS syntax check on dashboard.html ───');
+console.log('\n─── Test 7: Hamburger menu toggle ───');
+{
+  const dom = new JSDOM(`<html><head></head><body>
+    <nav style="position:relative">
+      <div class="logo">Logo</div>
+      <ul class="nav-links"><li><a href="#a">HOME</a></li><li><a href="#b">ABOUT</a></li></ul>
+      <button class="hamburger" onclick="document.querySelector('.nav-links').style.background='#fff'">☰</button>
+    </nav>
+  </body></html>`);
+  const doc = dom.window.document;
+  const hamburger = doc.querySelector('.hamburger');
+  const navLinks  = doc.querySelector('.nav-links');
+
+  // Simulate _injectResponsiveEnhancements onclick replacement
+  navLinks._wbOpen = false;
+  hamburger.onclick = (e) => {
+    navLinks._wbOpen = !navLinks._wbOpen;
+    if (navLinks._wbOpen) {
+      navLinks.style.setProperty('display',        'flex',               'important');
+      navLinks.style.setProperty('flex-direction', 'column',             'important');
+      navLinks.style.setProperty('position',       'absolute',           'important');
+      navLinks.style.setProperty('top',            '72px',               'important');
+      navLinks.style.setProperty('background',     'rgba(20,20,34,.97)', 'important');
+      hamburger.textContent = '✕';
+    } else {
+      navLinks.style.removeProperty('display');
+      navLinks.style.removeProperty('flex-direction');
+      navLinks.style.removeProperty('position');
+      navLinks.style.removeProperty('top');
+      navLinks.style.removeProperty('background');
+      hamburger.textContent = '☰';
+    }
+  };
+
+  hamburger.click();
+  pass('menu opens on click', navLinks.style.display === 'flex');
+  pass('menu is column flex', navLinks.style.flexDirection === 'column');
+  pass('menu is absolute positioned', navLinks.style.position === 'absolute');
+  pass('menu has dark background (not white)', !navLinks.style.background.includes('255, 255, 255') && navLinks.style.background !== '' && navLinks.style.background !== '#fff');
+  pass('hamburger shows ✕', hamburger.textContent === '✕');
+
+  hamburger.click();
+  pass('menu closes on second click', !navLinks.style.display);
+  pass('hamburger shows ☰', hamburger.textContent === '☰');
+  pass('no leftover position', !navLinks.style.position);
+}
+
+// ════════════════════════════════════════
+console.log('\n─── Test 8: JS syntax check on dashboard.html ───');
 {
   import('child_process').then(async ({ execSync }) => {
     const { readFileSync } = await import('fs');

@@ -214,3 +214,4 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 !data/website_builder_empty.db
+node_modules/
