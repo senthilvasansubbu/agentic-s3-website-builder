@@ -16,6 +16,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from config.settings import settings
 
 load_dotenv()
@@ -66,6 +69,9 @@ from api.routes.team import router as team_router
 from api.routes.commerce import router as commerce_router
 from api.routes.clients import router as clients_router
 
+# ── Rate limiter (shared across all routes) ───────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
+
 app = FastAPI(
     title="Agentic AI Website Builder",
     description=(
@@ -75,6 +81,10 @@ app = FastAPI(
     ),
     version="2.0.0",
 )
+
+# ── Attach rate-limiter state & error handler ─────────────────────────────────
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS — origins controlled by CORS_ORIGINS env var (see config/settings.py)
 # Default: localhost only. Set CORS_ORIGINS in .env for staging/production.

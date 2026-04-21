@@ -1,18 +1,34 @@
 """Chatbot API — AI-powered assistant for admin console and website visitors."""
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, field_validator
 from typing import Optional
-import os
+import os, html
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from database.snowflake_client import db
 
 router = APIRouter(prefix="/chatbot", tags=["chatbot"])
+limiter = Limiter(key_func=get_remote_address)
+
+MAX_MESSAGE_LEN = 500
 
 
 class ChatRequest(BaseModel):
     message: str
     website_id: Optional[str] = None
     context: Optional[str] = "visitor"   # visitor | admin_console
+
+    @field_validator("message")
+    @classmethod
+    def sanitize_message(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Message cannot be empty")
+        if len(v) > MAX_MESSAGE_LEN:
+            raise ValueError(f"Message too long (max {MAX_MESSAGE_LEN} characters)")
+        # Strip HTML tags to prevent prompt injection via markup
+        return html.escape(v)
 
 
 class ChatResponse(BaseModel):
@@ -39,7 +55,7 @@ def _llm_reply(prompt: str) -> str:
                     },
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=512,
+                max_tokens=1024,
                 temperature=0.7,
             )
             return resp.choices[0].message.content.strip()
@@ -87,7 +103,8 @@ def _build_prompt(msg: str, context: str, website_data: dict | None) -> str:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(body: ChatRequest):
+@limiter.limit("20/minute")
+async def chat(body: ChatRequest, request: Request):
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
@@ -105,8 +122,9 @@ async def chat(body: ChatRequest):
 
 
 @router.post("/{website_id}", response_model=ChatResponse)
-async def chat_for_website(website_id: str, body: ChatRequest):
+@limiter.limit("20/minute")
+async def chat_for_website(website_id: str, body: ChatRequest, request: Request):
     """Public endpoint for website visitor chatbot."""
     body.website_id = website_id
     body.context = "visitor"
-    return await chat(body)
+    return await chat(body, request)

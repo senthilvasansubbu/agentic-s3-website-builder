@@ -15,7 +15,7 @@ router = APIRouter(prefix="/monitoring", tags=["monitoring"])
 
 
 def _require_superuser(current=Depends(get_current_user)):
-    if current.get("plan") not in ("superuser", "enterprise"):
+    if current.get("role") != "superuser":
         raise HTTPException(status_code=403, detail="Superuser access required")
     return current
 

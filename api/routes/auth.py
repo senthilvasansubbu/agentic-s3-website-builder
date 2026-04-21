@@ -17,6 +17,8 @@ import uuid
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, EmailStr
 from typing import Literal, Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from database.snowflake_client import db
 from services.auth_service import (
@@ -29,6 +31,7 @@ from services.analytics_service import log_event
 from services.payment_service import create_stripe_customer
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+limiter = Limiter(key_func=get_remote_address)
 
 # Valid roles — ordered from most-privileged to least
 ROLE_HIERARCHY = ["superuser", "app_user", "client", "customer"]
@@ -117,6 +120,7 @@ class ChangePasswordRequest(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/register")
+@limiter.limit("5/minute")
 async def register(body: RegisterRequest, request: Request):
     """
     Public registration — creates an *app_user* account.
@@ -177,6 +181,7 @@ async def register_customer(body: RegisterRequest, request: Request):
 
 
 @router.post("/verify-otp")
+@limiter.limit("10/minute")
 async def verify_otp_endpoint(body: VerifyOTPRequest, request: Request):
     ok = verify_otp(body.user_id, body.otp_code, body.channel)
     if not ok:
@@ -187,6 +192,7 @@ async def verify_otp_endpoint(body: VerifyOTPRequest, request: Request):
 
 
 @router.post("/login")
+@limiter.limit("10/minute")
 async def login(body: LoginRequest, request: Request):
     user = db.fetchone(
         """SELECT user_id, password_hash, full_name, is_verified, plan, role,

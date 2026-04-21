@@ -6,6 +6,7 @@ openai==2.32.0
 fastapi==0.115.12
 uvicorn[standard]==0.34.3
 python-multipart==0.0.20
+slowapi==0.1.9
 
 # Image processing
 Pillow>=10.0.0
