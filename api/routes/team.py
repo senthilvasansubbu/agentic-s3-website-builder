@@ -9,14 +9,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 
-from api.routes.auth import get_current_user
+from api.routes.auth import get_current_user, require_app_user_or_above
 from database.snowflake_client import db
 from services.auth_service import hash_password
 
 router = APIRouter(prefix="/team", tags=["team"])
 
 ALLOWED_PAGES = {
-    "overview", "websites", "build", "products", "billing",
+    "overview", "websites", "build", "cart-items", "billing",
     "monitoring", "feedback", "team", "notifications", "coupons",
 }
 
@@ -27,7 +27,7 @@ class SubUserCreate(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     password: str
-    permissions: List[str] = ["overview", "websites", "products"]
+    permissions: List[str] = ["overview", "websites", "cart-items"]
 
 
 class SubUserPermissions(BaseModel):
@@ -45,7 +45,7 @@ def _validate_permissions(perms: List[str]):
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.get("")
-async def list_sub_users(current: dict = Depends(get_current_user)):
+async def list_sub_users(current: dict = Depends(require_app_user_or_above)):
     rows = db.execute(
         "SELECT user_id, email, full_name, permissions, is_verified, created_at "
         "FROM users WHERE owner_id = ?",
@@ -60,7 +60,7 @@ async def list_sub_users(current: dict = Depends(get_current_user)):
 
 
 @router.post("")
-async def create_sub_user(body: SubUserCreate, current: dict = Depends(get_current_user)):
+async def create_sub_user(body: SubUserCreate, current: dict = Depends(require_app_user_or_above)):
     _validate_permissions(body.permissions)
     existing = db.fetchone("SELECT user_id FROM users WHERE email = ?", (body.email,))
     if existing:
@@ -79,7 +79,7 @@ async def create_sub_user(body: SubUserCreate, current: dict = Depends(get_curre
 
 @router.patch("/{user_id}/permissions")
 async def update_permissions(user_id: str, body: SubUserPermissions,
-                              current: dict = Depends(get_current_user)):
+                              current: dict = Depends(require_app_user_or_above)):
     _validate_permissions(body.permissions)
     sub = db.fetchone(
         "SELECT user_id FROM users WHERE user_id = ? AND owner_id = ?",
@@ -95,7 +95,7 @@ async def update_permissions(user_id: str, body: SubUserPermissions,
 
 
 @router.delete("/{user_id}")
-async def remove_sub_user(user_id: str, current: dict = Depends(get_current_user)):
+async def remove_sub_user(user_id: str, current: dict = Depends(require_app_user_or_above)):
     sub = db.fetchone(
         "SELECT user_id FROM users WHERE user_id = ? AND owner_id = ?",
         (user_id, current["sub"]),

@@ -1,0 +1,27 @@
+{
+  "name": "agentic-s3-website-builder",
+  "version": "1.0.0",
+  "description": "An intelligent, conversational AI system that creates beautiful, responsive websites using a multi-agent architecture powered by **CrewAI** and **OpenAI GPT-4**.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/senthilvasansubbu/agentic-s3-website-builder.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/senthilvasansubbu/agentic-s3-website-builder/issues"
+  },
+  "homepage": "https://github.com/senthilvasansubbu/agentic-s3-website-builder#readme",
+  "dependencies": {
+    "jsdom": "^29.0.2"
+  }
+}

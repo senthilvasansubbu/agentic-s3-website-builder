@@ -7,6 +7,9 @@ fastapi==0.115.12
 uvicorn[standard]==0.34.3
 python-multipart==0.0.20
 
+# Image processing
+Pillow>=10.0.0
+
 # Database
 snowflake-connector-python==3.14.0
 

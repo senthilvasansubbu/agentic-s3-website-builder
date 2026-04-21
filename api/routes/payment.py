@@ -91,6 +91,7 @@ async def list_plans():
             "label": v["label"],
             "price_usd": v["price_usd"],
             "max_pages": v["max_pages"],
+            "max_websites": v["max_websites"],
             "shopping_cart": v["shopping_cart"],
             "custom_domain": v["custom_domain"],
             "analytics": v["analytics"],

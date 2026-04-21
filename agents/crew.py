@@ -4,25 +4,50 @@ import uuid as _uuid
 from crewai import Crew, Process, Task
 from agents.designer_agent import designer_agent
 from agents.developer_agent import developer_agent
+from agents.theme_agent import theme_agent
+from tools.theme_builder import THEMES
 from config.settings import settings
 
 logger = logging.getLogger("website_builder.crew")
 
 
-def _generate_static_fallback(user_requirements: str) -> str:
-    """Generate a classy, content-rich static HTML website when no API key is available."""
+def _generate_static_fallback(user_requirements: str, theme_key: str = "modern") -> str:
+    """Generate a content-rich static HTML website when no API key is available."""
+    t = THEMES.get(theme_key, THEMES["modern"])
     import re, urllib.parse
 
     # ── Extract hints from the prompt ─────────────────────────────────────────
-    lines = user_requirements.splitlines()
-    title = " ".join(user_requirements.split()[:6]).title()
 
-    # Business name
-    biz_name = title
+    # Business name — prefer the new priority header format first
+    biz_name_match = re.search(r'WEBSITE NAME:\s*(.+)', user_requirements)
+    if biz_name_match:
+        biz_name = biz_name_match.group(1).strip()
+    else:
+        biz_name_match2 = re.search(r'Business Name:\s*(.+)', user_requirements)
+        biz_name = biz_name_match2.group(1).strip() if biz_name_match2 else \
+            " ".join(user_requirements.replace("===", "").split()[:5]).title()
+
+    # Is this an informational (non-retail) site?
+    is_informational = bool(re.search(r'SITE TYPE:\s*Informational', user_requirements, re.I))
+
+    # Nav links — prefer the new priority header format
+    nav_links: list[str] = []
+    nav_header_match = re.search(r'NAVIGATION \(use exactly these items.*?\):\s*(.+)', user_requirements)
+    if nav_header_match:
+        nav_links = [n.strip() for n in nav_header_match.group(1).split('|') if n.strip()]
+
+    # Logo URL
+    logo_match = re.search(r'Brand Logo URL:\s*(https?://\S+)', user_requirements)
+    logo_url = logo_match.group(1) if logo_match else ""
+
+    # Real site images
+    site_images: list[str] = []
+    for m in re.finditer(r'(?m)^\s+\d+\. (https?://\S+)', user_requirements):
+        site_images.append(m.group(1))
 
     # Categories
-    cats_raw = re.findall(r'- (.+?)(?:\n|$)', user_requirements)
-    cats = [c.strip() for c in cats_raw if len(c.strip()) < 60][:8]
+    cats_raw = re.findall(r'^\s*- (.+?)(?:\n|$)', user_requirements, re.M)
+    cats = [c.strip() for c in cats_raw if len(c.strip()) < 60 and not c.strip().startswith('=')][:8]
     if not cats:
         cats = ["Products", "Services", "Gallery", "Special Offers"]
 
@@ -43,24 +68,28 @@ def _generate_static_fallback(user_requirements: str) -> str:
     prefix_match = re.search(r'Reference Prefix:\s*([A-Z\-]+)', user_requirements)
     prefix = prefix_match.group(1) if prefix_match else "ORD"
 
-    # Hero keyword
+    # Hero background — use first real site image if available, else Unsplash
     niche_kw = cats[0].lower().replace(' ', ',') if cats else 'business'
+    hero_bg = site_images[0] if site_images else f"https://source.unsplash.com/featured/1400x900/?{niche_kw}"
 
     # Description
     desc_match = re.search(r'Business Description:\s*(.+?)(?:\n\n|\Z)', user_requirements, re.S)
     description = desc_match.group(1).strip() if desc_match else user_requirements[:200]
 
     # ── Category cards HTML ───────────────────────────────────────────────────
+    cat_cta = "Learn More" if is_informational else "Order Now"
     cat_cards = ""
-    for cat in cats:
+    for i, cat in enumerate(cats):
         kw = cat.lower().replace(' ', ',')
+        img_src = site_images[i + 1] if (i + 1) < len(site_images) else \
+                  (site_images[0] if site_images else f"https://source.unsplash.com/featured/400x300/?{kw}")
         cat_cards += f"""
         <div class="cat-card">
-          <img src="https://source.unsplash.com/featured/400x300/?{kw}" alt="{cat}" loading="lazy">
+          <img src="{img_src}" alt="{cat}" loading="lazy">
           <div class="cat-info">
             <h3>{cat}</h3>
-            <p>Explore our curated selection of {cat.lower()} — crafted with care and quality.</p>
-            <a href="#booking" class="cat-btn">Order Now</a>
+            <p>Explore our {cat.lower()} — crafted with care and quality.</p>
+            <a href="{'#contact' if is_informational else '#booking'}" class="cat-btn">{cat_cta}</a>
           </div>
         </div>"""
 
@@ -85,6 +114,95 @@ def _generate_static_fallback(user_requirements: str) -> str:
           <div class="testi-author">— {name}, {city}</div>
         </div>"""
 
+    # ── Navbar logo ───────────────────────────────────────────────────────────
+    fh = t["font_heading"]
+    fb = t["font_body"]
+    if logo_url:
+        logo_html = f'<img src="{logo_url}" alt="{biz_name}" style="height:48px;object-fit:contain;vertical-align:middle"> <span style="font-family:{fh},serif;font-size:1.1rem;color:#fff;font-weight:700">{biz_name}</span>'
+    else:
+        logo_html = f'<span style="font-family:{fh},serif;font-size:1.5rem;color:#fff;font-weight:700">✦ {biz_name}</span>'
+
+    # ── Nav items ─────────────────────────────────────────────────────────────
+    # Map nav labels to built-in section IDs where possible; extras get their own stub section
+    SECTION_KEYWORDS = {
+        "categories": ["categor", "product", "service", "offer", "menu", "shop", "collection", "range"],
+        "about":      ["about", "story", "who", "history", "mission", "vision"],
+        "testimonials": ["testimonial", "review", "feedback", "customer", "client"],
+        "booking":    ["book", "order", "reserv", "appoint", "contact", "enquir", "inquiry", "schedule"],
+        "contact":    ["contact", "find us", "location", "address", "reach"],
+    }
+    def _map_nav_to_section(label: str) -> str:
+        slug = label.lower()
+        for section_id, keywords in SECTION_KEYWORDS.items():
+            if any(kw in slug for kw in keywords):
+                return f"#{section_id}"
+        # No match — return a slugified anchor for a custom section
+        return "#" + re.sub(r"[^a-z0-9]+", "-", slug).strip("-")
+
+    extra_sections_html = ""
+    if nav_links:
+        last_link = nav_links[-1]
+        nav_items_html = ""
+        extra_section_ids = set()
+        for link in nav_links[:-1]:
+            anchor = _map_nav_to_section(link)
+            nav_items_html += f'<li><a href="{anchor}">{link}</a></li>\n    '
+            if not anchor.lstrip("#") in ("categories", "about", "testimonials", "booking", "contact"):
+                extra_section_ids.add((anchor.lstrip("#"), link))
+        last_anchor = _map_nav_to_section(last_link)
+        if last_anchor in ("#contact", "#booking"):
+            nav_items_html += f'<li><a href="{last_anchor}" class="nav-cta">{last_link}</a></li>'
+        else:
+            nav_items_html += f'<li><a href="{last_anchor}" class="nav-cta">{last_link}</a></li>'
+            if last_anchor.lstrip("#") not in ("categories", "about", "testimonials", "booking", "contact"):
+                extra_section_ids.add((last_anchor.lstrip("#"), last_link))
+        # Build stub sections for unrecognised nav items — extract relevant text from scraped prompt
+        for sec_id, sec_label in extra_section_ids:
+            kw = sec_label.lower().replace(" ", ",")
+            # Try to find any scraped paragraph mentioning this section label
+            label_lc = sec_label.lower()
+            excerpt_match = re.search(
+                r'(?i)' + re.escape(label_lc) + r'[^\n]{0,300}',
+                user_requirements
+            )
+            excerpt = excerpt_match.group(0).strip()[:250] if excerpt_match else ""
+            section_desc = excerpt if len(excerpt) > 40 else f"Explore our {sec_label} — dedicated to sharing knowledge, community, and inspiration."
+            extra_sections_html += f"""
+<!-- ── {sec_label} ── -->
+<section id="{sec_id}">
+  <div class="section reveal">
+    <div class="section-header">
+      <h2>{sec_label}</h2>
+      <p>{section_desc}</p>
+      <div class="section-divider"></div>
+    </div>
+    <div class="cat-grid">
+      <div class="cat-card">
+        <img src="https://source.unsplash.com/featured/800x500/?{kw}" alt="{sec_label}" loading="lazy">
+        <div class="cat-info">
+          <h3>{sec_label}</h3>
+          <p>{section_desc}</p>
+          <a href="#contact" class="cat-btn">Learn More</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+"""
+    else:
+        default_cta = "Contact Us" if is_informational else "Book Now"
+        default_href = "#contact" if is_informational else "#booking"
+        nav_items_html = f"""<li><a href="#categories">Sections</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="{default_href}" class="nav-cta">{default_cta}</a></li>"""
+
+    # ── Hero CTAs ─────────────────────────────────────────────────────────────
+    if is_informational:
+        hero_cta_html = '<a href="#about" class="btn btn-accent">Learn More</a>\n      <a href="#contact" class="btn btn-outline">Contact Us</a>'
+    else:
+        hero_cta_html = '<a href="#booking" class="btn btn-accent">Book an Order</a>\n      <a href="#categories" class="btn btn-outline">View Our Range</a>'
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -92,41 +210,42 @@ def _generate_static_fallback(user_requirements: str) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{biz_name}</title>
   <meta name="description" content="{description[:160]}"/>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family={t['font_heading'].replace(' ', '+')}:wght@600;700&family={t['font_body'].replace(' ', '+')}:wght@300;400;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     :root {{
-      --primary: #2c3e50; --accent: #c0973f; --bg: #fdfcfa;
-      --text: #2d2d2d; --muted: #6b7280; --radius: 10px;
-      --card-shadow: 0 4px 20px rgba(0,0,0,.08);
+      --primary: {t['primary']}; --secondary: {t['secondary']}; --accent: {t['accent']};
+      --bg: {t['bg']}; --text: {t['text']}; --muted: #6b7280;
+      --radius: {t['radius']}; --card-shadow: {t['shadow']};
+      --gradient: {t['gradient']};
     }}
     html {{ scroll-behavior: smooth; }}
-    body {{ font-family: 'Lato', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }}
+    body {{ font-family: {t['font_body']}, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }}
 
     /* ── Navbar ── */
     nav {{
-      position: sticky; top: 0; z-index: 1000; background: rgba(253,252,250,.96);
-      backdrop-filter: blur(10px); border-bottom: 1px solid #e5e0d8;
+      position: sticky; top: 0; z-index: 1000; background: var(--primary);
+      backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,.12);
       display: flex; align-items: center; justify-content: space-between; padding: 0 5%; height: 72px;
     }}
-    .logo {{ font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--primary); }}
+    .logo {{ font-family: {t['font_heading']}, serif; font-size: 1.5rem; color: #fff; }}
     .nav-links {{ display: flex; gap: 32px; list-style: none; }}
-    .nav-links a {{ color: var(--text); font-size: .9rem; letter-spacing: .5px; font-weight: 700;
+    .nav-links a {{ color: rgba(255,255,255,.85); font-size: .9rem; letter-spacing: .5px; font-weight: 700;
       text-transform: uppercase; text-decoration: none; transition: color .2s; }}
     .nav-links a:hover {{ color: var(--accent); }}
-    .nav-cta {{ background: var(--accent); color: #fff !important; padding: 10px 22px; border-radius: 6px; }}
+    .nav-cta {{ background: var(--accent); color: #fff !important; padding: 10px 22px; border-radius: var(--radius); }}
     .nav-cta:hover {{ opacity:.85; }}
-    .hamburger {{ display:none; background:none; border:none; font-size:1.6rem; cursor:pointer; }}
+    .hamburger {{ display:none; background:none; border:none; font-size:1.6rem; cursor:pointer; color:#fff; }}
 
     /* ── Hero ── */
     .hero {{
       min-height: 90vh; display: flex; align-items: center; justify-content: center; text-align: center;
       background: linear-gradient(rgba(0,0,0,.48),rgba(0,0,0,.48)),
-                  url('https://source.unsplash.com/featured/1400x900/?{niche_kw}') center/cover no-repeat;
+                  url('{hero_bg}') center/cover no-repeat;
       color: #fff; padding: 80px 20px;
     }}
     .hero-inner {{ max-width: 720px; animation: fadeUp .8s ease; }}
-    .hero h1 {{ font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 6vw, 4.5rem);
+    .hero h1 {{ font-family: {fh}, serif; font-size: clamp(2.2rem, 6vw, 4.5rem);
       line-height: 1.15; margin-bottom: 20px; }}
     .hero p {{ font-size: 1.2rem; opacity: .9; margin-bottom: 36px; font-weight: 300; }}
     .hero-btns {{ display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }}
@@ -142,7 +261,7 @@ def _generate_static_fallback(user_requirements: str) -> str:
     /* ── Sections ── */
     .section {{ padding: 88px 5%; max-width: 1280px; margin: 0 auto; }}
     .section-header {{ text-align: center; margin-bottom: 56px; }}
-    .section-header h2 {{ font-family: 'Playfair Display', serif; font-size: 2.4rem; color: var(--primary); margin-bottom: 12px; }}
+    .section-header h2 {{ font-family: {fh}, serif; font-size: 2.4rem; color: var(--secondary); margin-bottom: 12px; }}
     .section-header p {{ color: var(--muted); font-size: 1.05rem; max-width: 600px; margin: 0 auto; }}
     .section-divider {{ width: 60px; height: 3px; background: var(--accent); margin: 14px auto 0; border-radius: 2px; }}
 
@@ -153,7 +272,7 @@ def _generate_static_fallback(user_requirements: str) -> str:
     .cat-card:hover {{ transform: translateY(-5px); }}
     .cat-card img {{ width: 100%; height: 200px; object-fit: cover; }}
     .cat-info {{ padding: 22px; }}
-    .cat-info h3 {{ font-family: 'Playfair Display', serif; font-size: 1.25rem; color: var(--primary); margin-bottom: 8px; }}
+    .cat-info h3 {{ font-family: {fh}, serif; font-size: 1.25rem; color: var(--primary); margin-bottom: 8px; }}
     .cat-info p {{ color: var(--muted); font-size: .9rem; margin-bottom: 14px; }}
     .cat-btn {{ display: inline-block; padding: 8px 20px; background: var(--primary); color: #fff;
       border-radius: 5px; font-size: .85rem; font-weight: 700; text-decoration: none; transition: background .2s; }}
@@ -165,7 +284,7 @@ def _generate_static_fallback(user_requirements: str) -> str:
       display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
     }}
     .about-strip img {{ width: 100%; border-radius: 12px; height: 380px; object-fit: cover; }}
-    .about-text h2 {{ font-family: 'Playfair Display', serif; font-size: 2rem; margin-bottom: 20px; }}
+    .about-text h2 {{ font-family: {fh}, serif; font-size: 2rem; margin-bottom: 20px; }}
     .about-text p {{ opacity: .85; font-size: 1rem; line-height: 1.8; }}
 
     /* ── Testimonials ── */
@@ -186,19 +305,19 @@ def _generate_static_fallback(user_requirements: str) -> str:
       letter-spacing: .5px; color: var(--primary); }}
     .form-group input, .form-group select, .form-group textarea {{
       padding: 12px 14px; border: 1.5px solid #e0dbd4; border-radius: 7px; font-size: .95rem;
-      font-family: 'Lato', sans-serif; background: var(--bg); transition: border-color .2s; width: 100%; }}
+      font-family: {fb}, sans-serif; background: var(--bg); transition: border-color .2s; width: 100%; }}
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus {{
       outline: none; border-color: var(--accent); }}
     .submit-btn {{ width: 100%; padding: 16px; background: var(--primary); color: #fff; border: none;
       border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .2s;
-      font-family: 'Lato', sans-serif; }}
+      font-family: {fb}, sans-serif; }}
     .submit-btn:hover {{ background: var(--accent); }}
     #booking-confirm {{ display: none; background: #d4edda; border: 1px solid #c3e6cb;
       color: #155724; padding: 18px 24px; border-radius: 8px; margin-top: 20px; font-weight: 700; }}
 
     /* ── Contact & Map ── */
     .contact-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }}
-    .contact-details h3 {{ font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--primary); margin-bottom: 24px; }}
+    .contact-details h3 {{ font-family: {fh}, serif; font-size: 1.5rem; color: var(--primary); margin-bottom: 24px; }}
     .contact-item {{ display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px; }}
     .contact-item .icon {{ font-size: 1.3rem; margin-top: 2px; }}
     .contact-item p {{ color: var(--muted); font-size: .95rem; margin: 0; }}
@@ -212,7 +331,7 @@ def _generate_static_fallback(user_requirements: str) -> str:
     /* ── Footer ── */
     footer {{ background: #1a1a2e; color: #a0a0b8; padding: 60px 5% 30px; }}
     .footer-grid {{ display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }}
-    .footer-brand h3 {{ font-family: 'Playfair Display', serif; color: #fff; font-size: 1.4rem; margin-bottom: 12px; }}
+    .footer-brand h3 {{ font-family: {fh}, serif; color: #fff; font-size: 1.4rem; margin-bottom: 12px; }}
     .footer-brand p {{ font-size: .88rem; line-height: 1.7; }}
     .footer-col h4 {{ color: #fff; font-size: .9rem; text-transform: uppercase;
       letter-spacing: 1px; margin-bottom: 16px; }}
@@ -222,7 +341,7 @@ def _generate_static_fallback(user_requirements: str) -> str:
     .footer-col a:hover {{ color: #fff; }}
     .footer-newsletter {{ display: flex; gap: 8px; margin-top: 16px; }}
     .footer-newsletter input {{ flex: 1; padding: 10px 14px; border-radius: 6px; border: none;
-      background: rgba(255,255,255,.1); color: #fff; font-family: 'Lato', sans-serif; font-size: .88rem; }}
+      background: rgba(255,255,255,.1); color: #fff; font-family: {fb}, sans-serif; font-size: .88rem; }}
     .footer-newsletter button {{ padding: 10px 18px; background: var(--accent); color: #fff;
       border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: .88rem; }}
     .footer-bottom {{ border-top: 1px solid rgba(255,255,255,.08); padding-top: 24px;
@@ -252,13 +371,10 @@ def _generate_static_fallback(user_requirements: str) -> str:
 
 <!-- ── Navbar ── -->
 <nav>
-  <div class="logo">✦ {biz_name}</div>
+  <div class="logo">{logo_html}
+  </div>
   <ul class="nav-links">
-    <li><a href="#categories">Menu</a></li>
-    <li><a href="#about">About</a></li>
-    <li><a href="#testimonials">Reviews</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#booking" class="nav-cta">Book Now</a></li>
+    {nav_items_html}
   </ul>
   <button class="hamburger" onclick="document.querySelector('.nav-links').style.display = document.querySelector('.nav-links').style.display === 'flex' ? 'none' : 'flex'; document.querySelector('.nav-links').style.flexDirection='column'; document.querySelector('.nav-links').style.position='absolute'; document.querySelector('.nav-links').style.top='72px'; document.querySelector('.nav-links').style.left='0'; document.querySelector('.nav-links').style.right='0'; document.querySelector('.nav-links').style.background='#fff'; document.querySelector('.nav-links').style.padding='20px 5%';">☰</button>
 </nav>
@@ -269,8 +385,7 @@ def _generate_static_fallback(user_requirements: str) -> str:
     <h1>{biz_name}</h1>
     <p>{description[:220]}</p>
     <div class="hero-btns">
-      <a href="#booking" class="btn btn-accent">Book an Order</a>
-      <a href="#categories" class="btn btn-outline">View Our Range</a>
+      {hero_cta_html}
     </div>
   </div>
 </section>
@@ -356,6 +471,7 @@ def _generate_static_fallback(user_requirements: str) -> str:
   </div>
 </section>
 
+{extra_sections_html}
 <!-- ── Contact ── -->
 <section id="contact">
   <div class="section reveal">
@@ -452,95 +568,135 @@ def _generate_static_fallback(user_requirements: str) -> str:
 </html>"""
 
 
-def create_website_crew():
-    """Create and configure the website builder crew"""
-    
-    # Task 1: Design specifications
+def create_website_crew(theme_key: str = "modern", classification: str = "generic"):
+    """Create and configure the website builder crew with a 3-task pipeline.
+
+    Pipeline:
+      Task 1 (designer_agent)  → structured content plan (NO style/CSS decisions)
+      Task 2 (theme_agent)     → complete HTML using locked theme tokens
+    """
+    t = THEMES.get(theme_key, THEMES["modern"])
+    theme_spec_block = f"""
+=== THEME_SPEC (LOCKED — do not deviate) ===
+Theme Name:       {t['label']}
+Primary Colour:   {t['primary']}
+Secondary Colour: {t['secondary']}
+Accent Colour:    {t['accent']}
+Background:       {t['bg']}
+Text Colour:      {t['text']}
+Heading Font:     {t['font_heading']}
+Body Font:        {t['font_body']}
+Border Radius:    {t['radius']}
+Shadow:           {t['shadow']}
+Hero Gradient:    {t['gradient']}
+
+Mapping:
+  --primary   → {t['primary']}   (navbar bg, section headings, key UI)
+  --secondary → {t['secondary']}  (hover states, sub-headings)
+  --accent    → {t['accent']}   (all buttons and CTAs)
+  --bg        → {t['bg']}     (page background)
+  --text      → {t['text']}     (all body text)
+  font-heading → {t['font_heading']} (every h1/h2/h3)
+  font-body    → {t['font_body']} (paragraphs, labels, nav)
+  border-radius → {t['radius']} (cards, buttons, inputs)
+  box-shadow   → {t['shadow']} (cards, sections)
+  hero/gradient → {t['gradient']}
+==========================================
+"""
+
+    # Classification profile hint injected into tasks
+    classification_note = f"AUDIENCE/CLASSIFICATION: {classification.upper()} — tailor all content, CTA labels, navigation, and section types to suit this profile.\n\n"
+
+    # Task 1 — Content planning (no style decisions)
     design_task = Task(
-        description="""Based on the user's requirements, create a DETAILED, LUXURY-GRADE design specification including:
-        1. Layout structure for every page (Home, Categories, About, Contact/Book, Gallery)
-        2. Color scheme (primary, secondary, accent, background, text — with exact hex codes)
-        3. Typography hierarchy (font families and sizes for H1/H2/H3/body/caption)
-        4. Component styles: hero, category cards, product grid, testimonials, booking form, contact section
-        5. Responsive breakpoints strategy (mobile, tablet, desktop)
-        6. IMAGE PLAN — for every category and section, specify the exact Unsplash query keyword to use
-           (e.g. 'https://source.unsplash.com/featured/800x500/?bakery,pastry' for a bakery hero)
-        7. CONTENT PLAN — outline real business content for each section:
-           - Business description and tagline
-           - List of product/service categories with 1-line descriptions
-           - Contact block: full address structure, email format, phone format, opening hours
-           - Booking/Order form fields and flow
-           - 3 realistic customer testimonials for this niche
-        8. Animations and microinteractions (hover states, scroll reveals, CTA pulses)
+        description=classification_note + """Based on the user's requirements, produce a STRUCTURED CONTENT PLAN for the website.
 
-        Output a structured specification that enables the developer to build a complete, content-rich site.""",
+        Include ALL of the following — with NO colour, font, or CSS decisions:
+
+        1. SITE IDENTITY: Business name, tagline, brand voice (1–2 sentences)
+        2. NAVIGATION: Ordered list of nav items
+        3. HERO: Headline, sub-headline, primary CTA label, secondary CTA label,
+           Unsplash keyword for hero background image
+        4. SECTIONS (for each section provide):
+           - Section ID and heading
+           - Sub-heading
+           - Body copy (2–4 sentences)
+           - Content items (cards/list entries) with: title, description (2 sentences),
+             Unsplash image keyword
+        5. CONTACT DETAILS: Full address, phone, email, opening hours
+        6. BOOKING FORM: List of form fields with types and placeholder text,
+           booking reference prefix (e.g. BK-, ORD-, RES-)
+        7. TESTIMONIALS: 3 reviews — each with star rating, customer name, city, review text
+        8. FOOTER: Column headings, quick links, social platforms, newsletter sign-up copy
+        9. SEO: Page title tag, meta description
+
+        CRITICAL: Do NOT write any HTML, CSS, hex codes, font names, or style descriptions.
+        Output clean structured text only.""",
         agent=designer_agent,
-        expected_output="Detailed design spec with color palette, typography, image plan, content plan, and component guidelines"
+        expected_output=(
+            "Structured content plan: site identity, nav, hero, sections with copy and Unsplash keywords, "
+            "contact details, booking form fields, testimonials, footer content, SEO meta. No HTML or CSS."
+        ),
     )
 
-    # Task 2: Code generation
-    code_task = Task(
-        description="""Based on the design specification AND the original user requirements, generate a COMPLETE, 
-        production-ready, content-rich HTML/CSS/JavaScript website as a SINGLE FILE.
+    # Task 2 — Theme implementation (HTML output using locked theme tokens)
+    theme_task = Task(
+        description=f"""{classification_note}You will receive a structured CONTENT PLAN from the previous task.
 
-        MANDATORY requirements — every one of these must be present in the output:
+        Apply it to produce a COMPLETE, single-file HTML/CSS/JS website using ONLY the tokens
+        in the THEME_SPEC block below. Every visual decision must come from THEME_SPEC.
 
-        1. HERO SECTION: Full-width background image from Unsplash matching the business niche.
-           Format: style="background-image:url('https://source.unsplash.com/featured/1400x700/?{keyword}')"
-           Include business name as H1, a compelling tagline as subtitle, and two CTAs (Book Now / View Menu/Catalogue).
+{theme_spec_block}
 
-        2. CATEGORIES SECTION: A visually rich card grid showing each product/service category.
-           Each card MUST include:
-           - An <img> with src="https://source.unsplash.com/featured/400x300/?{category_keyword}" and loading="lazy"
-           - Category name as H3
-           - 2-sentence description enriched from the user's business description
-           - A styled link/button
+        MANDATORY sections (all must appear with real content — no placeholder comments):
+        1. Sticky navbar: logo (business name), nav links, accent-coloured CTA button
+        2. Hero: full-width gradient background (use gradient from THEME_SPEC), H1, tagline, two CTAs
+        3. Services/Categories: card grid — each card has Unsplash image, heading, description, button
+        4. About / Brand Story section
+        5. Testimonials: 3 cards with ★★★★★, customer name + city, review text
+        6. Contact & Location: address, phone, email, opening hours, Google Maps embed iframe
+        7. Booking/Order form: all fields from content plan, JS booking reference on submit
+        8. Footer: address, social icons, newsletter input, auto copyright year
+        9. Mobile responsive with hamburger menu, smooth scroll, IntersectionObserver scroll-reveal
 
-        3. CONTACT & LOCATION SECTION: Must include ALL of these:
-           - Full business address (Street, City, State/Province, Country, Postal Code)
-           - Phone number in international format (e.g. +1-555-xxx-xxxx or as provided)
-           - Email address (support@{businessname}.com if not provided)
-           - Opening hours table (Mon–Fri, Sat, Sun)
-           - Google Maps embed: <iframe src="https://maps.google.com/maps?q={URL-encoded address}&output=embed" ...>
+        CSS rules:
+        - Declare :root variables matching THEME_SPEC tokens
+        - Import required Google Fonts for both heading and body fonts
+        - Use var(--primary), var(--accent) etc. throughout — never hardcode hex values
+        - Buttons always use accent colour background and match the border-radius token
 
-        4. BOOKING / ORDER FORM: A styled form with:
-           - Fields: Full Name, Email, Phone, Service/Product selection (dropdown from categories), 
-             Preferred Date (date picker), Time Slot (dropdown), Special Instructions (textarea)
-           - On submit: generate a booking reference 'BK-' + Date.now() and show a confirmation banner
-           - Form action is handled by JS (no page reload)
-
-        5. TESTIMONIALS: 3 realistic customer reviews in a card or slider layout.
-           Each review must have: star rating (★★★★★), customer name + city, review text specific to the niche.
-
-        6. FOOTER: Includes address, phone, email, social media icons linking to #, copyright year (auto JS), 
-           newsletter email input, and a "Back to top" link.
-
-        7. NAVBAR: Logo (business name + emoji matching niche), navigation links, and a prominent CTA button.
-
-        8. All images use loading="lazy" and meaningful alt attributes.
-        9. Smooth scroll, CSS animations on card hover, and a scroll-reveal effect on sections (IntersectionObserver).
-        10. Mobile responsive with hamburger menu for small screens.
-
-        Output the COMPLETE, valid HTML file with all CSS in a <style> block and all JS in a <script> block.
-        Do NOT use placeholder comments like '<!-- add content here -->'. Every section must have real content.""",
-        agent=developer_agent,
-        expected_output="Complete, single-file HTML website with all sections populated, Unsplash images, booking form, location/contact details, and real content"
+        Output the COMPLETE valid HTML file. All CSS in <style>, all JS in <script>.""",
+        agent=theme_agent,
+        expected_output=(
+            "Complete single-file HTML website using only the THEME_SPEC colours and fonts, "
+            "all sections populated with real content, Unsplash images, booking form, contact section."
+        ),
+        context=[design_task],
     )
-    
+
     crew = Crew(
-        agents=[designer_agent, developer_agent],
-        tasks=[design_task, code_task],
+        agents=[designer_agent, theme_agent],
+        tasks=[design_task, theme_task],
         process=Process.sequential,
-        verbose=settings.VERBOSE_MODE
+        verbose=settings.VERBOSE_MODE,
     )
-    
+
     return crew
 
-def build_website(user_requirements: str, project_name: str = "") -> dict:
+def build_website(user_requirements: str, project_name: str = "", theme_key: str = "modern", classification: str = "generic") -> dict:
     """
     Build a website based on user requirements.
     Falls back to a static template when OPENAI_API_KEY is not configured.
     The generated files are saved to output/<project-slug>/ automatically.
+
+    Parameters
+    ----------
+    user_requirements : str
+        The full assembled prompt from requirements_analyst.build_prompt()
+    project_name : str
+        Slugified project/site name used for the output directory
+    theme_key : str
+        One of the keys from tools.theme_builder.THEMES (default: 'modern')
     """
     from tools.html_generator import generate_html, get_website_dir
 
@@ -557,7 +713,7 @@ def build_website(user_requirements: str, project_name: str = "") -> dict:
     if not settings.OPENAI_API_KEY:
         logger.warning("[%s] ⚠  No OPENAI_API_KEY — generating static fallback", trace_id)
         t1 = time.time()
-        html_code = _generate_static_fallback(user_requirements)
+        html_code = _generate_static_fallback(user_requirements, theme_key=theme_key)
         filepath = generate_html({}, html_code, project_name, page_name="index")
         site_dir = get_website_dir(project_name)
         logger.info("[%s] ✅ static fallback saved to %s  (%.1fs)", trace_id, site_dir, time.time()-t0)
@@ -571,8 +727,8 @@ def build_website(user_requirements: str, project_name: str = "") -> dict:
             "trace_id": trace_id,
         }
 
-    logger.info("[%s] 🧠 Kicking off CrewAI pipeline…", trace_id)
-    crew = create_website_crew()
+    logger.info("[%s] 🧠 Kicking off CrewAI pipeline… theme=%s", trace_id, theme_key)
+    crew = create_website_crew(theme_key=theme_key, classification=classification)
     t1 = time.time()
     result = crew.kickoff(
         inputs={

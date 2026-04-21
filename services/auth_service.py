@@ -28,10 +28,11 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 # ── JWT helpers ───────────────────────────────────────────────────────────────
 
-def create_access_token(user_id: str, email: str) -> str:
+def create_access_token(user_id: str, email: str, role: str = "app_user") -> str:
     payload = {
         "sub":   user_id,
         "email": email,
+        "role":  role,
         "exp":   datetime.now(timezone.utc) + timedelta(minutes=TOKEN_TTL),
         "iat":   datetime.now(timezone.utc),
     }

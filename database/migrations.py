@@ -57,9 +57,9 @@ TABLES = [
     )
     """,
 
-    # ── Product Categories ────────────────────────────────────────────────────
+    # ── Cart Categories ─────────────────────────────────────────────────────
     """
-    CREATE TABLE IF NOT EXISTS product_categories (
+    CREATE TABLE IF NOT EXISTS cart_categories (
         category_id   VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
         website_id    VARCHAR(36)  NOT NULL REFERENCES websites(website_id),
         parent_id     VARCHAR(36),
@@ -72,23 +72,29 @@ TABLES = [
     )
     """,
 
-    # ── Products ──────────────────────────────────────────────────────────────
+    # ── Cart Items ────────────────────────────────────────────────────────────
     """
-    CREATE TABLE IF NOT EXISTS products (
-        product_id    VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
-        website_id    VARCHAR(36)  NOT NULL REFERENCES websites(website_id),
-        category_id   VARCHAR(36)  REFERENCES product_categories(category_id),
-        name          VARCHAR(300) NOT NULL,
-        slug          VARCHAR(300),
-        description   TEXT,
-        price         NUMBER(12,2) NOT NULL DEFAULT 0,
-        currency      VARCHAR(3)   DEFAULT 'USD',
-        stock         INTEGER      DEFAULT 0,
-        images_json   VARIANT,
-        attributes    VARIANT,
-        is_active     BOOLEAN      DEFAULT TRUE,
-        created_at    TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
-        updated_at    TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    CREATE TABLE IF NOT EXISTS cart_items (
+        product_id      VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
+        website_id      VARCHAR(36)  NOT NULL REFERENCES websites(website_id),
+        category_id     VARCHAR(36)  REFERENCES cart_categories(category_id),
+        name            VARCHAR(300) NOT NULL,
+        slug            VARCHAR(300),
+        description     TEXT,
+        price           NUMBER(12,2) NOT NULL DEFAULT 0,
+        compare_price   NUMBER(12,2) DEFAULT 0,
+        discount_pct    NUMBER(5,2)  DEFAULT 0,
+        currency        VARCHAR(3)   DEFAULT 'USD',
+        stock           INTEGER      DEFAULT 0,
+        stock_quantity  INTEGER      DEFAULT 0,
+        image_url       VARCHAR(500),
+        images_json     VARIANT,
+        attributes      VARIANT,
+        is_flash_offer  BOOLEAN      DEFAULT FALSE,
+        flash_offer_ends TIMESTAMP_NTZ,
+        is_active       BOOLEAN      DEFAULT TRUE,
+        created_at      TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+        updated_at      TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     )
     """,
 
@@ -318,16 +324,39 @@ def run_migrations():
     # ── Additive column migrations (idempotent) ───────────────────────────────
     _safe_alter("ALTER TABLE users ADD COLUMN owner_id TEXT")
     _safe_alter("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '[]'")
+    # ── Role hierarchy (superuser | app_user | client | customer) ─────────────
+    # Existing rows without a role default to 'app_user'; superuser rows are
+    # updated explicitly by create_superuser.py using plan='superuser'.
+    _safe_alter("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'app_user'")
+    # client_website_id: the specific website a 'client' role user manages
+    _safe_alter("ALTER TABLE users ADD COLUMN client_website_id TEXT")
+    _safe_alter("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
+    # Back-fill: users that already have plan='superuser' get role='superuser'
+    try:
+        db.execute("UPDATE users SET role='superuser' WHERE plan='superuser' AND (role IS NULL OR role='app_user')")
+    except Exception:
+        pass
+
     _safe_alter("ALTER TABLE websites ADD COLUMN cart_features TEXT DEFAULT '[]'")
     _safe_alter("ALTER TABLE websites ADD COLUMN enable_chatbot INTEGER DEFAULT 0")
     _safe_alter("ALTER TABLE websites ADD COLUMN enable_blog INTEGER DEFAULT 0")
     _safe_alter("ALTER TABLE websites ADD COLUMN enable_livestream INTEGER DEFAULT 0")
-    _safe_alter("ALTER TABLE products ADD COLUMN image_url TEXT")
-    _safe_alter("ALTER TABLE products ADD COLUMN compare_price REAL DEFAULT 0")
-    _safe_alter("ALTER TABLE products ADD COLUMN discount_pct REAL DEFAULT 0")
-    _safe_alter("ALTER TABLE products ADD COLUMN is_flash_offer INTEGER DEFAULT 0")
-    _safe_alter("ALTER TABLE products ADD COLUMN flash_offer_ends TEXT")
-    _safe_alter("ALTER TABLE products ADD COLUMN stock_quantity INTEGER DEFAULT 0")
+    _safe_alter("ALTER TABLE cart_items ADD COLUMN image_url TEXT")
+    _safe_alter("ALTER TABLE cart_items ADD COLUMN compare_price REAL DEFAULT 0")
+    _safe_alter("ALTER TABLE cart_items ADD COLUMN discount_pct REAL DEFAULT 0")
+    _safe_alter("ALTER TABLE cart_items ADD COLUMN is_flash_offer INTEGER DEFAULT 0")
+    _safe_alter("ALTER TABLE cart_items ADD COLUMN flash_offer_ends TEXT")
+    _safe_alter("ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0")
+    _safe_alter("ALTER TABLE cart_items ADD COLUMN updated_at TEXT")
+
+    # ── Async build tracking columns ──────────────────────────────────────────
+    # build_status: idle | queued | running | built | error
+    _safe_alter("ALTER TABLE websites ADD COLUMN build_status TEXT DEFAULT 'idle'")
+    _safe_alter("ALTER TABLE websites ADD COLUMN build_job_id TEXT")
+    _safe_alter("ALTER TABLE websites ADD COLUMN build_started_at TEXT")
+    _safe_alter("ALTER TABLE websites ADD COLUMN build_error TEXT")
+    _safe_alter("ALTER TABLE websites ADD COLUMN classification TEXT DEFAULT 'generic'")
+    _safe_alter("ALTER TABLE websites ADD COLUMN live_url TEXT")
 
     # ── Seed plan_features (INSERT OR IGNORE = idempotent) ────────────────────
     _seed_plan_features()

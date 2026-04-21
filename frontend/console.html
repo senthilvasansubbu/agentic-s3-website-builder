@@ -197,7 +197,8 @@
   <nav class="sidebar-nav">
     <div class="nav-section">Platform</div>
     <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span><span>Dashboard</span></div>
-    <div class="nav-item" onclick="showPage('users')"><span class="icon">👥</span><span>Users</span></div>
+    <div class="nav-item" onclick="showPage('app-users')"><span class="icon">🧑‍💼</span><span>App Users</span></div>
+    <div class="nav-item" onclick="showPage('users')"><span class="icon">👥</span><span>All Users</span></div>
     <div class="nav-item" onclick="showPage('websites')"><span class="icon">🌐</span><span>Websites</span></div>
     <div class="nav-section">Operations</div>
     <div class="nav-item" onclick="showPage('workspaces')"><span class="icon">🏗️</span><span>Workspaces</span></div>
@@ -264,6 +265,20 @@
       <div class="panel" style="margin-top:24px">
         <div class="panel-header"><span class="panel-title">Activity Over Time</span></div>
         <canvas id="activityChart" height="90"></canvas>
+      </div>
+    </div>
+
+    <!-- ── App Users Page ── -->
+    <div class="page" id="page-app-users">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">App Users</span>
+          <button class="btn btn-primary btn-sm" onclick="showModal('create-app-user-modal')">+ Create App User</button>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="app-users-tbody"><tr><td colspan="6" style="text-align:center;color:#a0aec0">Loading…</td></tr></tbody>
+        </table>
       </div>
     </div>
 
@@ -399,6 +414,33 @@
   </div>
 </div>
 
+<!-- Create App User Modal -->
+<div class="modal-overlay" id="create-app-user-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Create App User</h3>
+      <button class="modal-close" onclick="closeModal('create-app-user-modal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Full Name</label><input id="au-name" placeholder="Jane Smith"></div>
+      <div class="field"><label>Email</label><input type="email" id="au-email" placeholder="jane@agency.com"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Password</label><input type="password" id="au-password" placeholder="Temporary password"></div>
+      <div class="field"><label>Mobile (optional)</label><input id="au-mobile" placeholder="+1 555 000 0000"></div>
+    </div>
+    <div class="field"><label>Plan</label>
+      <select id="au-plan">
+        <option value="free">Free</option>
+        <option value="pro">Pro</option>
+        <option value="enterprise">Enterprise</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="createAppUser()">Create App User</button>
+  </div>
+</div>
+
+
 <div class="modal-overlay" id="workspace-modal">
   <div class="modal">
     <div class="modal-header">
@@ -462,7 +504,7 @@ async function apiFetch(url, opts = {}) {
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
-const pageTitles = { dashboard:'Dashboard', users:'Users', websites:'Websites',
+const pageTitles = { dashboard:'Dashboard', 'app-users':'App Users', users:'All Users', websites:'Websites',
   workspaces:'Workspaces', payments:'Payments & Plans', feedback:'Feedback',
   activity:'Activity Log', settings:'Settings' };
 
@@ -479,6 +521,7 @@ function showPage(name) {
 
 function loadPageData(name) {
   if (name === 'dashboard') { loadStats(); loadActivity(); }
+  else if (name === 'app-users') loadAppUsers();
   else if (name === 'users') loadUsers();
   else if (name === 'websites') loadWebsites();
   else if (name === 'workspaces') loadWorkspaces();
@@ -519,6 +562,64 @@ async function loadFullActivity() {
     <td>${r.website_id ? r.website_id.slice(0,8)+'…' : '—'}</td>
     <td>${r.ip_address||'—'}</td><td>${r.country||'—'}</td><td>${fmtDate(r.created_at)}</td></tr>
   `).join('');
+}
+
+// ── App Users ───────────────────────────────────────────────────
+async function loadAppUsers() {
+  const rows = await apiFetch('/admin/app-users?limit=200');
+  const tbody = document.getElementById('app-users-tbody');
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0">No app users yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><b>${r.full_name || '—'}</b></td>
+      <td>${r.email}</td>
+      <td><span class="pill ${r.plan}">${r.plan}</span></td>
+      <td><span class="pill ${r.is_active ? 'verified' : 'pending'}">${r.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td>${fmtDate(r.created_at)}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        ${r.is_active
+          ? `<button class="btn btn-sm" onclick="toggleAppUser('${r.user_id}',false)">⏸ Deactivate</button>`
+          : `<button class="btn btn-sm btn-success" onclick="toggleAppUser('${r.user_id}',true)">▶ Activate</button>`}
+        <button class="btn btn-sm btn-danger" onclick="deleteAppUser('${r.user_id}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function createAppUser() {
+  const body = {
+    email:     document.getElementById('au-email').value.trim(),
+    password:  document.getElementById('au-password').value,
+    full_name: document.getElementById('au-name').value.trim(),
+    mobile:    document.getElementById('au-mobile').value.trim(),
+    plan:      document.getElementById('au-plan').value,
+  };
+  if (!body.email || !body.password) { showToast('Email and password are required', 'error'); return; }
+  const res = await apiFetch('/admin/app-users', { method: 'POST', body: JSON.stringify(body) });
+  if (res && res.user_id) {
+    showToast('App user created!', 'success');
+    closeModal('create-app-user-modal');
+    loadAppUsers();
+  } else {
+    showToast(res?.detail || 'Failed to create app user', 'error');
+  }
+}
+
+async function toggleAppUser(userId, activate) {
+  const action = activate ? 'activate' : 'deactivate';
+  const res = await apiFetch(`/admin/app-users/${userId}/${action}`, { method: 'PATCH' });
+  showToast(res?.message || 'Done', 'success');
+  loadAppUsers();
+}
+
+async function deleteAppUser(userId) {
+  if (!confirm('Permanently delete this app user and all their clients?')) return;
+  const res = await apiFetch(`/admin/app-users/${userId}`, { method: 'DELETE' });
+  showToast(res?.message || 'Deleted', 'success');
+  loadAppUsers();
 }
 
 // ── Users ────────────────────────────────────────────────────────────────────

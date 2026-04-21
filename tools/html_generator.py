@@ -17,17 +17,18 @@ def _website_dir(project_name: str) -> str:
 
     Structure:
         output/
-          <website-slug>/
-            index.html          ← main page
-            pages/              ← additional pages
-            assets/
-              css/
-              js/
-              images/
+          staging/
+            <website-slug>/
+              index.html          ← main page
+              pages/              ← additional pages
+              assets/
+                css/
+                js/
+                images/
     """
     base = os.getenv("OUTPUT_DIR", "output")
     slug = _slugify(project_name)
-    site_dir = os.path.join(base, slug)
+    site_dir = os.path.join(base, "staging", slug)
     for sub in ("pages", "assets/css", "assets/js", "assets/images"):
         os.makedirs(os.path.join(site_dir, sub), exist_ok=True)
     return site_dir
@@ -37,8 +38,8 @@ def generate_html(design_spec: dict, code: str, project_name: str,
                   page_name: str = "index") -> str:
     """Write an HTML page into the website's subfolder.
 
-    - page_name='index'  → saved as  output/<slug>/index.html
-    - page_name='about'  → saved as  output/<slug>/pages/about.html
+    - page_name='index'  → saved as  output/staging/<slug>/index.html
+    - page_name='about'  → saved as  output/staging/<slug>/pages/about.html
     """
     site_dir = _website_dir(project_name)
 

@@ -19,7 +19,18 @@ class Settings:
     # Application Configuration
     OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
     WEBSITE_DOMAIN = os.getenv("WEBSITE_DOMAIN", "mywebsite.s3.amazonaws.com")
-    
+
+    # CORS — comma-separated allowed origins, e.g.:
+    #   CORS_ORIGINS=https://app.yourdomain.com,https://admin.yourdomain.com
+    # Leave blank (default) to allow localhost only in dev.
+    # Set to * only if you explicitly need a public API.
+    _cors_raw = os.getenv("CORS_ORIGINS", "")
+    CORS_ORIGINS: list = (
+        [o.strip() for o in _cors_raw.split(",") if o.strip()]
+        if _cors_raw.strip()
+        else ["http://localhost:8000", "http://localhost:3000", "http://127.0.0.1:8000"]
+    )
+
     # CrewAI Configuration
     VERBOSE_MODE = os.getenv("VERBOSE_MODE", "true").lower() == "true"
     

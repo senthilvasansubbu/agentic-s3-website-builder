@@ -10,12 +10,14 @@ from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, List
 
-from api.routes.auth import get_current_user
+from api.routes.auth import get_current_user, require_app_user_or_above, require_client_or_above
 from database.snowflake_client import db
 from agents.crew import build_website
+from agents.requirements_analyst import build_prompt, BuildRequest as AnalystRequest
 from tools.theme_builder import THEMES, render_page
 from tools.web_search import search_for_website_content
 from tools.social_media_search import social_context_for_topic
+from tools.website_scraper import scrape_website, scrape_to_prompt_context
 from services.hosting_service import deploy_to_s3, save_locally, custom_domain_instructions
 from services.analytics_service import log_event
 from services.payment_service import PLANS
@@ -34,6 +36,7 @@ class CreateWebsiteRequest(BaseModel):
     title: str
     description: Optional[str] = None
     theme: str = "modern"
+    classification: str = "generic"
     logo_url: Optional[str] = None
     domain: Optional[str] = None
     hosting_env: str = "s3"
@@ -50,6 +53,9 @@ class BuildWebsiteRequest(BaseModel):
     requirements: str                  # natural language
     use_web_search: bool = True
     use_social_search: bool = False
+    existing_website_url: Optional[str] = None      # scrape this URL to pre-seed the build
+    num_pages: int = 1                              # number of pages to generate
+    include_shopping_cart: bool = False             # enable e-commerce / cart features
     # Optional structured fields — enriches AI prompt when provided
     categories: Optional[List[str]] = None          # e.g. ["Cakes","Pastries","Breads"]
     location: Optional[str] = None                  # e.g. "123 Main St, New York, NY 10001"
@@ -67,6 +73,14 @@ class UpdateWebsiteRequest(BaseModel):
     theme: Optional[str] = None
     custom_css: Optional[str] = None
     status: Optional[str] = None
+
+
+class ScrapeUrlRequest(BaseModel):
+    url: str
+
+
+class StagedHtmlRequest(BaseModel):
+    html: str
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -88,12 +102,46 @@ def _check_plan_limits(user_id: str, num_pages: int, needs_cart: bool):
             detail="Shopping cart requires the Pro or Enterprise plan.",
         )
 
+    max_websites = plan_info.get("max_websites", 1)
+    if max_websites < 9999:
+        existing = db.fetchone(
+            "SELECT COUNT(*) AS cnt FROM websites WHERE user_id = %s AND status != 'deleted'",
+            (user_id,),
+        )
+        count = existing["cnt"] if existing else 0
+        if count >= max_websites:
+            raise HTTPException(
+                status_code=402,
+                detail=f"Your '{plan}' plan allows up to {max_websites} website(s). "
+                       f"Upgrade to create more.",
+            )
+
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
+@router.post("/scrape-url")
+async def scrape_existing_website(
+    body: ScrapeUrlRequest,
+    current_user: dict = Depends(require_client_or_above),
+):
+    """
+    Fetch an existing website URL and return extracted business information
+    (title, description, contact details, colours, headings, etc.)  that can
+    be used to pre-fill the build form or seed the AI prompt.
+    """
+    try:
+        data = scrape_website(body.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.error("Unexpected scrape error for %s: %s", body.url, exc)
+        raise HTTPException(status_code=500, detail="Failed to scrape the provided URL.")
+    return data
+
+
 @router.post("")
 async def create_website(body: CreateWebsiteRequest, request: Request,
-                         current_user: dict = Depends(get_current_user)):
+                         current_user: dict = Depends(require_app_user_or_above)):
     user_id = current_user["sub"]
     _check_plan_limits(user_id, body.num_pages, body.include_shopping_cart)
 
@@ -104,11 +152,11 @@ async def create_website(body: CreateWebsiteRequest, request: Request,
     db.execute(
         """INSERT INTO websites
            (website_id, user_id, name, title, description, logo_url, domain,
-            hosting_env, theme, custom_css, cart_features, enable_chatbot, enable_blog, enable_livestream, status)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
+            hosting_env, theme, classification, custom_css, cart_features, enable_chatbot, enable_blog, enable_livestream, status)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
         (website_id, user_id, body.name, body.title, body.description or "",
          body.logo_url or "", body.domain or "", body.hosting_env,
-         body.theme, body.custom_css or "",
+         body.theme, body.classification, body.custom_css or "",
          json.dumps(body.cart_features or []),
          1 if body.enable_chatbot else 0,
          1 if body.enable_blog else 0,
@@ -125,7 +173,7 @@ async def build_website_pages(
     body: BuildWebsiteRequest,
     background_tasks: BackgroundTasks,
     request: Request,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_app_user_or_above),
 ):
     trace_id = str(uuid.uuid4())[:8]
     t0 = time.time()
@@ -148,6 +196,15 @@ async def build_website_pages(
 
     # Gather web/social content
     extra_context = ""
+
+    # ── Scrape existing website if URL provided ────────────────────────────────
+    if body.existing_website_url:
+        logger.info("[%s] 🔗 Scraping existing website: %s", trace_id, body.existing_website_url)
+        t1 = time.time()
+        scraped_context = scrape_to_prompt_context(body.existing_website_url)
+        extra_context += "\n\n" + scraped_context
+        logger.info("[%s] 🔗 Scraping done in %.1fs", trace_id, time.time() - t1)
+
     if body.use_web_search:
         logger.info("[%s] 🌐 Running web search...", trace_id)
         t1 = time.time()
@@ -161,200 +218,197 @@ async def build_website_pages(
 
     full_prompt = body.requirements + extra_context
 
-    # Inject shopping cart feature requirements into the prompt
-    cart_features = []
-    try:
-        import json as _json
-        cf = site.get("cart_features") or "[]"
-        cart_features = _json.loads(cf) if isinstance(cf, str) else cf
-    except Exception:
-        pass
+    # ── Assemble full LLM prompt via RequirementsAnalystAgent ─────────────────
 
-    FEATURE_PROMPTS = {
-        "categories":     "Product listing with category navigation and breadcrumbs.",
-        "price_filter":   "Price range filter slider on product/shop pages.",
-        "images":         "Product image gallery with zoom and multiple images per product.",
-        "discounts":      "Display original price, sale price, and discount percentage badge.",
-        "coupons":        "Coupon code input field at checkout with validation feedback.",
-        "flash_offers":   "Flash sale section with countdown timer and highlighted deal cards.",
-        "ads":            "Advertisement banner placeholders (hero, sidebar, and footer positions).",
-        "email_notify":   "Email subscription opt-in form for promotions and newsletters.",
-        "sms_notify":     "SMS/WhatsApp opt-in checkbox at checkout for order updates.",
-        "whatsapp_notify":"WhatsApp contact button and order notification opt-in.",
-        "reviews":        "Product review and star-rating section on product detail pages.",
-        "wishlist":       "Add-to-wishlist button on product cards.",
-        "search":         "Search bar with autocomplete for products.",
-    }
-    if cart_features:
-        feat_text = "\n".join(f"- {FEATURE_PROMPTS.get(f, f)}" for f in cart_features if f in FEATURE_PROMPTS)
-        if feat_text:
-            full_prompt += f"\n\n=== Required E-commerce Features ===\nThe shopping cart/storefront must include:\n{feat_text}"
+    # If scraping, extract title and nav_links for prompt
+    scraped_title = None
+    nav_links = None
+    if body.existing_website_url:
+        try:
+            scraped = scrape_website(body.existing_website_url)
+            scraped_title = scraped.get('title')
+            nav_links = [l['text'] for l in scraped.get('nav_links', []) if l.get('text')]
+        except Exception as exc:
+            logger.warning("[%s] Could not extract title/nav_links from scrape: %s", trace_id, exc)
 
-    if site.get("enable_livestream"):
-        full_prompt += (
-            "\n\n=== Live Stream Section ===\n"
-            "Include a Live Stream page (/livestream) on the website. "
-            "The page should feature an embedded video player area (placeholder for a live stream embed such as YouTube Live, Twitch, or a custom RTMP player), "
-            "a live viewer count badge, a live chat sidebar, an upcoming streams schedule section, "
-            "and a subscribe/notify button. Add a 'Live' link in the main navigation with a pulsing red dot indicator."
-        )
-
-    if site.get("enable_blog"):
-        full_prompt += (
-            "\n\n=== Blog Section ===\n"
-            "Include a Blog section on the website with a dedicated /blog page. "
-            "The blog page should display a grid of sample blog post cards, each with "
-            "a title, short excerpt, author, date, reading time, and a 'Read More' link. "
-            "Include at least 3 realistic sample blog posts relevant to the business niche. "
-            "Add a 'Blog' link in the main navigation."
-        )
-
-    if site.get("enable_chatbot"):
-        full_prompt += (
-            "\n\n=== Chatbot Widget ===\n"
-            "Embed a floating customer-support chatbot widget on every page. "
-            "The widget should appear as a chat bubble in the bottom-right corner, "
-            "open a chat panel on click, greet the visitor, and allow them to send "
-            "messages. Include a clean HTML/CSS/JS implementation with a configurable "
-            "welcome message and a placeholder for an API endpoint to handle replies."
-        )
-
-    # ── Rich structured content enrichment ────────────────────────────────────
-    site_name = site.get("name") or site.get("title") or "Business"
-    site_desc = site.get("description") or ""
-
-    enrichment_lines = [
-        "\n\n=== CONTENT & STYLE ENRICHMENT ===",
-        "You MUST use every piece of information below in the generated website.",
-        f"Business Name: {site_name}",
-    ]
-
-    if site_desc:
-        enrichment_lines.append(
-            f"Business Description:\n{site_desc}\n"
-            "Incorporate this description into the hero tagline, about section, and category cards."
-        )
-
-    # Categories — from explicit field or extracted from description/requirements
-    cats = body.categories or []
-    if not cats:
-        # Auto-extract capitalised words as category hints from requirements
-        import re as _re
-        cats = _re.findall(r'(?:categor(?:y|ies)[:\s]+|types?[:\s]+)([A-Za-z ,&]+)', body.requirements)
-        if cats:
-            cats = [c.strip() for item in cats for c in item.split(',') if c.strip()]
-    if cats:
-        cat_list = "\n".join(f"  - {c}" for c in cats)
-        enrichment_lines.append(
-            f"\nProduct/Service Categories (create a visual card for EACH with a relevant Unsplash image):\n{cat_list}"
-        )
-        # Build Unsplash image hints per category
-        unsplash_hints = "\n".join(
-            f"  - {c}: https://source.unsplash.com/featured/400x300/?{c.lower().replace(' ', ',')}"
-            for c in cats
-        )
-        enrichment_lines.append(f"\nSuggested Unsplash images per category:\n{unsplash_hints}")
-
-    # Location
-    location = body.location or ""
-    if location:
-        import urllib.parse as _up
-        map_query = _up.quote(location)
-        enrichment_lines.append(
-            f"\nBusiness Location: {location}\n"
-            f"Embed this Google Map in the Contact section:\n"
-            f'<iframe src="https://maps.google.com/maps?q={map_query}&output=embed" '
-            f'width="100%" height="350" style="border:0;border-radius:12px" allowfullscreen loading="lazy"></iframe>'
-        )
-
-    # Email
-    email = body.email or f"info@{site_name.lower().replace(' ', '')}.com"
-    enrichment_lines.append(f"\nBusiness Email: {email}")
-
-    # Phone
-    if body.phone:
-        enrichment_lines.append(f"Business Phone: {body.phone}")
-
-    # Booking/order reference prefix
-    prefix = body.booking_prefix or "ORD"
-    enrichment_lines.append(
-        f"\nOrder/Booking Reference Prefix: {prefix}\n"
-        f"The booking form must auto-generate a reference like '{prefix}-' + Date.now() on submission."
+    analyst_req = AnalystRequest(
+        requirements=body.requirements,
+        use_web_search=body.use_web_search,
+        use_social_search=body.use_social_search,
+        existing_website_url=body.existing_website_url,
+        categories=body.categories,
+        location=body.location,
+        email=body.email,
+        phone=body.phone,
+        booking_prefix=body.booking_prefix,
+        social_links=body.social_links,
+        website_id=website_id,
+        include_shopping_cart=body.include_shopping_cart,
+        scraped_title=scraped_title,
+        nav_links=nav_links,
     )
+    full_prompt, cart_features = build_prompt(analyst_req, site, extra_context)
 
-    # Social links
-    if body.social_links:
-        sl = body.social_links
-        social_parts = []
-        if sl.get('instagram'):
-            urls = sl['instagram'] if isinstance(sl['instagram'], list) else [sl['instagram']]
-            social_parts.append('Instagram: ' + ', '.join(urls))
-        if sl.get('facebook'):
-            urls = sl['facebook'] if isinstance(sl['facebook'], list) else [sl['facebook']]
-            social_parts.append('Facebook: ' + ', '.join(urls))
-        if sl.get('linkedin'):
-            urls = sl['linkedin'] if isinstance(sl['linkedin'], list) else [sl['linkedin']]
-            social_parts.append('LinkedIn: ' + ', '.join(urls))
-        if social_parts:
-            enrichment_lines.append(
-                "\nSocial Media Profiles (use these real URLs in the footer social icons):\n"
-                + '\n'.join(social_parts)
-            )
-    elif body.use_social_search:
-        enrichment_lines.append(
-            f"\n=== SOCIAL MEDIA SEARCH DIRECTIVE ===\n"
-            f"No social media URLs were provided by the user. You are AUTHORISED to search the web "
-            f"for the official Instagram, Facebook, and LinkedIn profiles of '{site_name}' and use "
-            f"those real URLs in the footer social icons. If you cannot find them, use '#' as a "
-            f"placeholder but still render the social icon buttons in the footer."
-        )
-
-    # Hero image
-    niche_kw = (cats[0] if cats else site_name).lower().replace(' ', ',')
-    enrichment_lines.append(
-        f"\nHero background image: https://source.unsplash.com/featured/1400x700/?{niche_kw}"
-    )
-
-    enrichment_lines.append(
-        "\n=== STYLE DIRECTIVE ===\n"
-        "The website must feel PREMIUM and CLASSY — use elegant fonts (e.g. Playfair Display for headings, "
-        "Lato or Inter for body), generous whitespace, subtle drop shadows, smooth hover transitions, "
-        "and a refined colour palette. NO clip-art, no garish colours. Sections should feel editorial — "
-        "inspired by Squarespace or Behance premium portfolios."
-    )
-
-    full_prompt += "\n".join(enrichment_lines)
-
-    logger.info("[%s] 🏗  Prompt ready (%d chars, %d cart features, chatbot=%s) — calling build_website",
+    logger.info("[%s] 🏗  Prompt ready (%d chars, %d cart features, chatbot=%s) — queuing build",
                 trace_id, len(full_prompt), len(cart_features), bool(site.get("enable_chatbot")))
 
-    # Build via AI crew (or static fallback)
-    try:
-        t1 = time.time()
-        output_path = build_website(full_prompt)
-        logger.info("[%s] ✅ build_website completed in %.1fs  output=%s",
-                    trace_id, time.time()-t1, output_path)
-    except Exception as exc:
-        logger.exception("[%s] ❌ build_website FAILED after %.1fs: %s", trace_id, time.time()-t0, exc)
-        db.execute(
-            "UPDATE websites SET status = 'error', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
-            (website_id,),
-        )
-        raise HTTPException(status_code=500, detail=f"Build failed: {exc}")
-
+    # Mark as queued immediately so the client can start polling
     db.execute(
-        "UPDATE websites SET status = 'built', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+        "UPDATE websites SET build_status = 'queued', build_job_id = %s, "
+        "build_started_at = CURRENT_TIMESTAMP(), build_error = NULL, "
+        "updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+        (trace_id, website_id),
+    )
+
+    # ── Background task — does NOT block the HTTP response ────────────────────
+    # Use the real site name as the project/folder name (not first words of the prompt)
+    _site_name = site.get("name") or site.get("title") or ""
+    if scraped_title:
+        _site_name = scraped_title
+        # Strip duplicate suffix e.g. "Foo – Foo" → "Foo"
+        if " – " in _site_name:
+            _parts = [p.strip() for p in _site_name.split(" – ")]
+            if _parts[0] == _parts[-1]:
+                _site_name = _parts[0]
+
+    def _run_build(wid: str, prompt: str, site_name: str, uid: str, ip: str, tid: str, t_start: float, theme: str = "modern", classification: str = "generic"):
+        try:
+            db.execute(
+                "UPDATE websites SET build_status = 'running', updated_at = CURRENT_TIMESTAMP() "
+                "WHERE website_id = %s",
+                (wid,),
+            )
+            output_path = build_website(prompt, project_name=site_name, theme_key=theme, classification=classification)
+            local_path = output_path.get("output_dir", "") if isinstance(output_path, dict) else ""
+            db.execute(
+                "UPDATE websites SET build_status = 'built', status = 'built', "
+                "build_error = NULL, local_path = %s, updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+                (local_path, wid),
+            )
+            log_event("website_built", user_id=uid, website_id=wid, ip_address=ip)
+            logger.info("[%s] 🎉 BUILD COMPLETE  website_id=%s  total=%.1fs",
+                        tid, wid, time.time() - t_start)
+        except Exception as exc:
+            logger.exception("[%s] ❌ build_website FAILED after %.1fs: %s",
+                             tid, time.time() - t_start, exc)
+            db.execute(
+                "UPDATE websites SET build_status = 'error', status = 'error', "
+                "build_error = %s, updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+                (str(exc)[:1000], wid),
+            )
+
+    background_tasks.add_task(
+        _run_build,
+        website_id, full_prompt, _site_name, user_id,
+        request.client.host, trace_id, t0,
+        site.get("theme", "modern") or "modern",
+        site.get("classification", "generic") or "generic",
+    )
+
+    return {
+        "message": "Build queued. Use GET /websites/{id}/build-status to track progress.",
+        "job_id":    trace_id,
+        "status":    "queued",
+        "website_id": website_id,
+    }
+
+
+@router.get("/{website_id}/build-status")
+async def get_build_status(
+    website_id: str,
+    current_user: dict = Depends(require_app_user_or_above),
+):
+    """
+    Poll this endpoint after calling POST /{website_id}/build.
+
+    Possible build_status values:
+      • queued   — job accepted, worker not yet started
+      • running  — agent pipeline actively executing
+      • built    — completed successfully
+      • error    — build failed; see build_error for detail
+    """
+    user_id = current_user["sub"]
+    site = db.fetchone(
+        """SELECT website_id, name, status, build_status, build_job_id,
+                  build_started_at, build_error
+           FROM websites
+           WHERE website_id = %s AND user_id = %s""",
+        (website_id, user_id),
+    )
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+
+    build_status = site.get("build_status") or "idle"
+    response = {
+        "website_id":      website_id,
+        "name":            site.get("name"),
+        "build_status":    build_status,
+        "job_id":          site.get("build_job_id"),
+        "started_at":      str(site.get("build_started_at") or ""),
+        "complete":        build_status in ("built", "error"),
+        "success":         build_status == "built",
+    }
+    if build_status == "error":
+        response["error"] = site.get("build_error")
+
+    return response
+
+
+@router.get("/{website_id}/staged-html")
+async def get_staged_html(
+    website_id: str,
+    current_user: dict = Depends(require_app_user_or_above),
+):
+    """Return the raw HTML of the staged index.html for preview/editing."""
+    user_id = current_user["sub"]
+    site = db.fetchone(
+        "SELECT local_path FROM websites WHERE website_id = %s AND user_id = %s",
+        (website_id, user_id),
+    )
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+    local_path = site.get("local_path") or ""
+    if not local_path:
+        raise HTTPException(status_code=404, detail="Website has not been built yet")
+    index_file = os.path.join(local_path, "index.html")
+    if not os.path.isfile(index_file):
+        raise HTTPException(status_code=404, detail="index.html not found in staging area")
+    with open(index_file, "r", encoding="utf-8") as f:
+        html = f.read()
+    return {"html": html, "path": index_file}
+
+
+@router.put("/{website_id}/staged-html")
+async def put_staged_html(
+    website_id: str,
+    body: StagedHtmlRequest,
+    current_user: dict = Depends(require_app_user_or_above),
+):
+    """Overwrite the staged index.html with edited HTML content."""
+    user_id = current_user["sub"]
+    site = db.fetchone(
+        "SELECT local_path FROM websites WHERE website_id = %s AND user_id = %s",
+        (website_id, user_id),
+    )
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+    local_path = site.get("local_path") or ""
+    if not local_path:
+        raise HTTPException(status_code=404, detail="Website has not been built yet")
+    os.makedirs(local_path, exist_ok=True)
+    index_file = os.path.join(local_path, "index.html")
+    with open(index_file, "w", encoding="utf-8") as f:
+        f.write(body.html)
+    db.execute(
+        "UPDATE websites SET build_status = 'staged', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
         (website_id,),
     )
-    log_event("website_built", user_id=user_id, website_id=website_id,
-              ip_address=request.client.host)
-    logger.info("[%s] 🎉 BUILD COMPLETE  website_id=%s  total=%.1fs", trace_id, website_id, time.time()-t0)
-    return {"message": "Website built successfully", "output": output_path, "trace_id": trace_id}
+    return {"saved": True, "path": index_file}
 
 
 @router.post("/{website_id}/deploy")
 async def deploy_website(website_id: str, request: Request,
-                         current_user: dict = Depends(get_current_user)):
+                         current_user: dict = Depends(require_app_user_or_above)):
     user_id = current_user["sub"]
     site = db.fetchone(
         "SELECT * FROM websites WHERE website_id = %s AND user_id = %s",
@@ -363,10 +417,14 @@ async def deploy_website(website_id: str, request: Request,
     if not site:
         raise HTTPException(status_code=404, detail="Website not found")
 
-    if site["hosting_env"] == "s3":
+    local_path = site.get("local_path") or ""
+
+    # ── S3 deploy ──────────────────────────────────────────────────────────
+    has_s3_creds = bool(settings.AWS_ACCESS_KEY_ID and settings.S3_BUCKET_NAME)
+    if site["hosting_env"] == "s3" and has_s3_creds:
         url = deploy_to_s3(
-            local_dir=settings.OUTPUT_DIR,
-            bucket_name=site["s3_bucket"] or settings.S3_BUCKET_NAME or "",
+            local_dir=local_path or settings.OUTPUT_DIR,
+            bucket_name=site.get("s3_bucket") or settings.S3_BUCKET_NAME or "",
             access_key=settings.AWS_ACCESS_KEY_ID or "",
             secret_key=settings.AWS_SECRET_ACCESS_KEY or "",
             region=settings.AWS_REGION,
@@ -375,24 +433,49 @@ async def deploy_website(website_id: str, request: Request,
         if not url:
             raise HTTPException(status_code=500, detail="S3 deployment failed. Check AWS credentials.")
         db.execute(
-            "UPDATE websites SET s3_url = %s, status = 'live' WHERE website_id = %s",
+            "UPDATE websites SET s3_url = %s, status = 'live', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
             (url, website_id),
         )
         log_event("website_deployed", user_id=user_id, website_id=website_id,
                   ip_address=request.client.host, meta={"url": url})
-        return {"url": url}
+        return {"url": url, "target": "s3"}
 
-    raise HTTPException(status_code=400, detail=f"Unsupported hosting_env: {site['hosting_env']}")
+    # ── Local / Go-Live deploy (copy staging → output/published/<website_id>/) ──
+    if not local_path or not os.path.isdir(local_path):
+        raise HTTPException(status_code=400, detail="No staged build found. Build the website first.")
+    import shutil
+    published_dir = os.path.join("output", "published", website_id)
+    if os.path.exists(published_dir):
+        shutil.rmtree(published_dir)
+    shutil.copytree(local_path, published_dir)
+    live_url = f"/output/published/{website_id}/index.html"
+    # Keep local_path pointing to staging so editor/preview still works
+    db.execute(
+        "UPDATE websites SET status = 'live', live_url = %s, updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+        (live_url, website_id),
+    )
+    log_event("website_deployed", user_id=user_id, website_id=website_id,
+              ip_address=request.client.host, meta={"url": live_url, "target": "local"})
+    return {"url": live_url, "target": "local"}
 
 
 @router.patch("/{website_id}")
 async def update_website(website_id: str, body: UpdateWebsiteRequest,
-                         current_user: dict = Depends(get_current_user)):
+                         current_user: dict = Depends(require_client_or_above)):
     user_id = current_user["sub"]
-    site = db.fetchone(
-        "SELECT website_id FROM websites WHERE website_id = %s AND user_id = %s",
-        (website_id, user_id),
-    )
+    role = current_user.get("role", "app_user")
+
+    if role == "client":
+        # Clients may only edit their own linked website
+        u = db.fetchone("SELECT client_website_id FROM users WHERE user_id = ?", (user_id,))
+        if not u or u.get("client_website_id") != website_id:
+            raise HTTPException(status_code=403, detail="Clients can only edit their own website")
+        site = db.fetchone("SELECT website_id FROM websites WHERE website_id = ?", (website_id,))
+    else:
+        site = db.fetchone(
+            "SELECT website_id FROM websites WHERE website_id = %s AND user_id = %s",
+            (website_id, user_id),
+        )
     if not site:
         raise HTTPException(status_code=404, detail="Website not found")
 
@@ -410,7 +493,7 @@ async def update_website(website_id: str, body: UpdateWebsiteRequest,
 
 
 @router.delete("/{website_id}")
-async def delete_website(website_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_website(website_id: str, current_user: dict = Depends(require_app_user_or_above)):
     user_id = current_user["sub"]
     site = db.fetchone(
         "SELECT website_id FROM websites WHERE website_id = %s AND user_id = %s",
@@ -438,15 +521,35 @@ async def domain_instructions(website_id: str, current_user: dict = Depends(get_
 
 
 @router.get("/my")
-async def list_my_websites(current_user: dict = Depends(get_current_user)):
-    """Alias used by user dashboard."""
+async def list_my_websites(current_user: dict = Depends(require_client_or_above)):
+    """Return websites visible to the current user.
+    - app_user: all their own websites
+    - client: only their single linked website (client_website_id)
+    - sub-user (owner_id set): their owner's websites
+    """
     user_id = current_user["sub"]
-    # Also include websites owned by the user's owner (for sub-users)
+    role = current_user.get("role", "app_user")
+
+    if role == "client":
+        # Clients see only the one website they are linked to
+        u = db.fetchone("SELECT client_website_id FROM users WHERE user_id = ?", (user_id,))
+        website_id = u.get("client_website_id") if u else None
+        if not website_id:
+            return []
+        site = db.fetchone(
+            "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, "
+            "enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
+            "FROM websites WHERE website_id = ?",
+            (website_id,),
+        )
+        return [site] if site else []
+
+    # app_user / superuser — also follow owner_id for sub-users
     u = db.fetchone("SELECT owner_id FROM users WHERE user_id = ?", (user_id,))
     owner_id = u.get("owner_id") if u else None
     effective_id = owner_id if owner_id else user_id
     return db.execute(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, enable_chatbot, enable_blog, enable_livestream, created_at, updated_at "
+        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
         "FROM websites WHERE user_id = ? ORDER BY created_at DESC",
         (effective_id,),
     ) or []
@@ -455,7 +558,7 @@ async def list_my_websites(current_user: dict = Depends(get_current_user)):
 @router.get("")
 async def list_websites(current_user: dict = Depends(get_current_user)):
     return db.execute(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, created_at FROM websites WHERE user_id = %s ORDER BY created_at DESC",
+        "SELECT website_id, name, title, theme, status, domain, s3_url, local_path, build_status, created_at FROM websites WHERE user_id = %s ORDER BY created_at DESC",
         (current_user["sub"],),
     )
 

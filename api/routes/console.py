@@ -4,18 +4,75 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 import uuid, datetime
 
-from api.routes.auth import get_current_user
+from api.routes.auth import get_current_user, require_superuser as _require_superuser
 from database.snowflake_client import db
-from services.auth_service import hash_password
+from services.auth_service import hash_password, create_access_token
 
 router = APIRouter(prefix="/admin", tags=["admin-console"])
 
 
-def _require_superuser(current=Depends(get_current_user)):
-    user = db.fetchone("SELECT plan FROM users WHERE user_id=?", (current["sub"],))
-    if not user or user.get("plan") not in ("superuser", "enterprise"):
-        raise HTTPException(status_code=403, detail="Superuser access required")
-    return current
+# ── App-user management (superuser only) ──────────────────────────────────────
+
+class AppUserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: Optional[str] = None
+    mobile: Optional[str] = None
+    plan: str = "free"
+
+
+@router.get("/app-users")
+async def list_app_users(
+    limit: int = Query(100, ge=1, le=1000),
+    current=Depends(_require_superuser),
+):
+    """List all app_user accounts."""
+    rows = db.execute(
+        "SELECT user_id, email, full_name, mobile, plan, is_verified, is_active, created_at "
+        "FROM users WHERE role='app_user' ORDER BY created_at DESC LIMIT ?",
+        [limit],
+    )
+    return rows or []
+
+
+@router.post("/app-users", status_code=201)
+async def create_app_user(body: AppUserCreate, current=Depends(_require_superuser)):
+    """Create a new app_user account (superuser-initiated)."""
+    if db.fetchone("SELECT user_id FROM users WHERE email=?", (body.email,)):
+        raise HTTPException(status_code=409, detail="Email already registered")
+    user_id = str(uuid.uuid4())
+    db.execute(
+        """INSERT INTO users (user_id, email, password_hash, full_name, mobile,
+                              role, plan, is_verified, is_active)
+           VALUES (?, ?, ?, ?, ?, 'app_user', ?, 1, 1)""",
+        (user_id, body.email, hash_password(body.password),
+         body.full_name or "", body.mobile or "", body.plan),
+    )
+    return {"user_id": user_id, "message": "App user created"}
+
+
+@router.patch("/app-users/{user_id}/deactivate")
+async def deactivate_app_user(user_id: str, current=Depends(_require_superuser)):
+    if not db.fetchone("SELECT user_id FROM users WHERE user_id=? AND role='app_user'", (user_id,)):
+        raise HTTPException(status_code=404, detail="App user not found")
+    db.execute("UPDATE users SET is_active=0 WHERE user_id=?", [user_id])
+    return {"message": "App user deactivated"}
+
+
+@router.patch("/app-users/{user_id}/activate")
+async def activate_app_user(user_id: str, current=Depends(_require_superuser)):
+    if not db.fetchone("SELECT user_id FROM users WHERE user_id=? AND role='app_user'", (user_id,)):
+        raise HTTPException(status_code=404, detail="App user not found")
+    db.execute("UPDATE users SET is_active=1 WHERE user_id=?", [user_id])
+    return {"message": "App user activated"}
+
+
+@router.delete("/app-users/{user_id}")
+async def delete_app_user(user_id: str, current=Depends(_require_superuser)):
+    if not db.fetchone("SELECT user_id FROM users WHERE user_id=? AND role='app_user'", (user_id,)):
+        raise HTTPException(status_code=404, detail="App user not found")
+    db.execute("DELETE FROM users WHERE user_id=? OR owner_id=?", [user_id, user_id])
+    return {"message": "App user and their clients deleted"}
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
@@ -134,7 +191,7 @@ async def change_password(body: PasswordChange, current=Depends(get_current_user
     hashed = hash_password(body.new_password)
     db.execute(
         "UPDATE users SET password_hash=? WHERE user_id=?",
-        [hashed, current["user_id"]],
+        [hashed, current["sub"]],
     )
     return {"message": "Password updated successfully"}
 

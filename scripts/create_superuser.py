@@ -36,7 +36,7 @@ def create_superuser():
         # Update password and ensure plan=superuser
         pw_hash = hash_password(ADMIN_PASSWORD)
         db.execute(
-            "UPDATE users SET password_hash=?, plan='superuser', is_verified=1 WHERE email=?",
+            "UPDATE users SET password_hash=?, plan='superuser', role='superuser', is_verified=1 WHERE email=?",
             (pw_hash, ADMIN_EMAIL),
         )
         print(f"✅ Superuser '{ADMIN_EMAIL}' updated (password reset).")
@@ -46,8 +46,8 @@ def create_superuser():
     pw_hash   = hash_password(ADMIN_PASSWORD)
 
     db.execute(
-        "INSERT INTO users (user_id, email, password_hash, full_name, is_verified, plan) "
-        "VALUES (?, ?, ?, ?, 1, 'superuser')",
+        "INSERT INTO users (user_id, email, password_hash, full_name, is_verified, plan, role) "
+        "VALUES (?, ?, ?, ?, 1, 'superuser', 'superuser')",
         (user_id, ADMIN_EMAIL, pw_hash, ADMIN_NAME),
     )
 

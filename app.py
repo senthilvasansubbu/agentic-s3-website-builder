@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+from config.settings import settings
 
 load_dotenv()
 
@@ -63,6 +64,7 @@ from api.routes.feedback import router as feedback_router
 from api.routes.monitoring import router as monitoring_router
 from api.routes.team import router as team_router
 from api.routes.commerce import router as commerce_router
+from api.routes.clients import router as clients_router
 
 app = FastAPI(
     title="Agentic AI Website Builder",
@@ -74,13 +76,14 @@ app = FastAPI(
     version="2.0.0",
 )
 
-# CORS — tighten origins in production
+# CORS — origins controlled by CORS_ORIGINS env var (see config/settings.py)
+# Default: localhost only. Set CORS_ORIGINS in .env for staging/production.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
 # ── Routers ────────────────────────────────────────────────────────────────────
@@ -95,6 +98,19 @@ app.include_router(feedback_router,  prefix="/api/v1")
 app.include_router(monitoring_router, prefix="/api/v1")
 app.include_router(team_router,       prefix="/api/v1")
 app.include_router(commerce_router,   prefix="/api/v1")
+app.include_router(clients_router,    prefix="/api/v1")
+
+# ── Static file serving ────────────────────────────────────────────────────────
+# Uploaded product images are stored in data/uploads and served at /static/uploads/
+from fastapi.staticfiles import StaticFiles as _StaticFiles
+_uploads_dir = Path(__file__).parent / "data" / "uploads"
+_uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/uploads", _StaticFiles(directory=str(_uploads_dir)), name="uploads")
+
+# Serve built/staged/published websites from the output folder
+_output_dir = Path(__file__).parent / "output"
+_output_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/output", _StaticFiles(directory=str(_output_dir)), name="output")
 
 # ── Frontend pages ─────────────────────────────────────────────────────────────
 FRONTEND = Path(__file__).parent / "frontend"

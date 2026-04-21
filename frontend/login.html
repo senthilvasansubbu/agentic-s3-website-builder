@@ -132,9 +132,10 @@
       localStorage.setItem('wb_token', data.access_token);
       localStorage.setItem('wb_user_id', data.user_id);
       localStorage.setItem('wb_plan', data.plan);
+      localStorage.setItem('wb_role', data.role || 'app_user');
 
       // Redirect based on role
-      if (data.plan === 'superuser') {
+      if (data.role === 'superuser') {
         window.location.href = '/console';
       } else {
         window.location.href = '/dashboard';
@@ -149,8 +150,8 @@
 
   // Redirect if already logged in
   if (localStorage.getItem('wb_token')) {
-    const plan = localStorage.getItem('wb_plan');
-    window.location.href = plan === 'superuser' ? '/console' : '/dashboard';
+    const role = localStorage.getItem('wb_role');
+    window.location.href = role === 'superuser' ? '/console' : '/dashboard';
   }
 </script>
 </body>
