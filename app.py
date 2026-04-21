@@ -127,6 +127,10 @@ _docs_dir = Path(__file__).parent / "docs"
 _docs_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/docs-files", _StaticFiles(directory=str(_docs_dir)), name="docs")
 
+# Serve frontend JS/CSS assets (dashboard.js etc.)
+_frontend_dir = Path(__file__).parent / "frontend"
+app.mount("/static/frontend", _StaticFiles(directory=str(_frontend_dir)), name="frontend-assets")
+
 @app.get("/downloads", response_class=HTMLResponse, include_in_schema=False)
 async def docs_index():
     """Browser-accessible listing of all files in the docs/ folder."""

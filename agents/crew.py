@@ -137,8 +137,11 @@ def _generate_static_fallback(user_requirements: str, theme_key: str = "modern")
         </div>"""
 
     # ── Navbar logo ───────────────────────────────────────────────────────────
-    fh = t["font_heading"]
-    fb = t["font_body"]
+    # Strip CSS fallback stack at source: 'Poppins', sans-serif → Poppins
+    fh = t["font_heading"].split(',')[0].strip().strip("'").strip('"')
+    fb = t["font_body"].split(',')[0].strip().strip("'").strip('"')
+    t["font_heading"] = fh
+    t["font_body"]    = fb
     if logo_url:
         logo_html = f'<img src="{logo_url}" alt="{biz_name}" style="height:48px;object-fit:contain;vertical-align:middle"> <span style="font-family:{fh},serif;font-size:1.1rem;color:#fff;font-weight:700">{biz_name}</span>'
     else:
@@ -232,7 +235,7 @@ def _generate_static_fallback(user_requirements: str, theme_key: str = "modern")
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{biz_name}</title>
   <meta name="description" content="{description[:160]}"/>
-  <link href="https://fonts.googleapis.com/css2?family={t['font_heading'].split(',')[0].strip().strip(chr(39)).replace(' ', '+')}:wght@600;700&family={t['font_body'].split(',')[0].strip().strip(chr(39)).replace(' ', '+')}:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family={fh.replace(' ', '+')}:wght@600;700&family={fb.replace(' ', '+')}:wght@300;400;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     :root {{

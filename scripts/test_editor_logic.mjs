@@ -201,6 +201,60 @@ console.log('\n─── Test 7: Hamburger menu toggle ───');
 }
 
 // ════════════════════════════════════════
+console.log('\n─── Test 7b: ResizeObserver — mobile/desktop show-hide ───');
+{
+  const dom = new JSDOM(`<html><head></head><body>
+    <nav style="position:relative">
+      <ul class="nav-links"></ul>
+      <button class="hamburger" style="display:none">☰</button>
+    </nav>
+  </body></html>`, { pretendToBeVisual: true });
+  const doc = dom.window.document;
+  const hamburger = doc.querySelector('.hamburger');
+  const navLinks  = doc.querySelector('.nav-links');
+  navLinks._wbOpen = false;
+
+  function closeMenu() {
+    navLinks._wbOpen = false;
+    navLinks.style.removeProperty('display');
+    hamburger.textContent = '☰';
+  }
+
+  // Simulate applyMobileMode from _injectResponsiveEnhancements
+  const applyMobileMode = (isMobile) => {
+    if (isMobile) {
+      hamburger.style.setProperty('display', 'block', 'important');
+      if (!navLinks._wbOpen) {
+        navLinks.style.setProperty('display', 'none', 'important');
+      }
+    } else {
+      hamburger.style.removeProperty('display');
+      navLinks.style.removeProperty('display');
+      if (navLinks._wbOpen) closeMenu();
+    }
+  };
+
+  // Mobile width ≤ 640
+  applyMobileMode(true);
+  pass('hamburger visible on mobile', hamburger.style.display === 'block');
+  pass('nav hidden on mobile (closed)', navLinks.style.display === 'none');
+
+  // Open menu then go to desktop width
+  navLinks._wbOpen = true;
+  navLinks.style.setProperty('display', 'flex', 'important');
+  hamburger.textContent = '✕';
+  applyMobileMode(false);
+  pass('hamburger hidden on desktop', !hamburger.style.display);
+  pass('nav display cleared on desktop', !navLinks.style.display);
+  pass('open menu closed when switching to desktop', !navLinks._wbOpen);
+
+  // Back to mobile with menu already closed
+  applyMobileMode(true);
+  pass('hamburger re-shown when back to mobile', hamburger.style.display === 'block');
+  pass('nav stays hidden while menu is closed', navLinks.style.display === 'none');
+}
+
+// ════════════════════════════════════════
 console.log('\n─── Test 8: JS syntax check on dashboard.html ───');
 {
   import('child_process').then(async ({ execSync }) => {
