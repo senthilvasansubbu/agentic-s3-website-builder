@@ -318,47 +318,83 @@ def _safe_alter(sql: str):
 def run_migrations():
     print("Running migrations…")
     from database.snowflake_client import db
+
+    # ── Schema version tracking ───────────────────────────────────────────────
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS schema_version (
+            version     INTEGER PRIMARY KEY,
+            description TEXT,
+            applied_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    def _applied(v: int) -> bool:
+        rows = db.execute("SELECT version FROM schema_version WHERE version = ?", [v])
+        return bool(rows)
+
+    def _mark(v: int, desc: str):
+        try:
+            db.execute(
+                "INSERT INTO schema_version (version, description) VALUES (?, ?)",
+                [v, desc]
+            )
+        except Exception:
+            pass  # already recorded
+
+    # ── Base tables (always idempotent via CREATE IF NOT EXISTS) ─────────────
     for ddl in TABLES:
         db.execute(ddl.strip())
 
-    # ── Additive column migrations (idempotent) ───────────────────────────────
-    _safe_alter("ALTER TABLE users ADD COLUMN owner_id TEXT")
-    _safe_alter("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '[]'")
-    # ── Role hierarchy (superuser | app_user | client | customer) ─────────────
-    # Existing rows without a role default to 'app_user'; superuser rows are
-    # updated explicitly by create_superuser.py using plan='superuser'.
-    _safe_alter("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'app_user'")
-    # client_website_id: the specific website a 'client' role user manages
-    _safe_alter("ALTER TABLE users ADD COLUMN client_website_id TEXT")
-    _safe_alter("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
-    # Back-fill: users that already have plan='superuser' get role='superuser'
-    try:
-        db.execute("UPDATE users SET role='superuser' WHERE plan='superuser' AND (role IS NULL OR role='app_user')")
-    except Exception:
-        pass
+    # ── Version 1: initial additive columns ──────────────────────────────────
+    if not _applied(1):
+        _safe_alter("ALTER TABLE users ADD COLUMN owner_id TEXT")
+        _safe_alter("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '[]'")
+        _safe_alter("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'app_user'")
+        _safe_alter("ALTER TABLE users ADD COLUMN client_website_id TEXT")
+        _safe_alter("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
+        _mark(1, "initial user/website/cart additive columns")
 
-    _safe_alter("ALTER TABLE websites ADD COLUMN cart_features TEXT DEFAULT '[]'")
-    _safe_alter("ALTER TABLE websites ADD COLUMN enable_chatbot INTEGER DEFAULT 0")
-    _safe_alter("ALTER TABLE websites ADD COLUMN enable_blog INTEGER DEFAULT 0")
-    _safe_alter("ALTER TABLE websites ADD COLUMN enable_livestream INTEGER DEFAULT 0")
-    _safe_alter("ALTER TABLE cart_items ADD COLUMN image_url TEXT")
-    _safe_alter("ALTER TABLE cart_items ADD COLUMN compare_price REAL DEFAULT 0")
-    _safe_alter("ALTER TABLE cart_items ADD COLUMN discount_pct REAL DEFAULT 0")
-    _safe_alter("ALTER TABLE cart_items ADD COLUMN is_flash_offer INTEGER DEFAULT 0")
-    _safe_alter("ALTER TABLE cart_items ADD COLUMN flash_offer_ends TEXT")
-    _safe_alter("ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0")
-    _safe_alter("ALTER TABLE cart_items ADD COLUMN updated_at TEXT")
+    # ── Version 2: website feature flags ─────────────────────────────────────
+    if not _applied(2):
+        _safe_alter("ALTER TABLE websites ADD COLUMN cart_features TEXT DEFAULT '[]'")
+        _safe_alter("ALTER TABLE websites ADD COLUMN enable_chatbot INTEGER DEFAULT 0")
+        _safe_alter("ALTER TABLE websites ADD COLUMN enable_blog INTEGER DEFAULT 0")
+        _safe_alter("ALTER TABLE websites ADD COLUMN enable_livestream INTEGER DEFAULT 0")
+        _mark(2, "website feature flag columns")
 
-    # ── Async build tracking columns ──────────────────────────────────────────
-    # build_status: idle | queued | running | built | error
-    _safe_alter("ALTER TABLE websites ADD COLUMN build_status TEXT DEFAULT 'idle'")
-    _safe_alter("ALTER TABLE websites ADD COLUMN build_job_id TEXT")
-    _safe_alter("ALTER TABLE websites ADD COLUMN build_started_at TEXT")
-    _safe_alter("ALTER TABLE websites ADD COLUMN build_error TEXT")
-    _safe_alter("ALTER TABLE websites ADD COLUMN classification TEXT DEFAULT 'generic'")
-    _safe_alter("ALTER TABLE websites ADD COLUMN live_url TEXT")
+    # ── Version 3: cart item enhancements ────────────────────────────────────
+    if not _applied(3):
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN image_url TEXT")
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN compare_price REAL DEFAULT 0")
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN discount_pct REAL DEFAULT 0")
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN is_flash_offer INTEGER DEFAULT 0")
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN flash_offer_ends TEXT")
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0")
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN updated_at TEXT")
+        _mark(3, "cart item price/stock/flash-offer columns")
 
-    # ── Seed plan_features (INSERT OR IGNORE = idempotent) ────────────────────
+    # ── Version 4: async build tracking ──────────────────────────────────────
+    if not _applied(4):
+        _safe_alter("ALTER TABLE websites ADD COLUMN build_status TEXT DEFAULT 'idle'")
+        _safe_alter("ALTER TABLE websites ADD COLUMN build_job_id TEXT")
+        _safe_alter("ALTER TABLE websites ADD COLUMN build_started_at TEXT")
+        _safe_alter("ALTER TABLE websites ADD COLUMN build_error TEXT")
+        _safe_alter("ALTER TABLE websites ADD COLUMN classification TEXT DEFAULT 'generic'")
+        _safe_alter("ALTER TABLE websites ADD COLUMN live_url TEXT")
+        _mark(4, "async build tracking columns")
+
+    # ── Version 5: superuser role back-fill ──────────────────────────────────
+    if not _applied(5):
+        try:
+            db.execute(
+                "UPDATE users SET role='superuser' "
+                "WHERE plan='superuser' AND (role IS NULL OR role='app_user')"
+            )
+        except Exception:
+            pass
+        _mark(5, "backfill superuser role from plan field")
+
+    # ── Always re-seed plan_features (INSERT OR IGNORE = idempotent) ─────────
     _seed_plan_features()
 
     print("✅ All tables created / verified.")

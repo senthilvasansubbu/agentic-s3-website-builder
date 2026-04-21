@@ -19,7 +19,7 @@ import os
 import hashlib
 import logging
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -156,18 +156,20 @@ def process_upload(raw_data: bytes, original_filename: str = "") -> ProcessedIma
     with Image.open(full_path) as saved:
         w, h = saved.size
 
-    thumb_url = f"/static/uploads/{thumb_path.name}"
-    full_url  = f"/static/uploads/{full_path.name}"
+    # ── Upload to S3 when configured, else serve from local static ────────────
+    thumb_url, full_url = _upload_to_s3_or_local(
+        thumb_path, full_path, stem
+    )
 
     logger.info(
         "Image processed: original=%d KB  full=%d KB  thumb=%d KB  (%dx%d)  "
-        "compression=%.0f%%  files=[%s, %s]",
+        "compression=%.0f%%  storage=%s",
         original_size // 1024,
         len(full_data) // 1024,
         len(thumb_data) // 1024,
         w, h,
         100 * (1 - len(full_data) / max(original_size, 1)),
-        full_path.name, thumb_path.name,
+        "s3" if _s3_configured() else "local",
     )
 
     return ProcessedImage(
@@ -181,3 +183,64 @@ def process_upload(raw_data: bytes, original_filename: str = "") -> ProcessedIma
         width=w,
         height=h,
     )
+
+
+# ---------------------------------------------------------------------------
+# S3 upload helpers
+# ---------------------------------------------------------------------------
+
+def _s3_configured() -> bool:
+    return bool(
+        os.getenv("AWS_ACCESS_KEY_ID")
+        and os.getenv("AWS_SECRET_ACCESS_KEY")
+        and os.getenv("S3_BUCKET_NAME")
+    )
+
+
+def _upload_to_s3_or_local(
+    thumb_path: Path,
+    full_path: Path,
+    stem: str,
+) -> tuple[str, str]:
+    """
+    Upload both image variants to S3 if AWS is configured.
+    Returns (thumb_url, full_url) — either S3 public URLs or local /static/uploads/ paths.
+    """
+    if not _s3_configured():
+        return (
+            f"/static/uploads/{thumb_path.name}",
+            f"/static/uploads/{full_path.name}",
+        )
+
+    import boto3
+    from botocore.exceptions import ClientError
+
+    bucket   = os.getenv("S3_BUCKET_NAME", "")
+    region   = os.getenv("AWS_REGION", "us-east-1")
+    prefix   = os.getenv("S3_UPLOADS_PREFIX", "uploads")
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=region,
+    )
+
+    urls: dict[str, str] = {}
+    for path in (thumb_path, full_path):
+        key = f"{prefix}/{path.name}"
+        try:
+            s3.upload_file(
+                str(path),
+                bucket,
+                key,
+                ExtraArgs={"ContentType": "image/webp", "ACL": "public-read"},
+            )
+            urls[path.name] = (
+                f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+            )
+            logger.info("Uploaded %s → s3://%s/%s", path.name, bucket, key)
+        except ClientError as exc:
+            logger.error("S3 upload failed for %s: %s — falling back to local", path.name, exc)
+            urls[path.name] = f"/static/uploads/{path.name}"
+
+    return urls[thumb_path.name], urls[full_path.name]

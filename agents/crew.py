@@ -10,6 +10,28 @@ from config.settings import settings
 
 logger = logging.getLogger("website_builder.crew")
 
+# ── Retry helper ──────────────────────────────────────────────────────────────
+_MAX_RETRIES    = 3
+_RETRY_BASE_SEC = 2   # backoff: 2s, 4s, 8s
+
+
+def _with_retry(fn, *args, trace_id: str = "", **kwargs):
+    """Call *fn* up to _MAX_RETRIES times with exponential backoff on failure."""
+    last_exc = None
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            wait = _RETRY_BASE_SEC ** attempt
+            logger.warning(
+                "[%s] attempt %d/%d failed: %s — retrying in %ds",
+                trace_id, attempt, _MAX_RETRIES, exc, wait,
+            )
+            if attempt < _MAX_RETRIES:
+                time.sleep(wait)
+    raise last_exc
+
 
 def _generate_static_fallback(user_requirements: str, theme_key: str = "modern") -> str:
     """Generate a content-rich static HTML website when no API key is available."""
@@ -751,12 +773,27 @@ def build_website(user_requirements: str, project_name: str = "", theme_key: str
     logger.info("[%s] 🧠 Kicking off CrewAI pipeline… theme=%s", trace_id, theme_key)
     crew = create_website_crew(theme_key=theme_key, classification=classification)
     t1 = time.time()
-    result = crew.kickoff(
-        inputs={
-            "user_requirements": user_requirements,
-            "project_name": project_name,
+    try:
+        result = _with_retry(
+            crew.kickoff,
+            inputs={"user_requirements": user_requirements, "project_name": project_name},
+            trace_id=trace_id,
+        )
+    except Exception as exc:
+        logger.error("[%s] ❌ CrewAI failed after %d retries: %s — falling back to static", trace_id, _MAX_RETRIES, exc)
+        html_code = _generate_static_fallback(user_requirements, theme_key=theme_key)
+        filepath = generate_html({}, html_code, project_name, page_name="index")
+        site_dir = get_website_dir(project_name)
+        return {
+            "status": "fallback",
+            "result": html_code,
+            "output_dir": site_dir,
+            "index": filepath,
+            "requirements": user_requirements,
+            "fallback": True,
+            "error": str(exc),
+            "trace_id": trace_id,
         }
-    )
     logger.info("[%s] 🎨 CrewAI finished in %.1fs — saving output", trace_id, time.time()-t1)
 
     # Save AI-generated HTML

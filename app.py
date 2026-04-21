@@ -154,6 +154,40 @@ async def docs_index():
     return HTMLResponse(html)
 
 
+@app.get("/health", include_in_schema=False)
+async def health_check():
+    """Returns DB reachability, disk usage, and service configuration status."""
+    import shutil
+    import platform
+    import sqlite3
+
+    db_path = Path("data/website_builder.db")
+    db_ok = False
+    db_error = None
+    try:
+        con = sqlite3.connect(str(db_path), timeout=3)
+        con.execute("SELECT 1")
+        con.close()
+        db_ok = True
+    except Exception as exc:
+        db_error = str(exc)
+
+    disk = shutil.disk_usage("/")
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "db": "ok" if db_ok else f"error: {db_error}",
+        "disk": {
+            "total_gb": round(disk.total / 1e9, 1),
+            "used_gb": round(disk.used / 1e9, 1),
+            "free_gb": round(disk.free / 1e9, 1),
+        },
+        "s3_configured": bool(os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("S3_BUCKET_NAME")),
+        "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
+        "stripe_configured": bool(os.getenv("STRIPE_SECRET_KEY")),
+        "python": platform.python_version(),
+    }
+
+
 FRONTEND = Path(__file__).parent / "frontend"
 
 def _read_html(name: str) -> str:
