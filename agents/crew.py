@@ -801,7 +801,59 @@ def build_website(user_requirements: str, project_name: str = "", theme_key: str
 
     # Save AI-generated HTML
     html_code = str(result)
-    filepath = generate_html({}, html_code, project_name, page_name="index")
+
+    # --- Asset extraction logic ---
+    import re
+    design_spec = {'css': {}, 'js': {}, 'images': {}}
+
+    # Extract <style> blocks
+    css_matches = list(re.finditer(r'<style[^>]*>(.*?)</style>', html_code, re.DOTALL | re.IGNORECASE))
+    logger.info(f"Found {len(css_matches)} <style> blocks in HTML.")
+    for i, m in enumerate(css_matches):
+        css_content = m.group(1).strip()
+        if css_content:
+            fname = f"main{i+1}.css" if i > 0 else "main.css"
+            design_spec['css'][fname] = css_content
+            logger.info(f"Extracted CSS: {fname} ({len(css_content)} bytes)")
+        html_code = html_code.replace(m.group(0), f'<link rel="stylesheet" href="assets/css/{fname}">')
+
+    # Extract <script> blocks
+    js_matches = list(re.finditer(r'<script[^>]*>(.*?)</script>', html_code, re.DOTALL | re.IGNORECASE))
+    logger.info(f"Found {len(js_matches)} <script> blocks in HTML.")
+    for i, m in enumerate(js_matches):
+        js_content = m.group(1).strip()
+        if js_content:
+            fname = f"main{i+1}.js" if i > 0 else "main.js"
+            design_spec['js'][fname] = js_content
+            logger.info(f"Extracted JS: {fname} ({len(js_content)} bytes)")
+        html_code = html_code.replace(m.group(0), f'<script src="assets/js/{fname}"></script>')
+
+    # Extract image URLs, download, and update HTML to use local paths
+    import requests
+    from urllib.parse import urlparse
+    image_matches = list(re.finditer(r'<img[^>]+src=["\']([^"\'>]+)["\']', html_code, re.IGNORECASE))
+    logger.info(f"Found {len(image_matches)} <img> tags in HTML.")
+    for m in image_matches:
+        img_url = m.group(1)
+        logger.info(f"Processing image URL: {img_url}")
+        if img_url.startswith('http://') or img_url.startswith('https://'):
+            parsed = urlparse(img_url)
+            fname = os.path.basename(parsed.path)
+            if not fname:
+                fname = f"img_{abs(hash(img_url))}.jpg"
+            try:
+                resp = requests.get(img_url, timeout=10)
+                logger.info(f"Download status for {img_url}: {resp.status_code}")
+                if resp.status_code == 200:
+                    design_spec['images'][fname] = resp.content
+                    logger.info(f"Downloaded image: {fname} ({len(resp.content)} bytes)")
+                    html_code = html_code.replace(img_url, f'assets/images/{fname}')
+                else:
+                    logger.warning(f"Failed to download image {img_url}: status {resp.status_code}")
+            except Exception as e:
+                logger.warning(f"Failed to download image {img_url}: {e}")
+
+    filepath = generate_html(design_spec, html_code, project_name, page_name="index")
     site_dir = get_website_dir(project_name)
     logger.info("[%s] ✅ AI website saved to %s  (total %.1fs)", trace_id, site_dir, time.time()-t0)
 

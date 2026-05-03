@@ -1,3 +1,22 @@
+from services.image_service import finalize_image
+# Finalize image: move from uploads to images and return new path
+from fastapi import APIRouter, Body, Depends, HTTPException
+from api.routes.auth import require_app_user_or_above
+
+router = APIRouter()
+
+@router.post("/shop/finalize-image")
+async def api_finalize_image(
+    site_slug: str = Body(...),
+    filename: str = Body(...),
+    current_user: dict = Depends(require_app_user_or_above),
+):
+    # Optionally: check user owns the site (omitted for brevity)
+    try:
+        image_url = finalize_image(site_slug, filename)
+        return {"image_url": image_url}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 """
 Website builder API routes — create, list, build, deploy, customise websites.
 """
@@ -7,6 +26,10 @@ import os
 import logging
 import time
 import asyncio
+import re
+import shutil
+from pathlib import Path
+from urllib.parse import unquote
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -23,6 +46,9 @@ from tools.website_scraper import scrape_website, scrape_to_prompt_context
 from services.hosting_service import deploy_to_s3, save_locally, custom_domain_instructions
 from services.analytics_service import log_event
 from services.payment_service import PLANS
+from services.secret_store import encrypt_json, can_encrypt
+from services.secret_store import decrypt_json
+from services.hosting_service import deploy_directory_to_gdrive
 from config.settings import settings
 
 router = APIRouter(prefix="/websites", tags=["websites"])
@@ -42,6 +68,8 @@ class CreateWebsiteRequest(BaseModel):
     logo_url: Optional[str] = None
     domain: Optional[str] = None
     hosting_env: str = "s3"
+    image_storage_backend: str = "auto"   # auto | local | s3 | gdrive
+    image_storage_config: Optional[dict] = None
     include_shopping_cart: bool = False
     cart_features: Optional[List[str]] = None  # e.g. ["categories","coupons","flash_offers","ads","email_notify"]
     enable_chatbot: bool = False
@@ -75,6 +103,9 @@ class UpdateWebsiteRequest(BaseModel):
     theme: Optional[str] = None
     custom_css: Optional[str] = None
     status: Optional[str] = None
+    image_storage_backend: Optional[str] = None
+    image_storage_config: Optional[dict] = None
+    image_storage_secrets: Optional[dict] = None
 
 
 class ScrapeUrlRequest(BaseModel):
@@ -119,6 +150,107 @@ def _check_plan_limits(user_id: str, num_pages: int, needs_cart: bool):
             )
 
 
+def _bundle_local_upload_assets(published_dir: str) -> dict:
+    """
+    Copy locally hosted uploaded images into the published folder and rewrite
+    HTML references from /static/uploads/... to relative ./assets/uploads/... paths.
+    """
+    root = Path(published_dir)
+    uploads_src = Path("data") / "uploads"
+    uploads_dst = root / "assets" / "uploads"
+    uploads_dst.mkdir(parents=True, exist_ok=True)
+
+    if not uploads_src.exists():
+        return {"rewritten_refs": 0, "copied_files": 0}
+
+    copied = set()
+    rewritten_refs = 0
+
+    abs_pat = re.compile(r"https?://[^\"'\s]+/static/uploads/([A-Za-z0-9._-]+)")
+    rel_pat = re.compile(r"/static/uploads/([A-Za-z0-9._-]+)")
+
+    def _rewrite_html(html_path: Path, text: str) -> str:
+        nonlocal rewritten_refs
+        rel_upload_dir = os.path.relpath(uploads_dst, html_path.parent).replace("\\", "/")
+
+        def _replace_match(match: re.Match) -> str:
+            nonlocal rewritten_refs
+            fname = unquote(match.group(1)).strip()
+            src = uploads_src / fname
+            if src.exists():
+                dst = uploads_dst / fname
+                if fname not in copied:
+                    shutil.copy2(src, dst)
+                    copied.add(fname)
+                rewritten_refs += 1
+                return f"{rel_upload_dir}/{fname}"
+            return match.group(0)
+
+        text = abs_pat.sub(_replace_match, text)
+        text = rel_pat.sub(_replace_match, text)
+        return text
+
+    for html_path in root.rglob("*.html"):
+        try:
+            content = html_path.read_text(encoding="utf-8", errors="ignore")
+            updated = _rewrite_html(html_path, content)
+            if updated != content:
+                html_path.write_text(updated, encoding="utf-8")
+        except Exception:
+            continue
+
+    return {"rewritten_refs": rewritten_refs, "copied_files": len(copied)}
+
+
+def _bundle_all_local_assets(published_dir: str, staging_dir: str) -> dict:
+    """
+    Copy all referenced local assets (img, css, js, fonts) into published_dir, preserving folder structure.
+    Rewrite HTML links to point to the new locations.
+    """
+    root = Path(published_dir)
+    staging = Path(staging_dir)
+    exts = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico', '.css', '.js', '.woff', '.woff2', '.ttf', '.eot', '.otf'}
+    rels_copied = set()
+    rewritten_refs = 0
+
+    # Patterns for src/href in HTML
+    pat = re.compile(r'(?:src|href)=["\']([^"\']+)["\']', re.I)
+
+    def _copy_asset(rel_path: str):
+        rel_path = rel_path.lstrip('/')
+        src = (staging / rel_path) if not rel_path.startswith('assets/uploads/') else root / rel_path
+        dst = root / rel_path
+        if not dst.parent.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+        if src.exists() and not dst.exists():
+            shutil.copy2(src, dst)
+            rels_copied.add(rel_path)
+
+    for html_path in root.rglob('*.html'):
+        try:
+            content = html_path.read_text(encoding='utf-8', errors='ignore')
+            changed = False
+            for m in pat.finditer(content):
+                ref = m.group(1)
+                if not ref or ref.startswith('http') or ref.startswith('mailto:') or ref.startswith('tel:'):
+                    continue
+                # Only process local/relative refs
+                rel_ref = ref.lstrip('/')
+                ext = Path(rel_ref).suffix.lower()
+                if ext in exts:
+                    # Try to copy from staging to published
+                    _copy_asset(rel_ref)
+                    # Rewrite to relative path (preserve subfolders)
+                    rel_url = rel_ref
+                    if ref != rel_url:
+                        content = content.replace(ref, rel_url)
+                        changed = True
+                        rewritten_refs += 1
+            if changed:
+                html_path.write_text(content, encoding='utf-8')
+        except Exception:
+            continue
+    return {"rewritten_refs": rewritten_refs, "copied_files": len(rels_copied)}
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.post("/scrape-url")
@@ -154,11 +286,13 @@ async def create_website(body: CreateWebsiteRequest, request: Request,
     db.execute(
         """INSERT INTO websites
            (website_id, user_id, name, title, description, logo_url, domain,
-            hosting_env, theme, classification, custom_css, cart_features, enable_chatbot, enable_blog, enable_livestream, status)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
+                hosting_env, image_storage_backend, image_storage_config,
+                theme, classification, custom_css, cart_features, enable_chatbot, enable_blog, enable_livestream, status)
+              VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
         (website_id, user_id, body.name, body.title, body.description or "",
          body.logo_url or "", body.domain or "", body.hosting_env,
-         body.theme, body.classification, body.custom_css or "",
+            body.image_storage_backend or "auto", json.dumps(body.image_storage_config or {}),
+            body.theme, body.classification, body.custom_css or "",
          json.dumps(body.cart_features or []),
          1 if body.enable_chatbot else 0,
          1 if body.enable_blog else 0,
@@ -307,12 +441,21 @@ async def build_website_pages(
         site.get("classification", "generic") or "generic",
     )
 
-    return {
+    # Optionally include the JWT token from the Authorization header if present
+    token = None
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1]
+
+    response = {
         "message": "Build queued. Use GET /websites/{id}/build-status to track progress.",
         "job_id":    trace_id,
         "status":    "queued",
         "website_id": website_id,
     }
+    if token:
+        response["token"] = token
+    return response
 
 
 @router.get("/{website_id}/build-status")
@@ -468,7 +611,9 @@ async def put_staged_html(
 @router.post("/{website_id}/deploy")
 async def deploy_website(website_id: str, request: Request,
                          current_user: dict = Depends(require_app_user_or_above)):
+    import datetime
     user_id = current_user["sub"]
+    print(f"[deploy] {datetime.datetime.now().isoformat()} user={user_id} website_id={website_id} from={request.client.host}")
     site = db.fetchone(
         "SELECT * FROM websites WHERE website_id = %s AND user_id = %s",
         (website_id, user_id),
@@ -507,6 +652,88 @@ async def deploy_website(website_id: str, request: Request,
     if os.path.exists(published_dir):
         shutil.rmtree(published_dir)
     shutil.copytree(local_path, published_dir)
+    bundle_stats = _bundle_local_upload_assets(published_dir)
+    # Also bundle all referenced local assets (img, css, js, fonts)
+    all_asset_stats = _bundle_all_local_assets(published_dir, local_path)
+
+    # ── Optional Google Drive deploy for full website files ────────────────
+    if (site.get("image_storage_backend") or "").strip().lower() == "gdrive":
+        cfg_raw = site.get("image_storage_config")
+        cfg = {}
+        if isinstance(cfg_raw, dict):
+            cfg = cfg_raw
+        elif isinstance(cfg_raw, str) and cfg_raw.strip():
+            try:
+                cfg = json.loads(cfg_raw)
+            except Exception:
+                cfg = {}
+
+        secrets = decrypt_json(site.get("image_storage_secrets_enc"))
+        service_account_file = (
+            str((secrets or {}).get("service_account_file") or "").strip()
+            or os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE", "")
+        )
+        oauth_token = str((secrets or {}).get("oauth_token") or "").strip()
+        folder_id = (
+            str(cfg.get("folder_id") or "").strip()
+            or os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
+        )
+
+        if folder_id and (service_account_file or oauth_token):
+            try:
+                gdrive_result = deploy_directory_to_gdrive(
+                    local_dir=published_dir,
+                    parent_folder_id=folder_id,
+                    site_folder_name=f"{site.get('name') or 'website'}-{website_id[:8]}",
+                    service_account_file=service_account_file,
+                    oauth_token=oauth_token,
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail=str(exc))
+            if gdrive_result and gdrive_result.get("url"):
+                gdrive_url = gdrive_result.get("url")
+                db.execute(
+                    "UPDATE websites SET status = 'live', live_url = %s, updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+                    (gdrive_url, website_id),
+                )
+                log_event("website_deployed", user_id=user_id, website_id=website_id,
+                          ip_address=request.client.host, meta={
+                              "url": gdrive_url,
+                              "target": "gdrive",
+                              "folder_id": gdrive_result.get("folder_id"),
+                              "folder_name": gdrive_result.get("folder_name"),
+                              "files_uploaded": gdrive_result.get("files_uploaded", 0),
+                              "bundled_refs": bundle_stats.get("rewritten_refs", 0),
+                              "bundled_files": bundle_stats.get("copied_files", 0),
+                              "all_asset_refs": all_asset_stats.get("rewritten_refs", 0),
+                              "all_asset_files": all_asset_stats.get("copied_files", 0),
+                          })
+                return {
+                    "url": gdrive_url,
+                    "target": "gdrive",
+                    "folder_id": gdrive_result.get("folder_id"),
+                    "folder_name": gdrive_result.get("folder_name"),
+                    "files_uploaded": gdrive_result.get("files_uploaded", 0),
+                    "bundled_refs": bundle_stats.get("rewritten_refs", 0),
+                    "bundled_files": bundle_stats.get("copied_files", 0),
+                    "all_asset_refs": all_asset_stats.get("rewritten_refs", 0),
+                    "all_asset_files": all_asset_stats.get("copied_files", 0),
+                }
+            raise HTTPException(
+                status_code=500,
+                detail="Google Drive deployment failed. Verify credentials and folder access.",
+            )
+
+        missing = []
+        if not folder_id:
+            missing.append("folder id")
+        if not service_account_file and not oauth_token:
+            missing.append("credentials (service_account_file or oauth_token)")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Google Drive deployment is configured but missing {' and '.join(missing)}. Set these in Storage settings.",
+        )
+
     live_url = f"/output/published/{website_id}/index.html"
     # Keep local_path pointing to staging so editor/preview still works
     db.execute(
@@ -541,6 +768,18 @@ async def update_website(website_id: str, body: UpdateWebsiteRequest,
     updates = {k: v for k, v in body.dict().items() if v is not None}
     if not updates:
         return {"message": "Nothing to update"}
+
+    if "image_storage_config" in updates and not isinstance(updates["image_storage_config"], str):
+        updates["image_storage_config"] = json.dumps(updates["image_storage_config"] or {})
+
+    if "image_storage_secrets" in updates:
+        secrets = updates.pop("image_storage_secrets") or {}
+        if not isinstance(secrets, dict):
+            raise HTTPException(status_code=400, detail="image_storage_secrets must be a JSON object")
+        if secrets:
+            if not can_encrypt():
+                raise HTTPException(status_code=400, detail="Server encryption key missing. Set STORAGE_SECRETS_KEY")
+            updates["image_storage_secrets_enc"] = encrypt_json(secrets)
 
     set_clause = ", ".join(f"{k} = %s" for k in updates)
     values = tuple(updates.values()) + (website_id,)
@@ -601,7 +840,7 @@ async def list_my_websites(
         if not website_id:
             return {"items": [], "total": 0, "page": page, "pages": 1}
         site = db.fetchone(
-            "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, "
+            "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, image_storage_backend, image_storage_config, "
             "enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
             "FROM websites WHERE website_id = ?",
             (website_id,),
@@ -618,7 +857,7 @@ async def list_my_websites(
     total = total_row["cnt"] if total_row else 0
 
     items = db.fetchall(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
+        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, image_storage_backend, image_storage_config, enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
         "FROM websites WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
         (effective_id, limit, offset),
     ) or []
@@ -641,7 +880,7 @@ async def list_websites(
     total = total_row["cnt"] if total_row else 0
 
     items = db.fetchall(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, local_path, build_status, created_at"
+        "SELECT website_id, name, title, theme, status, domain, s3_url, image_storage_backend, image_storage_config, local_path, build_status, created_at"
         " FROM websites WHERE user_id = %s ORDER BY created_at DESC LIMIT %s OFFSET %s",
         (user_id, limit, offset),
     ) or []

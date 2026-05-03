@@ -268,14 +268,14 @@
       <h3 id="confirmTitle" style="margin-bottom:10px"></h3>
       <p id="confirmMsg" style="color:var(--muted);font-size:.92rem;margin-bottom:22px"></p>
       <div style="display:flex;gap:10px;justify-content:center">
-        <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
+        <button id="confirmCancelBtn" class="btn btn-secondary">Cancel</button>
         <button id="confirmOkBtn" class="btn btn-primary">Confirm</button>
       </div>
     </div>
   </div>
 
   <div class="modal-overlay" id="editSiteModal">
-    <div class="modal" style="max-width:520px">
+    <div class="modal" style="max-width:520px;max-height:85vh;overflow-y:auto">
       <h3 style="margin-bottom:18px">Edit Website</h3>
       <input type="hidden" id="editSiteId">
       <div class="form-group" style="margin-bottom:14px">
@@ -301,6 +301,44 @@
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
         <button class="btn btn-secondary" onclick="closeModal('editSiteModal')">Cancel</button>
         <button class="btn btn-primary" onclick="saveEditSite()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="storageSiteModal">
+    <div class="modal" style="max-width:560px;max-height:85vh;overflow-y:auto">
+      <h3 style="margin-bottom:6px">Storage Settings</h3>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:14px">Configure image upload backend per website.</p>
+      <input type="hidden" id="storageSiteId">
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Image Storage Backend</label>
+        <select id="storageImageBackend" onchange="updateStorageFieldsUi()" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.95rem">
+          <option value="auto">Auto (S3 → GDrive → OneDrive → FTP → Local)</option>
+          <option value="local">Local uploads folder</option>
+          <option value="s3">AWS S3</option>
+          <option value="gdrive">Google Drive</option>
+          <option value="onedrive">Microsoft OneDrive</option>
+          <option value="ftp">FTP / SFTP-style public host</option>
+        </select>
+      </div>
+      <div class="form-group" id="storageField1Wrap" style="margin-bottom:10px">
+        <label id="storageField1Label" style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Google Drive Service Account File</label>
+        <input id="storageDriveServiceAccountFile" placeholder="/path/to/service-account.json" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.95rem">
+      </div>
+      <div class="form-group" id="storageField2Wrap" style="margin-bottom:14px">
+        <label id="storageField2Label" style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Google Drive Folder ID</label>
+        <input id="storageDriveFolderId" placeholder="Drive folder id for this website" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.95rem">
+        <small id="storageHelpText" style="color:var(--muted);font-size:.8rem">Used when backend is set to Google Drive.</small>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Encrypted Credentials JSON (optional)</label>
+        <textarea id="storageSecretsJson" rows="4" placeholder='{"aws_access_key_id":"...","aws_secret_access_key":"..."}'
+          style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.9rem;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;resize:vertical"></textarea>
+        <small id="storageSecretsHelp" style="color:var(--muted);font-size:.8rem">Saved encrypted in DB using server key. Leave empty to keep existing secrets.</small>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-secondary" onclick="closeModal('storageSiteModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveStorageSettings()">Save Storage</button>
       </div>
     </div>
   </div>
@@ -483,6 +521,7 @@
       <div id="stagingStatusBadge" style="padding-bottom:4px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:2px">
         <button class="btn btn-secondary btn-sm" onclick="toggleStagingOverlay()" id="stagingEditBtn" disabled title="Toggle numbered section markers">🔢 Section Numbers</button>
+        <button class="btn btn-secondary btn-sm" onclick="toggleAnchorVisibility()" id="stagingAnchorBtn" disabled title="Show/hide anchor name chips on sections">⚓ Anchors</button>
         <button class="btn btn-secondary btn-sm" onclick="toggleGlobalFonts()" id="stagingFontBtn" disabled title="Global font &amp; colour settings">🔤 Fonts</button>
         <button class="btn btn-secondary btn-sm" onclick="openAddSectionModal()" id="stagingAddSecBtn" disabled title="Add a new section to the page">＋ Add Section</button>
         <button class="btn btn-secondary btn-sm" onclick="historyUndo()" id="stagingUndoBtn" disabled title="Undo last change (up to 5 steps)">↩ Undo</button>
@@ -1230,7 +1269,14 @@
 <div id="toast"></div>
 
 <script src="/static/frontend/toast.js"></script>
-<script src="/static/frontend/dashboard.js"></script>
+<script>
+  // Cache-busting: reload dashboard.js with current timestamp so browser always gets latest
+  (function() {
+    const s = document.createElement('script');
+    s.src = '/static/frontend/dashboard.js?v=' + Date.now();
+    document.currentScript.parentNode.appendChild(s);
+  })();
+</script>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      IMAGE EDITOR MODAL

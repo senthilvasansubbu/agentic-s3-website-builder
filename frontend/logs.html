@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Website Builder Logs</title>
+  <style>
+    body { font-family: monospace, monospace; background: #18181b; color: #e5e7eb; margin: 0; padding: 0; }
+    .container { max-width: 900px; margin: 40px auto; background: #23272f; border-radius: 8px; box-shadow: 0 2px 8px #0002; padding: 24px; }
+    h1 { color: #a5b4fc; font-size: 1.5rem; margin-bottom: 24px; }
+    pre { background: #18181b; color: #e5e7eb; padding: 16px; border-radius: 6px; overflow-x: auto; }
+    .refresh-btn { background: #6366f1; color: #fff; border: none; padding: 8px 18px; border-radius: 5px; font-size: 1rem; cursor: pointer; margin-bottom: 18px; }
+    .refresh-btn:hover { background: #818cf8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Website Builder Logs</h1>
+    <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 12px; flex-wrap: wrap;">
+      <button class="refresh-btn" onclick="fetchLogs()">Refresh</button>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 1rem; color: #a5b4fc;">
+        <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()"> Auto-refresh
+      </label>
+      <span style="color:#a5b4fc; font-size:0.95rem;">Interval: <input type="number" id="refreshInterval" value="5" min="2" max="60" style="width:3em;"> sec</span>
+      <input type="text" id="logSearch" placeholder="Search logs..." style="margin-left:18px; padding:6px 10px; border-radius:4px; border:1px solid #444; background:#23272f; color:#e5e7eb; font-size:1rem;">
+      <button id="clearSearch" title="Clear search" style="padding:6px 10px; border-radius:4px; border:1px solid #444; background:#23272f; color:#a5b4fc; font-size:1rem; cursor:pointer;">Reset</button>
+      <select id="searchMode" style="padding:6px 10px; border-radius:4px; border:1px solid #444; background:#23272f; color:#a5b4fc; font-size:1rem;">
+        <option value="highlight">Highlight</option>
+        <option value="filter">Filter</option>
+      </select>
+      <span id="navBtns" style="display:none; align-items:center; gap:4px;">
+        <button id="prevMatch" style="padding:4px 10px; border-radius:4px; border:1px solid #444; background:#23272f; color:#a5b4fc; cursor:pointer;">&#8593; Prev</button>
+        <span id="matchCounter" style="color:#a5b4fc; font-size:0.95rem;"></span>
+        <button id="nextMatch" style="padding:4px 10px; border-radius:4px; border:1px solid #444; background:#23272f; color:#a5b4fc; cursor:pointer;">Next &#8595;</button>
+      </span>
+    </div>
+    <pre id="logContent">Loading logs...</pre>
+  </div>
+  <script>
+    let autoRefreshTimer = null;
+    let allLogLines = [];
+    let matchIndices = [];
+    let currentMatch = 0;
+
+    async function fetchLogs() {
+      const res = await fetch('/logs/website_builder.log');
+      if (res.ok) {
+        let text = await res.text();
+        if (text) {
+          allLogLines = text.split('\n').filter(Boolean).reverse();
+          renderLogs();
+        } else {
+          allLogLines = [];
+          document.getElementById('logContent').textContent = '(Log file is empty)';
+        }
+      } else {
+        allLogLines = [];
+        document.getElementById('logContent').textContent = 'Failed to load logs.';
+      }
+    }
+
+    function renderLogs() {
+      const search = document.getElementById('logSearch').value.trim();
+      const mode = document.getElementById('searchMode').value;
+      let lines = allLogLines;
+      matchIndices = [];
+      let html = '';
+      if (search) {
+        if (mode === 'filter') {
+          lines = lines.filter(line => line.toLowerCase().includes(search.toLowerCase()));
+        }
+      }
+      html = lines.map((line, idx) => {
+        if (search && mode === 'highlight') {
+          // Highlight all matches (case-insensitive)
+          const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+          let matchFound = false;
+          let markedLine = line.replace(re, (match) => {
+            matchFound = true;
+            return `<mark class=\"log-match\" style=\"background:#fde68a;color:#23272f;\">${match}</mark>`;
+          });
+          if (matchFound) matchIndices.push(idx);
+          return markedLine;
+        }
+        return line;
+      }).join('\n');
+      document.getElementById('logContent').innerHTML = html || (allLogLines.length ? '(No matches found)' : '(Log file is empty)');
+
+      // Show/hide nav buttons
+      const navBtns = document.getElementById('navBtns');
+      if (search && mode === 'highlight' && matchIndices.length > 0) {
+        navBtns.style.display = 'inline-flex';
+        document.getElementById('matchCounter').textContent = `${currentMatch+1} / ${matchIndices.length}`;
+        highlightCurrentMatch();
+      } else {
+        navBtns.style.display = 'none';
+        currentMatch = 0;
+      }
+    }
+
+    function highlightCurrentMatch() {
+      // Remove previous focus
+      document.querySelectorAll('.log-match-focus').forEach(el => el.classList.remove('log-match-focus'));
+      // Find all <mark> elements
+      const marks = document.querySelectorAll('.log-match');
+      if (marks.length > 0 && matchIndices.length > 0) {
+        // Find the correct <mark> for the current match
+        let matchCount = 0;
+        for (let i = 0; i < marks.length; i++) {
+          if (matchCount === currentMatch) {
+            marks[i].classList.add('log-match-focus');
+            marks[i].scrollIntoView({behavior:'smooth', block:'center'});
+            break;
+          }
+          matchCount++;
+        }
+      }
+    }
+
+    function toggleAutoRefresh() {
+      const enabled = document.getElementById('autoRefresh').checked;
+      const intervalInput = document.getElementById('refreshInterval');
+      if (enabled) {
+        let interval = parseInt(intervalInput.value, 10);
+        if (isNaN(interval) || interval < 2) interval = 5;
+        autoRefreshTimer = setInterval(fetchLogs, interval * 1000);
+        intervalInput.disabled = true;
+      } else {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+        intervalInput.disabled = false;
+      }
+    }
+
+    document.getElementById('refreshInterval').addEventListener('change', function() {
+      if (document.getElementById('autoRefresh').checked) {
+        clearInterval(autoRefreshTimer);
+        let interval = parseInt(this.value, 10);
+        if (isNaN(interval) || interval < 2) interval = 5;
+        autoRefreshTimer = setInterval(fetchLogs, interval * 1000);
+      }
+    });
+
+    // Search and mode event listeners
+    // Debounce search input for performance
+    let searchDebounceTimer = null;
+    document.getElementById('logSearch').addEventListener('input', function() {
+      currentMatch = 0;
+      if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        renderLogs();
+      }, 250); // 250ms debounce
+    });
+    document.getElementById('searchMode').addEventListener('change', function() {
+      currentMatch = 0;
+      renderLogs();
+    });
+
+    document.getElementById('clearSearch').addEventListener('click', function() {
+      document.getElementById('logSearch').value = '';
+      currentMatch = 0;
+      renderLogs();
+    });
+
+    document.getElementById('prevMatch').addEventListener('click', function() {
+      if (matchIndices.length > 0) {
+        currentMatch = (currentMatch - 1 + matchIndices.length) % matchIndices.length;
+        document.getElementById('matchCounter').textContent = `${currentMatch+1} / ${matchIndices.length}`;
+        highlightCurrentMatch();
+      }
+    });
+    document.getElementById('nextMatch').addEventListener('click', function() {
+      if (matchIndices.length > 0) {
+        currentMatch = (currentMatch + 1) % matchIndices.length;
+        document.getElementById('matchCounter').textContent = `${currentMatch+1} / ${matchIndices.length}`;
+        highlightCurrentMatch();
+      }
+    });
+
+    // Add style for focused match
+    const style = document.createElement('style');
+    style.innerHTML = `.log-match-focus { outline: 2px solid #6366f1; background: #fbbf24 !important; }`;
+    document.head.appendChild(style);
+
+    fetchLogs();
+  </script>
+</body>
+</html>

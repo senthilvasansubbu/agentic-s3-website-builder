@@ -111,16 +111,15 @@ app.include_router(commerce_router,   prefix="/api/v1")
 app.include_router(clients_router,    prefix="/api/v1")
 
 # ── Static file serving ────────────────────────────────────────────────────────
-# Uploaded product images are stored in data/uploads and served at /static/uploads/
-from fastapi.staticfiles import StaticFiles as _StaticFiles
-_uploads_dir = Path(__file__).parent / "data" / "uploads"
-_uploads_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/static/uploads", _StaticFiles(directory=str(_uploads_dir)), name="uploads")
 
-# Serve built/staged/published websites from the output folder
+# Serve all assets (uploads, images, css, js) from output folder for staging and published sites
+from fastapi.staticfiles import StaticFiles as _StaticFiles
 _output_dir = Path(__file__).parent / "output"
 _output_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/output", _StaticFiles(directory=str(_output_dir)), name="output")
+
+
+## No need to mount /static/uploads anymore; all assets are under /output/staging/<site>/assets/
 
 # Serve docs folder (reports, exported documents)
 _docs_dir = Path(__file__).parent / "docs"
@@ -130,6 +129,11 @@ app.mount("/docs-files", _StaticFiles(directory=str(_docs_dir)), name="docs")
 # Serve frontend JS/CSS assets (dashboard.js etc.)
 _frontend_dir = Path(__file__).parent / "frontend"
 app.mount("/static/frontend", _StaticFiles(directory=str(_frontend_dir)), name="frontend-assets")
+
+# Serve logs folder for log viewing
+_logs_dir = Path(__file__).parent / "logs"
+_logs_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/logs", StaticFiles(directory=str(_logs_dir)), name="logs")
 
 @app.get("/downloads", response_class=HTMLResponse, include_in_schema=False)
 async def docs_index():

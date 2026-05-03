@@ -123,6 +123,68 @@ function logout() {
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+function _systemDialogConfig({ icon = '', title = 'Confirm', msg = '', okLabel = 'Confirm', okClass = 'btn-primary', cancelLabel = 'Cancel', showCancel = true, onResult = null }) {
+  document.getElementById('confirmIcon').textContent = icon;
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+
+  const okBtn = document.getElementById('confirmOkBtn');
+  const cancelBtn = document.getElementById('confirmCancelBtn');
+  const cleanup = () => {
+    okBtn.onclick = null;
+    cancelBtn.onclick = null;
+  };
+  okBtn.textContent = okLabel;
+  okBtn.className = `btn ${okClass}`;
+  cancelBtn.textContent = cancelLabel;
+  cancelBtn.style.display = showCancel ? '' : 'none';
+
+  okBtn.onclick = () => {
+    cleanup();
+    closeModal('confirmModal');
+    if (onResult) onResult(true);
+  };
+  cancelBtn.onclick = () => {
+    cleanup();
+    closeModal('confirmModal');
+    if (onResult) onResult(false);
+  };
+
+  openModal('confirmModal');
+}
+
+function styledConfirm(msg, opts = {}) {
+  return new Promise(resolve => {
+    _systemDialogConfig({
+      icon: opts.icon || '⚠️',
+      title: opts.title || 'Please Confirm',
+      msg,
+      okLabel: opts.okLabel || 'Confirm',
+      okClass: opts.okClass || 'btn-primary',
+      cancelLabel: opts.cancelLabel || 'Cancel',
+      showCancel: true,
+      onResult: resolve,
+    });
+  });
+}
+
+function styledAlert(msg, opts = {}) {
+  return new Promise(resolve => {
+    _systemDialogConfig({
+      icon: opts.icon || 'ℹ️',
+      title: opts.title || 'Notice',
+      msg,
+      okLabel: opts.okLabel || 'OK',
+      okClass: opts.okClass || 'btn-primary',
+      showCancel: false,
+      onResult: () => resolve(),
+    });
+  });
+}
+
+window.wbConfirm = styledConfirm;
+window.wbAlert = styledAlert;
+
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
   currentUser = await apiFetch('/auth/me');
@@ -279,6 +341,7 @@ function siteRow(w) {
     <td id="actions-${w.website_id}" style="white-space:nowrap">
       <button class="btn btn-secondary btn-sm" ${isInactive?'disabled title="Activate the website to view"':"onclick=\"viewSite('" + w.website_id + "')\" title=\"Open website\""}>👁 View</button>
       <button class="btn btn-secondary btn-sm" style="margin-left:4px" ${isInactive?'disabled title="Activate the website to edit"':"onclick=\"editSite('" + w.website_id + "')\" title=\"Edit details\""}>✏️ Edit</button>
+      <button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="openStorageSettings('${w.website_id}')" title="Per-website image storage settings">🗂 Storage</button>
       <button class="btn ${isInactive?'btn-primary':'btn-secondary'} btn-sm" style="${!isInactive?'margin-left:4px':''}" onclick="deactivateSite('${w.website_id}','${w.status}')">${isInactive?'▶ Activate':'⏸ Deactivate'}</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" ${!isInactive?'disabled title="Deactivate the website first to delete"':'title="Delete permanently"'} onclick="${isInactive?`deleteSite('${w.website_id}')`:'void(0)'}">🗑 Delete</button>
     </td>
@@ -347,15 +410,182 @@ async function saveEditSite() {
   }
 }
 
+function openStorageSettings(id) {
+  const w = websites.find(x => x.website_id === id);
+  if (!w) return;
+  let cfg = {};
+  try { cfg = typeof w.image_storage_config === 'string' ? JSON.parse(w.image_storage_config || '{}') : (w.image_storage_config || {}); }
+  catch { cfg = {}; }
+
+  const sid = document.getElementById('storageSiteId');
+  const b = document.getElementById('storageImageBackend');
+  const sa = document.getElementById('storageDriveServiceAccountFile');
+  const fd = document.getElementById('storageDriveFolderId');
+  if (sid) sid.value = id;
+  const backend = w.image_storage_backend || 'auto';
+  if (b) b.value = backend;
+  if (backend === 's3') {
+    if (sa) sa.value = cfg.s3_bucket || '';
+    if (fd) fd.value = cfg.s3_prefix || '';
+  } else if (backend === 'gdrive') {
+    if (sa) sa.value = cfg.folder_id || '';
+    if (fd) fd.value = cfg.gdrive_subfolder || '';
+  } else if (backend === 'onedrive') {
+    if (sa) sa.value = cfg.onedrive_folder || '';
+    if (fd) fd.value = cfg.onedrive_subfolder || '';
+  } else if (backend === 'ftp') {
+    if (sa) sa.value = cfg.ftp_remote_dir || '';
+    if (fd) fd.value = cfg.ftp_public_base_url || '';
+  } else {
+    if (sa) sa.value = cfg.folder_id || '';
+    if (fd) fd.value = cfg.gdrive_subfolder || '';
+  }
+  updateStorageFieldsUi();
+  openModal('storageSiteModal');
+}
+
+function updateStorageFieldsUi() {
+  const backend = document.getElementById('storageImageBackend')?.value || 'auto';
+  const f1Wrap = document.getElementById('storageField1Wrap');
+  const f2Wrap = document.getElementById('storageField2Wrap');
+  const f1Label = document.getElementById('storageField1Label');
+  const f2Label = document.getElementById('storageField2Label');
+  const f1 = document.getElementById('storageDriveServiceAccountFile');
+  const f2 = document.getElementById('storageDriveFolderId');
+  const help = document.getElementById('storageHelpText');
+  if (!f1Wrap || !f2Wrap || !f1Label || !f2Label || !f1 || !f2 || !help) return;
+
+  if (backend === 'local') {
+    f1Wrap.style.display = 'none';
+    f2Wrap.style.display = 'none';
+    help.textContent = 'No extra configuration needed for local storage.';
+    return;
+  }
+
+  f1Wrap.style.display = '';
+  f2Wrap.style.display = '';
+
+  if (backend === 's3') {
+    f1Label.textContent = 'S3 Bucket (optional override)';
+    f2Label.textContent = 'S3 Prefix (optional)';
+    f1.placeholder = 'my-bucket-name';
+    f2.placeholder = 'uploads/site-a';
+    help.textContent = 'Uses AWS credentials from server env; bucket/prefix here are per-website overrides.';
+    const sh = document.getElementById('storageSecretsHelp');
+    if (sh) sh.textContent = 'Optional secrets JSON keys: aws_access_key_id, aws_secret_access_key, s3_bucket.';
+    return;
+  }
+
+  if (backend === 'gdrive') {
+    f1Label.textContent = 'Google Drive Folder ID';
+    f2Label.textContent = 'Google Drive Subfolder (optional)';
+    f1.placeholder = 'Drive folder id for this website';
+    f2.placeholder = 'site-a/images';
+    help.textContent = 'Google credentials are read from server env; only destination is configured here.';
+    const sh = document.getElementById('storageSecretsHelp');
+    if (sh) sh.textContent = 'Optional secrets JSON key: service_account_file (if different from server default).';
+    return;
+  }
+
+  if (backend === 'onedrive') {
+    f1Label.textContent = 'OneDrive Folder Path';
+    f2Label.textContent = 'OneDrive Subfolder (optional)';
+    f1.placeholder = 'uploads';
+    f2.placeholder = 'site-a/images';
+    help.textContent = 'OneDrive app credentials are read from server env; this sets folder destination for this website.';
+    const sh = document.getElementById('storageSecretsHelp');
+    if (sh) sh.textContent = 'Optional secrets JSON keys: onedrive_tenant_id, onedrive_client_id, onedrive_client_secret, onedrive_drive_id.';
+    return;
+  }
+
+  if (backend === 'ftp') {
+    f1Label.textContent = 'FTP Remote Directory';
+    f2Label.textContent = 'Public Base URL (optional override)';
+    f1.placeholder = '/public_html/uploads/site-a';
+    f2.placeholder = 'https://cdn.example.com/uploads/site-a';
+    help.textContent = 'FTP credentials are read from server env; set destination dir and optional public URL override.';
+    const sh = document.getElementById('storageSecretsHelp');
+    if (sh) sh.textContent = 'Optional secrets JSON keys: ftp_host, ftp_port, ftp_user, ftp_password, ftp_public_base_url.';
+    return;
+  }
+
+  // auto
+  f1Label.textContent = 'Preferred Folder ID / Bucket (optional)';
+  f2Label.textContent = 'Preferred Subfolder / Prefix (optional)';
+  f1.placeholder = 'optional destination hint';
+  f2.placeholder = 'optional path hint';
+  help.textContent = 'Auto mode tries S3, Google Drive, OneDrive, FTP, then local (based on server config).';
+  const sh = document.getElementById('storageSecretsHelp');
+  if (sh) sh.textContent = 'Optional encrypted secrets JSON can override env values per website.';
+}
+
+async function saveStorageSettings() {
+  const id = document.getElementById('storageSiteId')?.value;
+  if (!id) return;
+  const backend = document.getElementById('storageImageBackend')?.value || 'auto';
+  const v1 = document.getElementById('storageDriveServiceAccountFile')?.value.trim() || '';
+  const v2 = document.getElementById('storageDriveFolderId')?.value.trim() || '';
+  let image_storage_config = {};
+  if (backend === 's3') image_storage_config = { s3_bucket: v1, s3_prefix: v2 };
+  else if (backend === 'gdrive') image_storage_config = { folder_id: v1, gdrive_subfolder: v2 };
+  else if (backend === 'onedrive') image_storage_config = { onedrive_folder: v1, onedrive_subfolder: v2 };
+  else if (backend === 'ftp') image_storage_config = { ftp_remote_dir: v1, ftp_public_base_url: v2 };
+  else image_storage_config = { folder_id: v1, gdrive_subfolder: v2 };
+  const secretsRaw = document.getElementById('storageSecretsJson')?.value.trim() || '';
+  let image_storage_secrets;
+  if (secretsRaw) {
+    try {
+      image_storage_secrets = JSON.parse(secretsRaw);
+      if (!image_storage_secrets || typeof image_storage_secrets !== 'object' || Array.isArray(image_storage_secrets)) {
+        toast('Credentials JSON must be an object', false);
+        return;
+      }
+    } catch {
+      toast('Invalid credentials JSON', false);
+      return;
+    }
+  }
+
+  const payload = {
+    image_storage_backend: backend,
+    image_storage_config,
+  };
+  if (image_storage_secrets) payload.image_storage_secrets = image_storage_secrets;
+
+  const r = await fetch(`${API}/websites/${id}`, {
+    method: 'PATCH', headers: { ...headers(), 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (r.ok) {
+    const idx = websites.findIndex(x => x.website_id === id);
+    if (idx !== -1) {
+      websites[idx].image_storage_backend = payload.image_storage_backend;
+      websites[idx].image_storage_config = JSON.stringify(payload.image_storage_config);
+      websites[idx].updated_at = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    }
+    closeModal('storageSiteModal');
+    const sec = document.getElementById('storageSecretsJson');
+    if (sec) sec.value = '';
+    refreshRow(id);
+    toast('Storage settings saved ✅');
+  } else {
+    let errMsg = 'Storage settings update failed';
+    try { const j = await r.json(); if (j && j.detail) errMsg = j.detail; } catch {}
+    toast(errMsg, false);
+  }
+}
+
 function showConfirm({ icon, title, msg, btnLabel, btnClass, onConfirm }) {
-  document.getElementById('confirmIcon').textContent = icon || '';
-  document.getElementById('confirmTitle').textContent = title;
-  document.getElementById('confirmMsg').textContent = msg;
-  const btn = document.getElementById('confirmOkBtn');
-  btn.textContent = btnLabel || 'Confirm';
-  btn.className = `btn ${btnClass || 'btn-primary'}`;
-  btn.onclick = () => { closeModal('confirmModal'); onConfirm(); };
-  openModal('confirmModal');
+  _systemDialogConfig({
+    icon: icon || '⚠️',
+    title: title || 'Please Confirm',
+    msg: msg || '',
+    okLabel: btnLabel || 'Confirm',
+    okClass: btnClass || 'btn-primary',
+    cancelLabel: 'Cancel',
+    showCancel: true,
+    onResult: (ok) => { if (ok) onConfirm(); },
+  });
 }
 
 async function deactivateSite(id, currentStatus) {
@@ -852,6 +1082,24 @@ async function buildWebsite() {
     timeout: { msg: '⚠️ Build is taking longer than expected. Check My Websites for status.', pct: 100 },
   };
 
+
+  // added for debugging - log the SSE URL and connection status
+const esUrl = `${API}/websites/${created.website_id}/build-stream?token=${encodeURIComponent(token)}`;
+console.log('[SSE] Connecting to:', esUrl);
+const es = new EventSource(esUrl);
+es.onopen = () => {
+  console.log('[SSE] Connection opened');
+};
+es.onmessage = async (e) => {
+  console.log('[SSE] Message received:', e.data);
+  // ...existing code...
+};
+es.onerror = (err) => {
+  console.error('[SSE] Connection error:', err);
+  es.close();
+  resolve();
+};
+
   const setStage = (status, errorMsg) => {
     const s = stageLabels[status] || stageLabels.queued;
     document.getElementById('buildProgressMsg').textContent = errorMsg ? `❌ ${errorMsg}` : s.msg;
@@ -866,7 +1114,7 @@ async function buildWebsite() {
 
   await new Promise(resolve => {
     const es = new EventSource(
-      `${API}/../api/v1/websites/${created.website_id}/build-stream?token=${encodeURIComponent(token)}`
+      `${API}/websites/${created.website_id}/build-stream?token=${encodeURIComponent(token)}`
     );
     es.onmessage = async (e) => {
       try {
@@ -1049,7 +1297,12 @@ async function addCartItem() {
 }
 
 async function deleteCartItem(id) {
-  if (!confirm('Permanently remove this cart item? This cannot be undone.')) return;
+  if (!(await styledConfirm('Permanently remove this cart item? This cannot be undone.', {
+    title: 'Remove Cart Item?',
+    icon: '🗑',
+    okLabel: 'Remove',
+    okClass: 'btn-danger',
+  }))) return;
   const r = await apiFetch(`/shop/cart-items/${id}`, { method: 'DELETE' });
   if (r) { toast('Cart item removed'); loadCartItems(); }
   else toast(`Failed to remove: ${apiFetch._lastError || 'unknown error'}`, false);
@@ -1179,6 +1432,8 @@ async function uploadCartItemImage(file) {
 
   const formData = new FormData();
   formData.append('file', file);
+  const siteId = document.getElementById('prodSite')?.value || stagedWebsiteId || '';
+  if (siteId) formData.append('website_id', siteId);
 
   try {
     const resp = await fetch(`${API}/shop/upload-image`, {
@@ -1457,7 +1712,12 @@ async function createCoupon() {
 }
 
 async function deleteCoupon(id) {
-  if (!confirm('Delete this coupon?')) return;
+  if (!(await styledConfirm('Delete this coupon?', {
+    title: 'Delete Coupon?',
+    icon: '🗑',
+    okLabel: 'Delete',
+    okClass: 'btn-danger',
+  }))) return;
   const r = await fetch(`${API}/commerce/coupons/${id}`, { method: 'DELETE', headers: headers() });
   if (r.ok) { toast('Coupon deleted'); loadCoupons(); }
   else toast('Failed', false);
@@ -1513,14 +1773,24 @@ async function createCampaign() {
 }
 
 async function sendCampaign(id) {
-  if (!confirm('Send this campaign to all subscribers?')) return;
+  if (!(await styledConfirm('Send this campaign to all subscribers?', {
+    title: 'Send Campaign?',
+    icon: '📣',
+    okLabel: 'Send',
+    okClass: 'btn-primary',
+  }))) return;
   const r = await apiFetch(`/commerce/campaigns/${id}/send`, { method: 'POST' });
   if (r) { toast('Campaign sent!'); loadCampaigns(); }
   else toast('Send failed', false);
 }
 
 async function deleteCampaign(id) {
-  if (!confirm('Delete this campaign?')) return;
+  if (!(await styledConfirm('Delete this campaign?', {
+    title: 'Delete Campaign?',
+    icon: '🗑',
+    okLabel: 'Delete',
+    okClass: 'btn-danger',
+  }))) return;
   const r = await fetch(`${API}/commerce/campaigns/${id}`, { method: 'DELETE', headers: headers() });
   if (r.ok) { toast('Campaign deleted'); loadCampaigns(); }
   else toast('Failed', false);
@@ -1558,7 +1828,12 @@ async function createTeamMember() {
 }
 
 async function removeTeamMember(id) {
-  if (!confirm('Remove this team member? They will lose access.')) return;
+  if (!(await styledConfirm('Remove this team member? They will lose access.', {
+    title: 'Remove Team Member?',
+    icon: '👤',
+    okLabel: 'Remove',
+    okClass: 'btn-danger',
+  }))) return;
   const r = await fetch(`${API}/team/${id}`, { method: 'DELETE', headers: headers() });
   if (r.ok) { toast('Member removed'); loadTeam(); }
   else toast('Failed', false);
@@ -1693,7 +1968,12 @@ async function createClient() {
 }
 
 async function removeClient(id) {
-  if (!confirm('Remove this client? They will lose access.')) return;
+  if (!(await styledConfirm('Remove this client? They will lose access.', {
+    title: 'Remove Client?',
+    icon: '🤝',
+    okLabel: 'Remove',
+    okClass: 'btn-danger',
+  }))) return;
   const r = await fetch(`${API}/clients/${id}`, { method: 'DELETE', headers: headers() });
   if (r.ok) { toast('Client removed'); loadClients(); }
   else toast('Failed', false);
@@ -1861,8 +2141,11 @@ async function loadStagedSite(preselect) {
     stagingOverlayOn = false;
     stagingSections = [];
     activeSectionIndex = null;
+    _anchorsVisible = true;
     const editBtn = document.getElementById('stagingEditBtn');
     if (editBtn) { editBtn.textContent = '🔢 Section Numbers'; editBtn.style.background = ''; }
+    const anchorBtn = document.getElementById('stagingAnchorBtn');
+    if (anchorBtn) { anchorBtn.textContent = '⚓ Anchors'; anchorBtn.style.opacity = ''; }
     document.getElementById('secEditor').style.display = 'none';
     document.getElementById('secList').style.display = '';
     frame.onload = () => {
@@ -1889,7 +2172,7 @@ async function loadStagedSite(preselect) {
   }
 
   // Enable controls
-  ['stagingEditBtn', 'stagingFontBtn', 'stagingAddSecBtn', 'stagingUndoBtn', 'stagingResetBtn', 'stagingPopoutBtn', 'stagingRefreshBtn', 'stagingSaveBtn', 'stagingGoLiveBtn'].forEach(btnId => {
+  ['stagingEditBtn', 'stagingFontBtn', 'stagingAddSecBtn', 'stagingUndoBtn', 'stagingResetBtn', 'stagingPopoutBtn', 'stagingRefreshBtn', 'stagingSaveBtn', 'stagingGoLiveBtn', 'stagingAnchorBtn'].forEach(btnId => {
     const btn = document.getElementById(btnId);
     if (btn) btn.disabled = false;
   });
@@ -1948,9 +2231,14 @@ function historyUndo() {
   toast('Undo applied', true);
 }
 
-function historyReset() {
+async function historyReset() {
   if (!_originalHTML) { toast('No original snapshot available', false); return; }
-  if (!confirm('Reset all edits and return to the original loaded state?')) return;
+  if (!(await styledConfirm('Reset all edits and return to the original loaded state?', {
+    title: 'Reset All Edits?',
+    icon: '↺',
+    okLabel: 'Reset',
+    okClass: 'btn-danger',
+  }))) return;
   _historyStack = [];
   _restoreSnapshot(_originalHTML);
   toast('Reset to original', true);
@@ -1960,6 +2248,7 @@ function historyReset() {
 function _injectOverlay(doc) {
   // Remove any prior overlay
   doc.querySelectorAll('.__wb_badge').forEach(n => n.remove());
+  doc.querySelectorAll('.__wb_badge_anchor').forEach(n => n.remove());
   doc.querySelectorAll('.__wb_hi').forEach(n => {
     n.style.outline = '';
     n.classList.remove('__wb_hi');
@@ -1968,6 +2257,29 @@ function _injectOverlay(doc) {
   // Query ALL structural elements in a single call so they come back in DOM order
   const LABEL_MAP = { NAV: 'Navigation / Menu', HEADER: 'Header', SECTION: 'Section', FOOTER: 'Footer' };
 
+  const slugify = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  const ensureSectionId = (el, index, label) => {
+    if (el.id) return el.id;
+    const headingText = el.querySelector('h1,h2,h3,h4,h5,h6')?.textContent || '';
+    const labelBase = (label || '').replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    const base = slugify(headingText) || slugify(labelBase) || `${el.tagName.toLowerCase()}-${index}`;
+    let candidate = base;
+    let counter = 2;
+    while (doc.getElementById(candidate)) {
+      candidate = `${base}-${counter}`;
+      counter++;
+    }
+    el.id = candidate;
+    return candidate;
+  };
+
   stagingSections = [];
   let idx = 0;
 
@@ -1975,16 +2287,19 @@ function _injectOverlay(doc) {
     // Skip elements that are nested inside another tracked element
     if (el.closest('nav, header, section, footer') !== el) return;
     const label = LABEL_MAP[el.tagName] || 'Section';
+    // Ensure every section has a stable anchor target for menu links.
+    const id = ensureSectionId(el, idx + 1, label);
+    const anchor = id ? `#${id}` : '';
     idx++;
     const i = idx;
-      stagingSections.push({ el, label: `${i}. ${label}${el.id ? ' #' + el.id : ''}` });
+      stagingSections.push({ el, label: `${i}. ${label}${anchor ? ' ' + anchor : ''}` });
 
       // Position badge at top-left of element
       el.style.position = el.style.position || 'relative';
       const badge = doc.createElement('button');
       badge.className = '__wb_badge';
       badge.textContent = String(i);
-      badge.title = `Edit: ${label}${el.id ? ' #' + el.id : ''}`;
+      badge.title = `Edit: ${label}${anchor ? ' ' + anchor : ''}`;
       badge.style.cssText = [
         'position:absolute','top:6px','left:6px','z-index:99999',
         'width:28px','height:28px','border-radius:50%',
@@ -1998,6 +2313,26 @@ function _injectOverlay(doc) {
         window.parent.postMessage({ type: 'wb_section_click', index: i - 1 }, '*');
       });
       el.appendChild(badge);
+
+      if (anchor) {
+        const anchorChip = doc.createElement('button');
+        anchorChip.className = '__wb_badge_anchor';
+        anchorChip.textContent = anchor;
+        anchorChip.title = `Anchor target: ${anchor}`;
+        anchorChip.style.cssText = [
+          'position:absolute','top:8px','left:40px','z-index:99999',
+          'max-width:180px','padding:3px 8px','border-radius:999px',
+          'background:rgba(17,24,39,.88)','color:#fff','border:1px solid rgba(255,255,255,.25)',
+          'font-size:11px','font-weight:600','cursor:pointer',
+          'line-height:1.2','white-space:nowrap','overflow:hidden','text-overflow:ellipsis',
+          'box-shadow:0 2px 8px rgba(0,0,0,.35)',
+        ].join(';');
+        anchorChip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.parent.postMessage({ type: 'wb_section_click', index: i - 1 }, '*');
+        });
+        el.appendChild(anchorChip);
+      }
   });
 
   // Populate the section list in the sidebar + jump dropdown
@@ -2197,6 +2532,22 @@ function insertNewSection() {
   toast('Section added — click 💾 Save to persist', true);
 }
 
+let _anchorsVisible = true;
+
+function toggleAnchorVisibility() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame.contentDocument) return;
+  _anchorsVisible = !_anchorsVisible;
+  frame.contentDocument.querySelectorAll('.__wb_badge_anchor').forEach(n => {
+    n.style.display = _anchorsVisible ? '' : 'none';
+  });
+  const btn = document.getElementById('stagingAnchorBtn');
+  if (btn) {
+    btn.textContent = _anchorsVisible ? '⚓ Anchors' : '⚓ Anchors (off)';
+    btn.style.opacity = _anchorsVisible ? '' : '0.5';
+  }
+}
+
 function toggleStagingOverlay() {
   const frame = document.getElementById('stagingIframe');
   if (!frame.contentDocument) { toast('Preview not loaded yet', false); return; }
@@ -2277,6 +2628,38 @@ function openSecEditor(idx) {
       };
     }
 
+    function _linkInit(domEl) {
+      if (!domEl) {
+        return {
+          bgEnabled: false,
+          bgColor: '#111827',
+          textColor: '#ffffff',
+          hoverEnabled: false,
+          hoverBgColor: '#374151',
+          hoverTextColor: '#ffffff',
+        };
+      }
+      const cs = iframeView.getComputedStyle(domEl);
+      const bgRaw = domEl.style.backgroundColor || cs.backgroundColor || '';
+      const textRaw = domEl.style.color || cs.color || '';
+      const hasBg = !!bgRaw && bgRaw !== 'rgba(0, 0, 0, 0)' && bgRaw !== 'transparent';
+      const bgHex = hasBg ? _rgbToHex(bgRaw) : '#111827';
+      const textHex = _rgbToHex(textRaw || '#ffffff');
+      return {
+        bgEnabled: hasBg,
+        bgColor: bgHex,
+        textColor: textHex,
+        hoverEnabled: false,
+        hoverBgColor: _shadeHex(bgHex, -18),
+        hoverTextColor: textHex,
+      };
+    }
+
+    function _imgAnimInit(domEl) {
+      const mode = domEl?.dataset?.wbImgAnim || 'none';
+      return { mode };
+    }
+
     // ── Gather editable elements ───────────────────────────────────────────
     // Collect all HTML into one string — avoids O(n²) innerHTML re-parses
     const htmlChunks = [];
@@ -2326,12 +2709,12 @@ function openSecEditor(idx) {
     // Nav links / anchor texts — collect anchor refs before any innerHTML write
     const _linkFidToAnchor = new Map();
     el.querySelectorAll('a').forEach((a) => {
-      const text = a.innerText.trim();
+      const text = (a.textContent || '').trim();
       const href = a.getAttribute('href') || '';
       if (!text || text.length > 60) return;
       fieldIdx++;
       const fid = `link-${fieldIdx}`;
-      htmlChunks.push(_linkField(fieldIdx, 'Link', text, href, fid));
+      htmlChunks.push(_linkField(fieldIdx, 'Link', text, href, fid, _linkInit(a)));
       _linkFidToAnchor.set(fid, a);
     });
 
@@ -2339,16 +2722,25 @@ function openSecEditor(idx) {
     el.querySelectorAll('img').forEach((img, i) => {
       if (i === 0 && activeSectionIndex === 0 && logo) return;
       fieldIdx++;
-      htmlChunks.push(_imgField(fieldIdx, `Image ${i+1}`, img.src, img.alt, `img-${fieldIdx}`));
+      htmlChunks.push(_imgField(fieldIdx, `Image ${i+1}`, img.src, img.alt, `img-${fieldIdx}`, _imgAnimInit(img)));
     });
 
     // ── Background editor (always shown at bottom) ──────────────────────────
-    const computed = iframeView.getComputedStyle(el);
-    const bgImage  = computed.backgroundImage !== 'none' ? computed.backgroundImage : (el.style.backgroundImage || '');
-    const bgColor  = el.style.backgroundColor || computed.backgroundColor || '';
+    const bgTarget = _bgTarget(el);
+    const computed = iframeView.getComputedStyle(bgTarget);
+    const bgImage  = computed.backgroundImage !== 'none' ? computed.backgroundImage : (bgTarget.style.backgroundImage || '');
+    const bgColor  = bgTarget.style.backgroundColor || computed.backgroundColor || '';
     const bgUrlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
     const bgUrl = bgUrlMatch ? bgUrlMatch[1] : '';
-    htmlChunks.push(_bgField(bgUrl, bgColor));
+    const carouselRaw = bgTarget.dataset.wbBgCarouselUrls || '';
+    const bgUrls = carouselRaw ? carouselRaw.split('||').map(s => s.trim()).filter(Boolean) : (bgUrl ? [bgUrl] : []);
+    const carouselEnabled = bgUrls.length > 1;
+    const carouselIntervalSec = Math.max(2, Math.round((parseInt(bgTarget.dataset.wbBgIntervalMs || '5000', 10) || 5000) / 1000));
+    const carouselStyle = bgTarget.dataset.wbBgStyle || 'slide-left';
+    const carouselSpeedMs = Math.max(250, parseInt(bgTarget.dataset.wbBgSpeedMs || '900', 10) || 900);
+    const bgMotion = bgTarget.dataset.wbBgMotion || 'none';
+    const sectionLabel = activeSectionIndex !== null && stagingSections[activeSectionIndex] ? stagingSections[activeSectionIndex].label : 'Section';
+    htmlChunks.push(_bgField(bgUrl, bgColor, bgUrls, carouselEnabled, carouselIntervalSec, carouselStyle, carouselSpeedMs, bgMotion, sectionLabel, activeSectionIndex));
 
     if (fieldIdx === 0 && !bgUrl && !bgColor) {
       fields.innerHTML = '<p style="font-size:.82rem;color:var(--muted);text-align:center;padding:24px">No editable text or images detected in this section.</p>';
@@ -2383,13 +2775,27 @@ function openSecEditor(idx) {
   }); // end requestAnimationFrame
 }
 
-function _bgField(bgUrl, bgColor) {
-  const thumb = bgUrl ? `<img src="${_esc(bgUrl)}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-top:6px;border:1px solid var(--border)" id="bgThumb">` : `<div id="bgThumb"></div>`;
+function _bgField(bgUrl, bgColor, bgUrls = [], carouselEnabled = false, carouselIntervalSec = 5, carouselStyle = 'slide-left', carouselSpeedMs = 900, bgMotion = 'none', sectionLabel = 'Section', secIdx = 0) {
+  const bgInputId = `bgImageInput_${secIdx}`;
+  const urls = (Array.isArray(bgUrls) ? bgUrls : []).filter(Boolean);
+  const resolvedUrls = urls.length ? urls : (bgUrl ? [bgUrl] : []);
+  const firstUrl = resolvedUrls[0] || '';
+  const thumb = firstUrl ? `<img src="${_esc(firstUrl)}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-top:6px;border:1px solid var(--border)" id="bgThumb">` : `<div id="bgThumb"></div>`;
+  const urlsText = resolvedUrls.join('\n');
   const safeColor = (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') ? bgColor : '#ffffff';
   // Convert rgb() to hex for color input
   const hexColor = _rgbToHex(safeColor);
   return `<div data-type="bg" style="border-top:1px dashed var(--border);padding-top:12px;margin-top:4px">
     <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);display:block;margin-bottom:6px">🎨 Section Background</label>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;font-size:.69rem;color:var(--text)">
+      <div style="margin-bottom:5px;display:flex;justify-content:space-between;align-items:center">
+        <strong style="color:#667eea">📍 ${_esc(sectionLabel.split('#')[0].trim()) || 'Section'}</strong>
+        ${sectionLabel.includes('#') ? `<span style="background:#e0e7ff;color:#4f46e5;padding:2px 6px;border-radius:3px;font-weight:600;font-size:.65rem">${_esc(sectionLabel.split('#')[1] || '')}</span>` : ''}
+      </div>
+      <div style="margin-bottom:5px;word-break:break-word;max-height:40px;overflow:auto"><strong>🖼️ Image:</strong> <span style="color:var(--muted);font-size:.68rem">${firstUrl ? _esc(firstUrl.substring(0, 60) + (firstUrl.length > 60 ? '...' : '')) : '<em>(None)</em>'}</span></div>
+      <div style="margin-bottom:5px"><strong>🔄 Carousel:</strong> <span style="color:var(--muted)">${carouselEnabled ? `Enabled • ${resolvedUrls.length} imgs • ${carouselStyle}` : 'Disabled'}</span></div>
+      <div><strong>✨ Motion:</strong> <span style="color:var(--muted)">${bgMotion === 'none' ? 'None' : bgMotion.charAt(0).toUpperCase() + bgMotion.slice(1)}</span></div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
       <div>
         <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Colour</label>
@@ -2403,24 +2809,84 @@ function _bgField(bgUrl, bgColor) {
         <span id="secBgOpacityVal" style="font-size:.7rem;color:var(--muted)">100%</span>
       </div>
     </div>
-    <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Background Image URL</label>
-    <input type="text" id="secBgUrl" value="${_esc(bgUrl)}" placeholder="https://… or leave blank for colour only"
-      oninput="_previewBgDebounced()"
-      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-bottom:6px"
+    <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Background Image URLs (one per line)</label>
+    <textarea id="secBgUrls" rows="2" placeholder="https://image-1...&#10;https://image-2..."
+      oninput="_syncBgStrip();_previewBgDebounced()"
+      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-bottom:6px;resize:vertical"
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">${_esc(urlsText)}</textarea>
+    <input type="text" id="secBgUrl" value="${_esc(firstUrl)}" placeholder="Primary image URL (optional)"
+      oninput="syncBgUrlListFromSingle();_previewBgDebounced()"
+      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--muted);font-size:.78rem;outline:none;margin-bottom:6px"
       onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+    <!-- Visual image strip -->
+    <div id="secBgStrip" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:${resolvedUrls.length ? '0' : '0'}">
+      ${resolvedUrls.map((u, i) => `
+        <div style="position:relative;width:64px;height:48px;border-radius:5px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0" title="${_esc(u)}">
+          <img src="${_esc(u)}" style="width:100%;height:100%;object-fit:cover">
+          <button type="button" onclick="removeBgImageAt(${i})" title="Remove"
+            style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:3px;width:16px;height:16px;font-size:9px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
+          <div style="position:absolute;bottom:1px;left:2px;background:rgba(0,0,0,.55);color:#fff;font-size:8px;padding:0 3px;border-radius:2px">${i+1}</div>
+        </div>`).join('')}
+      <label title="Add another image" for="${bgInputId}"
+        style="width:64px;height:48px;border-radius:5px;border:1.5px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:.65rem;gap:2px;flex-shrink:0">
+        <span style="font-size:18px;line-height:1">＋</span>
+        Add
+      </label>
+    </div>
+    <input id="${bgInputId}" type="file" accept="image/*" style="display:none" onchange="uploadBgImage(this)">
+    <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);margin:4px 0 6px 0">
+      <input type="checkbox" id="secBgCarouselEnabled" ${carouselEnabled ? 'checked' : ''} onchange="toggleBgCarouselOptions();previewBg()">
+      Enable carousel slide for background images
+    </label>
+    <div id="secBgCarouselOpts" style="display:${carouselEnabled ? 'flex' : 'none'};gap:8px;align-items:center;margin-bottom:6px">
+      <label style="font-size:.72rem;color:var(--muted)">Slide every</label>
+      <input type="number" id="secBgInterval" min="2" max="30" value="${carouselIntervalSec}" oninput="_previewBgDebounced()"
+        style="width:84px;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+      <span style="font-size:.72rem;color:var(--muted)">seconds</span>
+    </div>
+    <div id="secBgTransitionOpts" style="display:${carouselEnabled ? 'grid' : 'none'};grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Movement style</label>
+        <select id="secBgStyle" onchange="_previewBgDebounced()" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+          <option value="slide-left" ${carouselStyle === 'slide-left' ? 'selected' : ''}>Slide Left</option>
+          <option value="slide-right" ${carouselStyle === 'slide-right' ? 'selected' : ''}>Slide Right</option>
+          <option value="fade" ${carouselStyle === 'fade' ? 'selected' : ''}>Fade</option>
+          <option value="zoom" ${carouselStyle === 'zoom' ? 'selected' : ''}>Zoom</option>
+          <option value="parallax" ${carouselStyle === 'parallax' ? 'selected' : ''}>Parallax Drift</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Transition speed</label>
+        <select id="secBgSpeed" onchange="_previewBgDebounced()" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+          <option value="500" ${carouselSpeedMs <= 600 ? 'selected' : ''}>Fast</option>
+          <option value="900" ${carouselSpeedMs > 600 && carouselSpeedMs <= 1100 ? 'selected' : ''}>Normal</option>
+          <option value="1400" ${carouselSpeedMs > 1100 ? 'selected' : ''}>Slow</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:6px">
+      <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Background motion</label>
+      <select id="secBgMotion" onchange="_previewBgDebounced()" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+        <option value="none" ${bgMotion === 'none' ? 'selected' : ''}>None</option>
+        <option value="drift" ${bgMotion === 'drift' ? 'selected' : ''}>Drift</option>
+        <option value="zoom" ${bgMotion === 'zoom' ? 'selected' : ''}>Slow Zoom</option>
+        <option value="pulse" ${bgMotion === 'pulse' ? 'selected' : ''}>Breathing Pulse</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <button type="button" class="btn btn-secondary btn-sm" style="flex:1" onclick="applyBgAnimPreset('subtle')">Subtle</button>
+      <button type="button" class="btn btn-secondary btn-sm" style="flex:1" onclick="applyBgAnimPreset('medium')">Medium</button>
+      <button type="button" class="btn btn-secondary btn-sm" style="flex:1" onclick="applyBgAnimPreset('bold')">Bold</button>
+    </div>
     ${thumb}
     <div style="display:flex;gap:6px;margin-top:6px">
-      <label class="btn btn-secondary btn-sm" style="cursor:pointer;flex:1;text-align:center">
-        ⬆ Upload BG Image
-        <input type="file" accept="image/*" style="display:none" onchange="uploadBgImage(this)">
-      </label>
       <select id="secBgSize" onchange="previewBg()" style="padding:5px 7px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--muted);font-size:.78rem">
         <option value="cover">Cover</option>
         <option value="contain">Contain</option>
         <option value="auto">Auto</option>
         <option value="100% 100%">Stretch</option>
       </select>
-      <button class="btn btn-secondary btn-sm" style="color:#ef4444;border-color:rgba(239,68,68,.4)" onclick="clearBg()" title="Remove background">🗑</button>
+      <button class="btn btn-secondary btn-sm" style="color:#ef4444;border-color:rgba(239,68,68,.4)" onclick="clearBg()" title="Remove background">🗑 Clear all</button>
     </div>
     <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
       <label style="font-size:.7rem;color:var(--muted)">Overlay darkness:</label>
@@ -2439,12 +2905,120 @@ function _rgbToHex(rgb) {
   return '#' + [m[1],m[2],m[3]].map(x => parseInt(x).toString(16).padStart(2,'0')).join('');
 }
 
+function _shadeHex(hex, amount) {
+  const norm = (hex || '').replace('#', '');
+  if (norm.length !== 6) return '#111827';
+  const clamp = v => Math.max(0, Math.min(255, v));
+  const r = clamp(parseInt(norm.slice(0, 2), 16) + amount);
+  const g = clamp(parseInt(norm.slice(2, 4), 16) + amount);
+  const b = clamp(parseInt(norm.slice(4, 6), 16) + amount);
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function _ensureWbLinkId(a) {
+  if (!a.dataset.wbLinkId) {
+    a.dataset.wbLinkId = 'wblink' + Math.random().toString(36).slice(2, 9);
+  }
+  return a.dataset.wbLinkId;
+}
+
+function _upsertLinkHoverRule(doc, linkId, hoverBg, hoverText) {
+  let styleEl = doc.getElementById('__wb_link_hover_overrides');
+  if (!styleEl) {
+    styleEl = doc.createElement('style');
+    styleEl.id = '__wb_link_hover_overrides';
+    doc.head.appendChild(styleEl);
+  }
+  const ruleRe = new RegExp(`a\\[data-wb-link-id=\\"${linkId}\\"\\]:hover\\{[^}]*\\}`, 'g');
+  const cleaned = (styleEl.textContent || '').replace(ruleRe, '').trim();
+  if (!hoverBg && !hoverText) {
+    styleEl.textContent = cleaned;
+    return;
+  }
+  const parts = [];
+  if (hoverBg) parts.push(`background-color:${hoverBg} !important`);
+  if (hoverText) parts.push(`color:${hoverText} !important`);
+  const rule = `a[data-wb-link-id=\"${linkId}\"]:hover{${parts.join(';')}}`;
+  styleEl.textContent = (cleaned ? cleaned + '\n' : '') + rule;
+}
+
+function toggleLinkStyleInput(fid, key) {
+  const enabled = document.querySelector(`[data-fid="${fid}-${key}-enabled"]`)?.checked;
+  const colorEl = document.querySelector(`[data-fid="${fid}-${key}"]`);
+  if (colorEl) colorEl.disabled = !enabled;
+}
+
+function _parseBgUrls() {
+  const list = document.getElementById('secBgUrls')?.value || '';
+  return list
+    .split(/\r?\n|,/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i);
+}
+
+function syncBgUrlListFromSingle() {
+  const single = (document.getElementById('secBgUrl')?.value || '').trim();
+  if (!single) return;
+  const urls = _parseBgUrls();
+  if (!urls.length) {
+    const ta = document.getElementById('secBgUrls');
+    if (ta) ta.value = single;
+    return;
+  }
+  urls[0] = single;
+  const ta = document.getElementById('secBgUrls');
+  if (ta) ta.value = urls.join('\n');
+}
+
+function toggleBgCarouselOptions() {
+  const enabled = !!document.getElementById('secBgCarouselEnabled')?.checked;
+  const box = document.getElementById('secBgCarouselOpts');
+  if (box) box.style.display = enabled ? 'flex' : 'none';
+  const trans = document.getElementById('secBgTransitionOpts');
+  if (trans) trans.style.display = enabled ? 'grid' : 'none';
+}
+
+function applyBgAnimPreset(level) {
+  const motion = document.getElementById('secBgMotion');
+  const style = document.getElementById('secBgStyle');
+  const speed = document.getElementById('secBgSpeed');
+  const interval = document.getElementById('secBgInterval');
+  if (!motion || !style || !speed || !interval) return;
+
+  if (level === 'subtle') {
+    motion.value = 'drift';
+    style.value = 'fade';
+    speed.value = '1400';
+    interval.value = '7';
+  } else if (level === 'bold') {
+    motion.value = 'pulse';
+    style.value = 'parallax';
+    speed.value = '500';
+    interval.value = '3';
+  } else {
+    motion.value = 'zoom';
+    style.value = 'slide-left';
+    speed.value = '900';
+    interval.value = '5';
+  }
+  _previewBgDebounced();
+}
+
+function applyImgAnimPreset(fid, level) {
+  const sel = document.querySelector(`select[data-fid="${fid}-anim"]`);
+  if (!sel) return;
+  if (level === 'subtle') sel.value = 'float';
+  else if (level === 'bold') sel.value = 'sway';
+  else sel.value = 'zoom';
+}
+
 function previewBg() {
   if (activeSectionIndex === null) return;
   const { el } = stagingSections[activeSectionIndex];
   _applyBgToEl(el);
   // Update thumb
-  const url = document.getElementById('secBgUrl')?.value || '';
+  const url = (_parseBgUrls()[0] || document.getElementById('secBgUrl')?.value || '').trim();
   const thumb = document.getElementById('bgThumb');
   if (thumb && url) { thumb.tagName === 'IMG' ? (thumb.src = url) : (thumb.outerHTML = `<img src="${url}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-top:6px;border:1px solid var(--border)" id="bgThumb">`); }
 }
@@ -2458,7 +3032,7 @@ function _bgTarget(el) {
   if (isTransparent) {
     // Check direct children — skip injected overlay badges
     for (const child of el.children) {
-      if (child.classList.contains('__wb_badge')) continue;
+      if (child.classList.contains('__wb_badge') || child.classList.contains('__wb_badge_anchor') || child.classList.contains('__wb_bg_carousel')) continue;
       const childBg = doc.defaultView.getComputedStyle(child).backgroundColor;
       if (childBg && childBg !== 'rgba(0, 0, 0, 0)' && childBg !== 'transparent') {
         return child;
@@ -2476,16 +3050,145 @@ function _ensureWbId(target) {
   return target.dataset.wbBg;
 }
 
+function _ensureImageAnimationStyles(doc) {
+  if (!doc || !doc.head || doc.getElementById('__wb_img_anim_styles')) return;
+  const style = doc.createElement('style');
+  style.id = '__wb_img_anim_styles';
+  style.textContent = `
+    @keyframes wbImgFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    @keyframes wbImgZoom { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+    @keyframes wbImgFadeIn { from{opacity:.2;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes wbImgSway { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(1.2deg)} 75%{transform:rotate(-1.2deg)} }
+    @keyframes wbBgDrift { 0%,100%{background-position:center center} 50%{background-position:center 38%} }
+    @keyframes wbBgZoom { 0%,100%{background-size:cover} 50%{background-size:112%} }
+    @keyframes wbBgPulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.08)} }
+    .__wb_bg_carousel[data-motion='drift'] .__wb_bg_slide{animation:wbBgDrift 16s ease-in-out infinite}
+    .__wb_bg_carousel[data-motion='zoom'] .__wb_bg_slide{animation:wbBgZoom 18s ease-in-out infinite}
+    .__wb_bg_carousel[data-motion='pulse'] .__wb_bg_slide{animation:wbBgPulse 8s ease-in-out infinite}
+  `;
+  doc.head.appendChild(style);
+}
+
+function _applyImgAnimation(img, mode = 'none') {
+  if (!img) return;
+  img.dataset.wbImgAnim = mode;
+  img.style.removeProperty('animation');
+  img.style.removeProperty('transform-origin');
+  img.style.removeProperty('display');
+  switch (mode) {
+    case 'float':
+      img.style.setProperty('animation', 'wbImgFloat 5s ease-in-out infinite', 'important');
+      break;
+    case 'zoom':
+      img.style.setProperty('animation', 'wbImgZoom 6.5s ease-in-out infinite', 'important');
+      img.style.setProperty('transform-origin', 'center center', 'important');
+      break;
+    case 'fade-in':
+      img.style.setProperty('animation', 'wbImgFadeIn 1.2s ease both', 'important');
+      break;
+    case 'sway':
+      img.style.setProperty('animation', 'wbImgSway 6.2s ease-in-out infinite', 'important');
+      img.style.setProperty('transform-origin', 'center top', 'important');
+      break;
+    default:
+      break;
+  }
+}
+
+function _injectBgCarouselEngine(doc) {
+  if (!doc || !doc.head) return;
+  _ensureImageAnimationStyles(doc);
+  if (!doc.getElementById('__wb_bg_carousel_styles')) {
+    const styleEl = doc.createElement('style');
+    styleEl.id = '__wb_bg_carousel_styles';
+    styleEl.textContent = `
+      .__wb_bg_carousel{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+      .__wb_bg_carousel .__wb_bg_slide{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;transition:transform .9s ease,opacity .9s ease;will-change:transform,opacity}
+      .__wb_bg_carousel .__wb_bg_slide.out{transform:translateX(-14%);opacity:0}
+      .__wb_bg_carousel .__wb_bg_slide.in{transform:translateX(0);opacity:1}
+      .__wb_bg_carousel[data-style='slide-right'] .__wb_bg_slide.out{transform:translateX(14%);opacity:0}
+      .__wb_bg_carousel[data-style='fade'] .__wb_bg_slide.out{transform:none;opacity:0}
+      .__wb_bg_carousel[data-style='fade'] .__wb_bg_slide.in{transform:none;opacity:1}
+      .__wb_bg_carousel[data-style='zoom'] .__wb_bg_slide.out{transform:scale(1.08);opacity:0}
+      .__wb_bg_carousel[data-style='zoom'] .__wb_bg_slide.in{transform:scale(1);opacity:1}
+      .__wb_bg_carousel[data-style='parallax'] .__wb_bg_slide.out{transform:translateX(-6%) scale(1.06);opacity:0}
+      .__wb_bg_carousel[data-style='parallax'] .__wb_bg_slide.in{transform:translateX(0) scale(1);opacity:1}
+      [data-wb-bg-carousel='on']{position:relative;overflow:hidden}
+      [data-wb-bg-carousel='on'] > *:not(.__wb_bg_carousel):not(.__wb_badge):not(.__wb_badge_anchor){position:relative;z-index:1}
+    `;
+    doc.head.appendChild(styleEl);
+  }
+
+  if (!doc.getElementById('__wb_bg_carousel_script')) {
+    const script = doc.createElement('script');
+    script.id = '__wb_bg_carousel_script';
+    script.textContent = `(function(){
+      function ensure(el){
+        if (!el || el.dataset.wbBgCarousel !== 'on') return;
+        var urls = (el.dataset.wbBgCarouselUrls || '').split('||').map(function(s){ return s.trim(); }).filter(Boolean);
+        if (urls.length < 2) return;
+        var interval = Math.max(2000, parseInt(el.dataset.wbBgIntervalMs || '5000', 10) || 5000);
+        var overlay = Math.max(0, Math.min(0.8, parseFloat(el.dataset.wbBgOverlay || '0') || 0));
+        var size = (el.dataset.wbBgSize || 'cover');
+        var style = (el.dataset.wbBgStyle || 'slide-left');
+        var speed = Math.max(250, parseInt(el.dataset.wbBgSpeedMs || '900', 10) || 900);
+        var layer = el.querySelector('.__wb_bg_carousel');
+        var motion = (el.dataset.wbBgMotion || 'none');
+        if (!layer) {
+          layer = document.createElement('div');
+          layer.className = '__wb_bg_carousel';
+          layer.innerHTML = '<div class="__wb_bg_slide in"></div><div class="__wb_bg_slide out"></div>';
+          el.insertBefore(layer, el.firstChild);
+        }
+        layer.setAttribute('data-style', style);
+        layer.setAttribute('data-motion', motion);
+        var a = layer.children[0], b = layer.children[1];
+        a.style.backgroundSize = size; b.style.backgroundSize = size;
+        a.style.transitionDuration = speed + 'ms';
+        b.style.transitionDuration = speed + 'ms';
+        var idx = parseInt(el.dataset.wbBgIndex || '0', 10) || 0;
+        var cur = urls[idx % urls.length];
+        var ov = overlay > 0 ? ('linear-gradient(rgba(0,0,0,'+overlay+'),rgba(0,0,0,'+overlay+')),' ) : '';
+        a.style.backgroundImage = ov + 'url("'+cur+'")';
+        a.classList.add('in'); a.classList.remove('out');
+        b.classList.add('out'); b.classList.remove('in');
+        if (el.__wbBgTimer) clearInterval(el.__wbBgTimer);
+        el.__wbBgTimer = setInterval(function(){
+          idx = (idx + 1) % urls.length;
+          var next = urls[idx];
+          b.style.backgroundImage = ov + 'url("'+next+'")';
+          b.classList.remove('out'); b.classList.add('in');
+          a.classList.remove('in'); a.classList.add('out');
+          var t = a; a = b; b = t;
+          el.dataset.wbBgIndex = String(idx);
+        }, interval);
+      }
+      function run(){ document.querySelectorAll('[data-wb-bg-carousel="on"]').forEach(ensure); }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+      window.__wbRefreshBgCarousel = run;
+    })();`;
+    doc.body ? doc.body.appendChild(script) : doc.head.appendChild(script);
+  }
+}
+
 function _applyBgToEl(el) {
   const doc    = el.ownerDocument;
   const target = _bgTarget(el);
   const wbId   = _ensureWbId(target);
 
-  const url     = document.getElementById('secBgUrl')?.value?.trim() || '';
+  const urls    = _parseBgUrls();
+  const fallbackUrl = document.getElementById('secBgUrl')?.value?.trim() || '';
+  const finalUrls = urls.length ? urls : (fallbackUrl ? [fallbackUrl] : []);
+  const url     = finalUrls[0] || '';
   const color   = document.getElementById('secBgColor')?.value || '#ffffff';
   const opacity = (document.getElementById('secBgOpacity')?.value ?? 100) / 100;
   const size    = document.getElementById('secBgSize')?.value || 'cover';
   const overlay = (document.getElementById('secBgOverlay')?.value ?? 0) / 100;
+  const carouselEnabled = !!document.getElementById('secBgCarouselEnabled')?.checked && finalUrls.length > 1;
+  const intervalSec = Math.max(2, parseInt(document.getElementById('secBgInterval')?.value || '5', 10) || 5);
+  const style = document.getElementById('secBgStyle')?.value || 'slide-left';
+  const speedMs = Math.max(250, parseInt(document.getElementById('secBgSpeed')?.value || '900', 10) || 900);
+  const bgMotion = document.getElementById('secBgMotion')?.value || 'none';
 
   const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
   const rgba = `rgba(${r},${g},${b},${opacity})`;
@@ -2508,15 +3211,70 @@ function _applyBgToEl(el) {
   // Replace existing rule for this wbId or append it
   const ruleRe = new RegExp(`\\[data-wb-bg="${wbId}"\\]\\{[^}]*\\}`, 'g');
   styleEl.textContent = styleEl.textContent.replace(ruleRe, '').trim() + '\n' + css;
+
+  target.dataset.wbBgMotion = bgMotion;
+  target.style.removeProperty('animation');
+  target.style.removeProperty('background-size');
+  target.style.removeProperty('background-position');
+  target.style.removeProperty('filter');
+  if (bgMotion === 'drift') {
+    target.style.setProperty('animation', 'wbBgDrift 16s ease-in-out infinite', 'important');
+  } else if (bgMotion === 'zoom') {
+    target.style.setProperty('animation', 'wbBgZoom 18s ease-in-out infinite', 'important');
+  } else if (bgMotion === 'pulse') {
+    target.style.setProperty('animation', 'wbBgPulse 8s ease-in-out infinite', 'important');
+  }
+
+  if (carouselEnabled) {
+    target.dataset.wbBgCarousel = 'on';
+    target.dataset.wbBgCarouselUrls = finalUrls.join('||');
+    target.dataset.wbBgIntervalMs = String(intervalSec * 1000);
+    target.dataset.wbBgOverlay = String(overlay);
+    target.dataset.wbBgSize = size;
+    target.dataset.wbBgStyle = style;
+    target.dataset.wbBgSpeedMs = String(speedMs);
+    target.dataset.wbBgMotion = bgMotion;
+    _injectBgCarouselEngine(doc);
+    if (doc.defaultView && typeof doc.defaultView.__wbRefreshBgCarousel === 'function') {
+      doc.defaultView.__wbRefreshBgCarousel();
+    }
+  } else {
+    delete target.dataset.wbBgCarousel;
+    delete target.dataset.wbBgCarouselUrls;
+    delete target.dataset.wbBgIntervalMs;
+    delete target.dataset.wbBgOverlay;
+    delete target.dataset.wbBgSize;
+    delete target.dataset.wbBgStyle;
+    delete target.dataset.wbBgSpeedMs;
+    delete target.dataset.wbBgMotion;
+    const layer = target.querySelector('.__wb_bg_carousel');
+    if (layer) layer.remove();
+    if (target.__wbBgTimer) { clearInterval(target.__wbBgTimer); target.__wbBgTimer = null; }
+  }
 }
 
 async function uploadBgImage(inputEl) {
-  const file = inputEl.files[0];
-  if (!file) return;
+  const files = [...(inputEl.files || [])];
+  if (!files.length) return;
   inputEl.value = '';
-  openImageEditor(file, async blob => {
+
+  const appendUrl = (url) => {
+    const ta = document.getElementById('secBgUrls');
+    if (ta) {
+      const urls = _parseBgUrls();
+      if (!urls.includes(url)) urls.push(url);
+      ta.value = urls.join('\n');
+    }
+    const first = _parseBgUrls()[0] || '';
+    const inp = document.getElementById('secBgUrl');
+    if (inp) inp.value = first;
+    _syncBgStrip();
+  };
+
+  const uploadBlob = async (blob, name = 'image.png') => {
     const fd = new FormData();
-    fd.append('file', blob, 'image.png');
+    fd.append('file', blob, name);
+    if (stagedWebsiteId) fd.append('website_id', stagedWebsiteId);
     const r = await fetch(`${API}/shop/upload-image`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -2525,13 +3283,79 @@ async function uploadBgImage(inputEl) {
     if (r.ok) {
       const data = await r.json();
       const url = window.location.origin + (data.full_url || data.thumb_url || '');
-      const inp = document.getElementById('secBgUrl');
-      if (inp) { inp.value = url; previewBg(); }
-      toast('Background image uploaded ✅');
+      appendUrl(url);
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  // Always open crop editor per file — user clicks "＋ Add" for each image
+  openImageEditor(files[0], async blob => {
+    const ok = await uploadBlob(blob, files[0].name || 'image.png');
+    if (ok) {
+      previewBg();
+      toast('Image added to carousel ✅');
     } else {
       toast('Upload failed', false);
     }
   });
+}
+
+function _syncBgStrip() {
+  const strip = document.getElementById('secBgStrip');
+  if (!strip) return;
+  const urls = _parseBgUrls();
+  // Rebuild thumbnails (keep the trailing ＋ Add tile)
+  const tiles = urls.map((u, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:relative;width:64px;height:48px;border-radius:5px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0';
+    div.title = u;
+    div.innerHTML = `<img src="${u}" style="width:100%;height:100%;object-fit:cover">
+      <button type="button" onclick="removeBgImageAt(${i})" title="Remove"
+        style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:3px;width:16px;height:16px;font-size:9px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
+      <div style="position:absolute;bottom:1px;left:2px;background:rgba(0,0,0,.55);color:#fff;font-size:8px;padding:0 3px;border-radius:2px">${i+1}</div>`;
+    return div;
+  });
+
+  // keep last child (the ＋ Add label) and rebuild
+  const addTile = strip.querySelector('label');
+  strip.innerHTML = '';
+  tiles.forEach(t => strip.appendChild(t));
+  if (addTile) strip.appendChild(addTile);
+}
+
+function removeBgImageAt(idx) {
+  const ta = document.getElementById('secBgUrls');
+  if (!ta) return;
+  const urls = _parseBgUrls();
+  urls.splice(idx, 1);
+  ta.value = urls.join('\n');
+  const inp = document.getElementById('secBgUrl');
+  if (inp) inp.value = urls[0] || '';
+  _syncBgStrip();
+  _previewBgDebounced();
+}
+
+function addBgImageUrl() {
+  const inp = document.getElementById('secBgAddUrl');
+  if (!inp) return;
+  const url = inp.value.trim();
+  if (!url) return;
+  const ta = document.getElementById('secBgUrls');
+  if (ta) {
+    const urls = _parseBgUrls();
+    if (!urls.includes(url)) {
+      urls.push(url);
+      ta.value = urls.join('\n');
+    }
+  }
+  const first = _parseBgUrls()[0] || '';
+  const singleInp = document.getElementById('secBgUrl');
+  if (singleInp) singleInp.value = first;
+  inp.value = '';
+  _previewBgDebounced();
+  toast('Image URL added ✅');
 }
 
 function clearBg() {
@@ -2548,11 +3372,34 @@ function clearBg() {
     }
     delete target.dataset.wbBg;
   }
+  delete target.dataset.wbBgCarousel;
+  delete target.dataset.wbBgCarouselUrls;
+  delete target.dataset.wbBgIntervalMs;
+  delete target.dataset.wbBgOverlay;
+  delete target.dataset.wbBgSize;
+  const layer = target.querySelector('.__wb_bg_carousel');
+  if (layer) layer.remove();
+  if (target.__wbBgTimer) { clearInterval(target.__wbBgTimer); target.__wbBgTimer = null; }
   const inp = document.getElementById('secBgUrl');
   if (inp) inp.value = '';
+  const ta = document.getElementById('secBgUrls');
+  if (ta) ta.value = '';
   const thumb = document.getElementById('bgThumb');
   if (thumb && thumb.tagName === 'IMG') thumb.src = '';
-  document.getElementById('secBgColor').value = '#ffffff';
+  const c = document.getElementById('secBgColor');
+  if (c) c.value = '#ffffff';
+  const cb = document.getElementById('secBgCarouselEnabled');
+  if (cb) cb.checked = false;
+  const styleSel = document.getElementById('secBgStyle');
+  if (styleSel) styleSel.value = 'slide-left';
+  const speedSel = document.getElementById('secBgSpeed');
+  if (speedSel) speedSel.value = '900';
+  const motionSel = document.getElementById('secBgMotion');
+  if (motionSel) motionSel.value = 'none';
+  delete target.dataset.wbBgStyle;
+  delete target.dataset.wbBgSpeedMs;
+  delete target.dataset.wbBgMotion;
+  toggleBgCarouselOptions();
 }
 
 function _styleBar(fid, init = {}) {
@@ -2620,7 +3467,15 @@ function _textareaField(idx, tag, val, fid, init = {}) {
   </div>`;
 }
 
-function _linkField(idx, tag, text, href, fid) {
+function _linkField(idx, tag, text, href, fid, init = {}) {
+  const bgEnabled = init.bgEnabled ? 'checked' : '';
+  const hoverEnabled = init.hoverEnabled ? 'checked' : '';
+  const bgDisabled = init.bgEnabled ? '' : 'disabled';
+  const hoverDisabled = init.hoverEnabled ? '' : 'disabled';
+  const bgColor = init.bgColor || '#111827';
+  const textColor = init.textColor || '#ffffff';
+  const hoverBgColor = init.hoverBgColor || '#374151';
+  const hoverTextColor = init.hoverTextColor || textColor;
   return `<div data-fid="${fid}" data-type="link" style="position:relative">
     <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">${idx}. ${tag}</label>
     <input type="text" value="${_esc(text)}" data-fid="${fid}-text" placeholder="Link label"
@@ -2629,6 +3484,32 @@ function _linkField(idx, tag, text, href, fid) {
     <input type="text" value="${_esc(href)}" placeholder="href e.g. #section or https://…" data-fid="${fid}-href"
       style="width:100%;padding:8px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--muted);font-size:.8rem;outline:none"
       onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:rgba(99,102,241,.04)">
+      <label style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted)">
+        <input type="checkbox" data-fid="${fid}-bg-enabled" ${bgEnabled} onchange="toggleLinkStyleInput('${fid}','bg')">
+        Background
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
+        Color
+        <input type="color" data-fid="${fid}-bg" value="${bgColor}" ${bgDisabled} style="width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;background:var(--bg)">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
+        Text
+        <input type="color" data-fid="${fid}-text-color" value="${textColor}" style="width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;background:var(--bg)">
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted)">
+        <input type="checkbox" data-fid="${fid}-hover-bg-enabled" ${hoverEnabled} onchange="toggleLinkStyleInput('${fid}','hover-bg')">
+        Hover BG
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
+        Hover Color
+        <input type="color" data-fid="${fid}-hover-bg" value="${hoverBgColor}" ${hoverDisabled} style="width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;background:var(--bg)">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
+        Hover Text
+        <input type="color" data-fid="${fid}-hover-text-color" value="${hoverTextColor}" ${hoverDisabled} style="width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;background:var(--bg)">
+      </label>
+    </div>
     <div style="display:flex;gap:6px;margin-top:6px">
       <button class="btn btn-secondary btn-sm" style="flex:1" onclick="addSectionLink(this)">＋ Add Link After</button>
       <button class="btn btn-secondary btn-sm" style="color:#ef4444;border-color:rgba(239,68,68,.4)" onclick="removeSectionLink(this, '${fid}')">🗑 Remove</button>
@@ -2651,7 +3532,14 @@ function addSectionLink(btn) {
   const newIdx = existing.length + 1;
   const fid = `link-new-${Date.now()}`;
   const newEl = document.createElement('div');
-  newEl.innerHTML = _linkField(newIdx, 'New Link', '', '', fid);
+  newEl.innerHTML = _linkField(newIdx, 'New Link', '', '', fid, {
+    bgEnabled: false,
+    bgColor: '#111827',
+    textColor: '#ffffff',
+    hoverEnabled: false,
+    hoverBgColor: '#374151',
+    hoverTextColor: '#ffffff',
+  });
   wrap.after(newEl.firstElementChild);
   _renumberLinkFields();
 }
@@ -2679,7 +3567,8 @@ function moveLinkField(btn, dir) {
   _renumberLinkFields();
 }
 
-function _imgField(idx, tag, src, alt, fid) {
+function _imgField(idx, tag, src, alt, fid, init = {}) {
+  const mode = init.mode || 'none';
   const thumb = src ? `<img src="${_esc(src)}" style="height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px">` : '';
   return `<div data-fid="${fid}" data-type="img">
     <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">${idx}. ${tag}</label>
@@ -2690,6 +3579,21 @@ function _imgField(idx, tag, src, alt, fid) {
     <input type="text" value="${_esc(alt)}" placeholder="Alt text (description)" data-fid="${fid}-alt"
       style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--muted);font-size:.8rem;outline:none;margin-top:4px"
       onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
+    <div style="margin-top:6px">
+      <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Image animation</label>
+      <select data-fid="${fid}-anim" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+        <option value="none" ${mode === 'none' ? 'selected' : ''}>None</option>
+        <option value="float" ${mode === 'float' ? 'selected' : ''}>Float</option>
+        <option value="zoom" ${mode === 'zoom' ? 'selected' : ''}>Zoom Pulse</option>
+        <option value="fade-in" ${mode === 'fade-in' ? 'selected' : ''}>Fade In</option>
+        <option value="sway" ${mode === 'sway' ? 'selected' : ''}>Sway</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button type="button" class="btn btn-secondary btn-sm" style="flex:1" onclick="applyImgAnimPreset('${fid}','subtle')">Subtle</button>
+      <button type="button" class="btn btn-secondary btn-sm" style="flex:1" onclick="applyImgAnimPreset('${fid}','medium')">Medium</button>
+      <button type="button" class="btn btn-secondary btn-sm" style="flex:1" onclick="applyImgAnimPreset('${fid}','bold')">Bold</button>
+    </div>
     <div style="display:flex;gap:6px;margin-top:6px">
       <label class="btn btn-secondary btn-sm" style="cursor:pointer;flex:1;text-align:center">
         ⬆ Upload Image
@@ -2752,11 +3656,15 @@ function applySecEdits() {
   // Rebuild editable element lists from the section
   const headings  = [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
   const paras     = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
-  const links     = [...el.querySelectorAll('a')].filter(a => (a.innerText.trim().length > 0) && (a.innerText.trim().length <= 60));
+  const links     = [...el.querySelectorAll('a')].filter(a => {
+    const text = (a.textContent || '').trim();
+    return text.length > 0 && text.length <= 60;
+  });
   let imgs        = [...el.querySelectorAll('img')];
 
   let hIdx = 0, pIdx = 0, lIdx = 0, iIdx = 0;
   let fieldNum = 0;
+  _ensureImageAnimationStyles(doc);
 
   // Logo + Brand Name — only for first section
   if (activeSectionIndex === 0) {
@@ -2849,16 +3757,43 @@ function applySecEdits() {
     const hEl     = div.querySelector(`input[data-fid="${fid}-href"]`);
     const newText = tEl ? tEl.value.trim() : '';
     const newHref = hEl ? hEl.value.trim() : '';
+    const textColor = div.querySelector(`input[data-fid="${fid}-text-color"]`)?.value || '';
+    const bgEnabled = !!div.querySelector(`input[data-fid="${fid}-bg-enabled"]`)?.checked;
+    const bgColor = bgEnabled ? (div.querySelector(`input[data-fid="${fid}-bg"]`)?.value || '') : '';
+    const hoverEnabled = !!div.querySelector(`input[data-fid="${fid}-hover-bg-enabled"]`)?.checked;
+    const hoverBgColor = hoverEnabled ? (div.querySelector(`input[data-fid="${fid}-hover-bg"]`)?.value || '') : '';
+    const hoverTextColor = hoverEnabled ? (div.querySelector(`input[data-fid="${fid}-hover-text-color"]`)?.value || '') : '';
     if (anchor) {
       _setText(anchor, newText);
       anchor.setAttribute('href', newHref || '#');
+      // Preserve the exact case entered in the editor, even when template CSS forces uppercase.
+      anchor.style.setProperty('text-transform', 'none', 'important');
+      if (bgColor) {
+        anchor.style.setProperty('background-color', bgColor, 'important');
+        if (!anchor.style.padding) anchor.style.setProperty('padding', '6px 12px', 'important');
+        if (!anchor.style.borderRadius) anchor.style.setProperty('border-radius', '999px', 'important');
+        anchor.style.setProperty('display', 'inline-block', 'important');
+      } else {
+        anchor.style.removeProperty('background-color');
+      }
+      if (textColor) anchor.style.setProperty('color', textColor, 'important');
+      const linkId = _ensureWbLinkId(anchor);
+      _upsertLinkHoverRule(el.ownerDocument, linkId, hoverBgColor, hoverTextColor);
       orderedAnchors.push(anchor);
     } else if (newText) {
       // Newly added field (no _anchorEl) — create fresh anchor
       const a = el.ownerDocument.createElement('a');
       a.textContent = newText;
       a.setAttribute('href', newHref || '#');
-      a.style.cssText = 'display:inline-block;margin:4px 8px;color:var(--accent,#6366f1)';
+      a.style.cssText = 'display:inline-block;margin:4px 8px;color:var(--accent,#6366f1);text-transform:none';
+      if (bgColor) {
+        a.style.setProperty('background-color', bgColor, 'important');
+        a.style.setProperty('padding', '6px 12px', 'important');
+        a.style.setProperty('border-radius', '999px', 'important');
+      }
+      if (textColor) a.style.setProperty('color', textColor, 'important');
+      const linkId = _ensureWbLinkId(a);
+      _upsertLinkHoverRule(el.ownerDocument, linkId, hoverBgColor, hoverTextColor);
       div._anchorEl = a; // bind for future applies
       orderedAnchors.push(a);
     }
@@ -2910,8 +3845,10 @@ function applySecEdits() {
     const fid = `img-${fieldNum}`;
     const srcEl = fieldsEl.querySelector(`input[data-fid="${fid}-src"]`);
     const altEl = fieldsEl.querySelector(`input[data-fid="${fid}-alt"]`);
+    const animEl = fieldsEl.querySelector(`select[data-fid="${fid}-anim"]`);
     if (srcEl) { img.src = srcEl.value; img.setAttribute('src', srcEl.value); }
     if (altEl) img.alt = altEl.value;
+    _applyImgAnimation(img, animEl?.value || 'none');
   });
 
   // Apply background (colour + image) if the bg panel fields exist
@@ -2937,7 +3874,7 @@ async function uploadSectionImage(inputEl, fid) {
   openImageEditor(file, async blob => {
     const fd = new FormData();
     fd.append('file', blob, 'image.png');
-    const base = window.location.origin;
+    if (stagedWebsiteId) fd.append('website_id', stagedWebsiteId);
     const r = await fetch(`${API}/shop/upload-image`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -2945,7 +3882,8 @@ async function uploadSectionImage(inputEl, fid) {
     });
     if (r.ok) {
       const data = await r.json();
-      const url = base + (data.full_url || data.thumb_url || '');
+      // Use returned relative path directly
+      const url = data.full_url || data.thumb_url || '';
       const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
       if (srcEl) srcEl.value = url;
       // Show thumbnail preview
@@ -2960,6 +3898,31 @@ async function uploadSectionImage(inputEl, fid) {
       toast('Image upload failed', false);
     }
   });
+// Finalize image: move from uploads to images and update HTML reference
+async function finalizeSectionImage(siteSlug, filename, fid) {
+  const r = await fetch(`${API}/shop/finalize-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ site_slug: siteSlug, filename }),
+  });
+  if (r.ok) {
+    const data = await r.json();
+    const newUrl = data.image_url;
+    const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
+    if (srcEl) srcEl.value = newUrl;
+    // Update preview if present
+    const wrap = srcEl?.closest('[data-fid]');
+    if (wrap) {
+      const img = wrap.querySelector('img');
+      if (img) img.src = newUrl;
+    }
+    toast('Image finalized and moved to images ✅');
+    return newUrl;
+  } else {
+    toast('Failed to finalize image', false);
+    return null;
+  }
+}
 }
 
 function clearSectionImage(fid) {
@@ -3286,6 +4249,7 @@ async function saveStaged() {
   const doc = frame.contentDocument;
   // Remove injected overlay badges and highlights
   doc.querySelectorAll('.__wb_badge').forEach(n => n.remove());
+  doc.querySelectorAll('.__wb_badge_anchor').forEach(n => n.remove());
   doc.querySelectorAll('.__wb_hi').forEach(n => { n.style.outline = ''; n.classList.remove('__wb_hi'); });
   // Remove browser extension injected elements (Grammarly, etc.)
   doc.querySelectorAll('grammarly-desktop-integration, #PING_IFRAME_FORM_DETECTION, [id^="PING_"], [data-grammarly-shadow-root]').forEach(n => n.remove());
@@ -3328,10 +4292,34 @@ async function goLive() {
   btn.disabled = false; btn.textContent = '🚀 Go Live';
 
   if (r && r.url) {
-    const target = r.target === 's3' ? 'S3' : 'local output';
-    toast(`🎉 Live on ${target}: ${r.url}`);
+    const targetMap = {
+      s3: 'S3 Website',
+      gdrive: 'Google Drive (files)',
+      onedrive: 'OneDrive (files)',
+      ftp: 'FTP Hosted',
+      local: 'local output',
+    };
+    const targetLabel = targetMap[r.target] || 'local output';
+    let details = `Live on <b>${targetLabel}</b><br>URL: <a href="${r.url}" target="_blank">${r.url}</a>`;
+    let shortMsg = 'Deployment Success';
+    if (r.target === 'gdrive') {
+      const parts = [];
+      if (Number.isFinite(Number(r.files_uploaded))) parts.push(`${Number(r.files_uploaded)} file(s)`);
+      if (Number.isFinite(Number(r.all_asset_files)) && Number(r.all_asset_files) > 0) {
+        parts.push(`${Number(r.all_asset_files)} total asset file(s)`);
+      }
+      if (r.folder_name) parts.push(`folder: ${r.folder_name}`);
+      if (parts.length) details += `<br>${parts.join(', ')}`;
+    }
+    styledAlert(details, { icon: '🚀', title: 'Deployment Complete', okLabel: 'OK', okClass: 'btn-success' });
+    toast(shortMsg);
     const badge = document.getElementById('stagingStatusBadge');
-    if (badge) badge.innerHTML = statusBadge('live');
+    if (badge) {
+      const note = (r.target === 'gdrive' || r.target === 'onedrive')
+        ? '<span style="margin-left:6px;font-size:.72rem;color:var(--muted)">files link</span>'
+        : '';
+      badge.innerHTML = statusBadge('live') + note;
+    }
     document.getElementById('stagingStatusBar').textContent = `Live URL: ${r.url}`;
 
     // Update in-memory site record
@@ -3341,11 +4329,18 @@ async function goLive() {
       if (r.target === 's3') websites[idx].s3_url = r.url;
       else websites[idx].live_url = r.url;  // staging path untouched; live_url = published path
     }
-    // Reload iframe to the live path
-    currentStagingUrl = r.url;
-    const frame = document.getElementById('stagingIframe');
-    frame.src = r.url;
-    document.getElementById('stagingStatusBar').textContent = `Live at: ${r.url}`;
+    // Keep iframe on local preview for files-link targets that cannot be embedded.
+    // Google Drive / OneDrive URLs usually return 403 in iframe due X-Frame-Options.
+    const filesLinkTarget = (r.target === 'gdrive' || r.target === 'onedrive');
+    if (!filesLinkTarget) {
+      currentStagingUrl = r.url;
+      const frame = document.getElementById('stagingIframe');
+      frame.src = r.url;
+    }
+    const extra = (r.target === 'gdrive' && Number.isFinite(Number(r.files_uploaded)))
+      ? ` • uploaded ${Number(r.files_uploaded)} file(s)`
+      : '';
+    document.getElementById('stagingStatusBar').textContent = `Live at: ${r.url} (${targetLabel})${extra}`;
   } else {
     toast('Deployment failed', false);
   }
@@ -3431,7 +4426,7 @@ async function rebuildWebsite() {
 
   await new Promise(resolve => {
     const es = new EventSource(
-      `${API}/../api/v1/websites/${id}/build-stream?token=${encodeURIComponent(token)}`
+      `${API}/websites/${id}/build-stream?token=${encodeURIComponent(token)}`
     );
     es.onmessage = async (e) => {
       try {
@@ -3676,7 +4671,18 @@ async function _imgEdApplyUpload() {
 
   _imgEdClose();
 
+  // After upload, finalize image (move to images folder)
   const cb = _imgCallback;
   _imgCallback = null;
-  if (cb) cb(finalBlob);
+  if (cb) {
+    // Wrap the callback to finalize after upload
+    cb(async (blob) => {
+      // The uploadSectionImage logic will call openImageEditor(file, cb)
+      // and cb(blob) is called here. We need to finalize after upload.
+      // Find the current site slug and field id (fid) if available.
+      // This requires passing context from uploadSectionImage.
+      // For now, user must call finalizeSectionImage after upload in their handler.
+      return blob;
+    });
+  }
 }

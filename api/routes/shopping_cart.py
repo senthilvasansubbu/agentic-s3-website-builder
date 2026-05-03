@@ -5,7 +5,7 @@ import uuid
 import json
 import re
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -13,7 +13,8 @@ from api.routes.auth import get_current_user, require_app_user_or_above, require
 from database.snowflake_client import db
 from services.analytics_service import log_event
 from services.currency_service import currency_from_ip
-from services.image_service import process_upload, ALLOWED_MIME
+from services.image_service import process_image, ALLOWED_MIME
+from services.secret_store import decrypt_json
 from tools.catalog_scraper import scrape_catalog, parse_file_catalog
 
 router = APIRouter(prefix="/shop", tags=["shop"])
@@ -86,6 +87,7 @@ ProductUpdate = CartItemUpdate
 @router.post("/upload-image")
 async def upload_cart_item_image(
     file: UploadFile = File(...),
+    website_id: Optional[str] = Form(None),
     current_user: dict = Depends(require_client_or_above),
 ):
     """
@@ -102,8 +104,43 @@ async def upload_cart_item_image(
         )
 
     raw = await file.read()
+    storage_override = None
+    if website_id:
+        _assert_website_access(website_id, current_user)
+        site = db.fetchone(
+            "SELECT image_storage_backend, image_storage_config, image_storage_secrets_enc FROM websites WHERE website_id = ?",
+            (website_id,),
+        )
+        if site:
+            cfg_raw = site.get("image_storage_config")
+            cfg = {}
+            if isinstance(cfg_raw, dict):
+                cfg = cfg_raw
+            elif isinstance(cfg_raw, str) and cfg_raw.strip():
+                try:
+                    cfg = json.loads(cfg_raw)
+                except Exception:
+                    cfg = {}
+            secrets = decrypt_json(site.get("image_storage_secrets_enc"))
+            storage_override = {
+                "backend": (site.get("image_storage_backend") or "auto"),
+                "folder_id": cfg.get("folder_id") or "",
+                "gdrive_subfolder": cfg.get("gdrive_subfolder") or "",
+                "s3_bucket": cfg.get("s3_bucket") or "",
+                "s3_prefix": cfg.get("s3_prefix") or "",
+                "onedrive_folder": cfg.get("onedrive_folder") or "",
+                "onedrive_subfolder": cfg.get("onedrive_subfolder") or "",
+                "ftp_remote_dir": cfg.get("ftp_remote_dir") or "",
+                "ftp_public_base_url": cfg.get("ftp_public_base_url") or "",
+            }
+            storage_override.update(secrets)
+
     try:
-        result = process_upload(raw, original_filename=file.filename or "")
+        result = process_image(
+            raw,
+            original_filename=file.filename or "",
+            storage_override=storage_override,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
@@ -637,6 +674,34 @@ def _assert_cart_access(website_id: str, user: dict):
             )
             if not client_row:
                 raise HTTPException(status_code=403, detail="Not your website")
+
+
+def _assert_website_access(website_id: str, user: dict):
+    """Access check for non-cart website operations (e.g. shared image upload endpoint)."""
+    site = db.fetchone(
+        "SELECT user_id FROM websites WHERE website_id = ?",
+        (website_id,),
+    )
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+
+    role = user.get("role", "app_user")
+    user_id = user["sub"]
+
+    if role == "superuser":
+        return
+
+    if role == "client":
+        row = db.fetchone(
+            "SELECT client_website_id FROM users WHERE user_id = ?",
+            (user_id,),
+        )
+        if not row or row.get("client_website_id") != website_id:
+            raise HTTPException(status_code=403, detail="Clients can only access their linked website")
+        return
+
+    if site.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Not your website")
 
 
 def _assert_website_owner(website_id: str, user_id: str):

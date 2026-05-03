@@ -41,7 +41,49 @@ def generate_html(design_spec: dict, code: str, project_name: str,
     - page_name='index'  → saved as  output/staging/<slug>/index.html
     - page_name='about'  → saved as  output/staging/<slug>/pages/about.html
     """
+
     site_dir = _website_dir(project_name)
+
+    # Save images, CSS, JS to their respective folders (support nested folders)
+    images = design_spec.get('images', {})
+    for fname, img_bytes in images.items():
+        img_folder, img_file = os.path.split(fname)
+        img_dir = os.path.join(site_dir, 'assets/images', img_folder)
+        os.makedirs(img_dir, exist_ok=True)
+        img_path = os.path.join(img_dir, img_file)
+        with open(img_path, 'wb') as imgf:
+            imgf.write(img_bytes)
+
+    css_files = design_spec.get('css', {})
+    for fname, css_code in css_files.items():
+        css_folder, css_file = os.path.split(fname)
+        css_dir = os.path.join(site_dir, 'assets/css', css_folder)
+        os.makedirs(css_dir, exist_ok=True)
+        css_path = os.path.join(css_dir, css_file)
+        with open(css_path, 'w', encoding='utf-8') as cssf:
+            cssf.write(css_code)
+
+    js_files = design_spec.get('js', {})
+    for fname, js_code in js_files.items():
+        js_folder, js_file = os.path.split(fname)
+        js_dir = os.path.join(site_dir, 'assets/js', js_folder)
+        os.makedirs(js_dir, exist_ok=True)
+        js_path = os.path.join(js_dir, js_file)
+        with open(js_path, 'w', encoding='utf-8') as jsf:
+            jsf.write(js_code)
+
+    # Update HTML code to use relative paths for images, CSS, JS (support nested folders)
+    html_code = code
+    for fname in images:
+        rel_path = f"assets/images/{fname}"
+        html_code = html_code.replace(f'/static/uploads/{fname}', rel_path)
+        html_code = html_code.replace(f'uploads/{fname}', rel_path)
+    for fname in css_files:
+        rel_path = f"assets/css/{fname}"
+        html_code = html_code.replace(f'/static/css/{fname}', rel_path)
+    for fname in js_files:
+        rel_path = f"assets/js/{fname}"
+        html_code = html_code.replace(f'/static/js/{fname}', rel_path)
 
     if page_name == "index":
         filepath = os.path.join(site_dir, "index.html")
@@ -50,7 +92,7 @@ def generate_html(design_spec: dict, code: str, project_name: str,
         filepath = os.path.join(site_dir, "pages", f"{safe}.html")
 
     with open(filepath, "w", encoding="utf-8") as f:
-        f.write(code)
+        f.write(html_code)
 
     return filepath
 

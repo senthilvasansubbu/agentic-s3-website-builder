@@ -22,6 +22,11 @@ cryptography==44.0.2
 # AWS / hosting
 boto3==1.42.90
 
+# Google Drive image storage (optional backend)
+google-api-python-client==2.176.0
+google-auth==2.40.3
+google-auth-httplib2==0.2.0
+
 # Payments
 stripe==12.1.0
 

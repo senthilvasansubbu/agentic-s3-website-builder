@@ -49,6 +49,8 @@ TABLES = [
         custom_css    TEXT,
         pages_json    VARIANT,                    -- JSON array of page configs
         s3_bucket     VARCHAR(200),
+        image_storage_backend VARCHAR(20) DEFAULT 'auto', -- auto | local | s3 | gdrive
+        image_storage_config  VARIANT,
         s3_url        VARCHAR(500),
         status        VARCHAR(20)  DEFAULT 'draft',
         plan_required VARCHAR(20)  DEFAULT 'free',
@@ -393,6 +395,17 @@ def run_migrations():
         except Exception:
             pass
         _mark(5, "backfill superuser role from plan field")
+
+    # ── Version 6: per-website image storage configuration ───────────────────
+    if not _applied(6):
+        _safe_alter("ALTER TABLE websites ADD COLUMN image_storage_backend TEXT DEFAULT 'auto'")
+        _safe_alter("ALTER TABLE websites ADD COLUMN image_storage_config TEXT")
+        _mark(6, "website image storage backend and config columns")
+
+    # ── Version 7: encrypted per-website storage credentials ────────────────
+    if not _applied(7):
+        _safe_alter("ALTER TABLE websites ADD COLUMN image_storage_secrets_enc TEXT")
+        _mark(7, "encrypted website storage credentials")
 
     # ── Always re-seed plan_features (INSERT OR IGNORE = idempotent) ─────────
     _seed_plan_features()
