@@ -1,7 +1,0 @@
-INFO     apscheduler.scheduler:base.py:507 Adding job tentatively -- it will be properly scheduled when the scheduler starts
-INFO     apscheduler.scheduler:base.py:507 Adding job tentatively -- it will be properly scheduled when the scheduler starts
-INFO     apscheduler.scheduler:base.py:1090 Added job "run_all_checks" to job store "default"
-INFO     apscheduler.scheduler:base.py:1090 Added job "run_payment_reminders" to job store "default"
-INFO     apscheduler.scheduler:base.py:214 Scheduler started
-INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/websites "HTTP/1.1 200 OK"
-INFO     httpx:_client.py:1025 HTTP Request: DELETE http://testserver/api/v1/websites/b31a5e39-bbd5-4b2a-86e5-7a7d61ffe45e "HTTP/1.1 200 OK"
