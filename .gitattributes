@@ -1,0 +1,21 @@
+# Ensure consistent line endings for text files
+* text=auto
+
+# Office documents — treat as binary to prevent ZIP corruption
+*.pptx binary
+*.docx binary
+*.xlsx binary
+*.pdf  binary
+
+# Images
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.svg  binary
+
+# Archives
+*.zip  binary
+*.gz   binary
+*.tar  binary
