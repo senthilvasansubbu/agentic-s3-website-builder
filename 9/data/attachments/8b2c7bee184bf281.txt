@@ -1,1 +1,0 @@
-ℹ️  Snowflake not configured — using SQLite at ':memory:'

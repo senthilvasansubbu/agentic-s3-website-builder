@@ -1,0 +1,2 @@
+ℹ️  Snowflake not configured — using SQLite at ':memory:'
+2026-05-09 19:04:36  INFO      crewai.cli.config  Using config path: /home/runner/.config/crewai/settings.json
