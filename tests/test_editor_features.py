@@ -406,11 +406,21 @@ class TestIntegration:
 
 @pytest.fixture
 def driver():
-    """Initialize Selenium WebDriver"""
-    driver = webdriver.Chrome()
-    driver.get("http://localhost:3000")  # Update URL as needed
-    yield driver
-    driver.quit()
+    """Initialize Selenium WebDriver — skips if Chrome is not available."""
+    from selenium.webdriver.chrome.options import Options
+    from selenium.common.exceptions import WebDriverException
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    try:
+        d = webdriver.Chrome(options=options)
+    except (WebDriverException, Exception) as exc:
+        pytest.skip(f"Chrome/ChromeDriver not available: {exc}")
+    d.get("http://localhost:8000")  # app runs on port 8000
+    yield d
+    d.quit()
 
 
 @pytest.fixture
