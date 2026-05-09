@@ -36,7 +36,15 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt --force-reinstall
+
+      - name: Verify pytest plugins
+        run: pytest --co -q 2>&1 | head -20 && python -c "import allure_pytest; print('✓ allure-pytest installed')"
+
+      - name: Create artifact directories
+        run: mkdir -p allure-results coverage-html
 
       - name: Run tests with coverage
         run: |
@@ -55,8 +63,17 @@ jobs:
             --ignore=tests/test_editor_features.py
         continue-on-error: false
 
+      - name: Verify artifacts were created
+        if: always()
+        run: |
+          echo "=== Checking artifacts ==="
+          ls -lah allure-results/ || echo "⚠️ allure-results/ missing"
+          ls -lah coverage-html/ || echo "⚠️ coverage-html/ missing"
+          ls -lah coverage.xml || echo "⚠️ coverage.xml missing"
+
       - name: Upload coverage XML to GitHub
         uses: actions/upload-artifact@v4
+        if: always()
         if: always()
         with:
           name: coverage-xml
