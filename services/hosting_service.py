@@ -148,7 +148,8 @@ def deploy_directory_to_gdrive(
 
     def _create_folder(name: str, parent_id: str) -> Optional[str]:
         # Check if folder already exists with this name under parent
-        query = f"name='{name.replace("'", "\\'")}' and mimeType='application/vnd.google-apps.folder' and '{parent_id}' in parents and trashed=false"
+        safe_name = name.replace("'", "\\'")
+        query = f"name='{safe_name}' and mimeType='application/vnd.google-apps.folder' and '{parent_id}' in parents and trashed=false"
         results = drive.files().list(q=query, fields="files(id,name)").execute()
         files = results.get('files', [])
         if files:
