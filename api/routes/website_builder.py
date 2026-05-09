@@ -28,6 +28,7 @@ import time
 import asyncio
 import re
 import shutil
+import datetime
 from pathlib import Path
 from urllib.parse import unquote
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Query
@@ -42,7 +43,7 @@ from agents.requirements_analyst import build_prompt, BuildRequest as AnalystReq
 from tools.theme_builder import THEMES, render_page
 from tools.web_search import search_for_website_content
 from tools.social_media_search import social_context_for_topic
-from tools.website_scraper import scrape_website, scrape_to_prompt_context
+from tools.website_scraper import scrape_website, prompt_context_from_scraped_data
 from services.hosting_service import deploy_to_s3, save_locally, custom_domain_instructions
 from services.analytics_service import log_event
 from services.payment_service import PLANS
@@ -57,6 +58,225 @@ logger = logging.getLogger("website_builder.api")
 FREE_PAGE_LIMIT = 10
 
 
+def _reference_quality_metrics(scraped: dict) -> dict:
+    headings = scraped.get("headings") or []
+    paragraphs = scraped.get("paragraphs") or []
+    nav_links = scraped.get("nav_links") or []
+    images = scraped.get("images") or []
+    description = (scraped.get("description") or "").strip()
+    title = (scraped.get("title") or "").strip()
+
+    return {
+        "title": title,
+        "description_len": len(description),
+        "headings": len(headings),
+        "paragraphs": len(paragraphs),
+        "nav_links": len([n for n in nav_links if isinstance(n, dict) and n.get("text")]),
+        "images": len(images),
+    }
+
+
+def _is_reference_usable(metrics: dict) -> bool:
+    # Strict baseline: must carry actual textual structure plus either
+    # navigational or visual signals, otherwise it is too sparse to anchor AI.
+    has_text_structure = metrics["headings"] >= 2 or metrics["paragraphs"] >= 2 or metrics["description_len"] >= 80
+    has_structure_or_media = metrics["images"] >= 1 or metrics["nav_links"] >= 1
+    return has_text_structure and has_structure_or_media
+
+
+def _safe_json_loads(raw: Optional[str], default):
+    if not raw:
+        return default
+    try:
+        return json.loads(raw)
+    except Exception:
+        return default
+
+
+def _read_index_html(local_path: str) -> str:
+    try:
+        if not local_path:
+            return ""
+        p = os.path.join(local_path, "index.html")
+        if not os.path.exists(p):
+            return ""
+        with open(p, "r", encoding="utf-8", errors="ignore") as f:
+            return f.read()
+    except Exception:
+        return ""
+
+
+def _generate_build_narrative(
+    website_id: str,
+    input_snapshot: dict,
+    source_context: dict,
+    local_path: str,
+) -> dict:
+    req = (input_snapshot.get("requirements") or "").strip()
+    reference_urls = source_context.get("reference_urls") or []
+    nav_links = source_context.get("nav_links") or []
+    reference_sites = source_context.get("reference_sites") or []
+    extra_context = source_context.get("extra_context") or ""
+
+    scraped_image_count = 0
+    for rs in reference_sites:
+        scraped_image_count += len(rs.get("images") or [])
+
+    html = _read_index_html(local_path)
+    html_low = html.lower()
+    section_count = len(re.findall(r"<section\\b", html_low))
+    local_img_count = len(re.findall(r"<img[^>]+src=[\"']assets/images/", html, re.I))
+    remote_img_count = len(re.findall(r"<img[^>]+src=[\"']https?://", html, re.I))
+
+    medical_intent = bool(re.search(
+        r"\\b(medical|medicinal|diagnostic|diagnostics|pharma|pharmaceutical|laboratory|lab\\s*equipment|reagent|reseller|distributor)\\b",
+        req,
+        re.I,
+    ))
+
+    off_domain_markers = {
+        "cloud solutions": html_low.count("cloud solutions"),
+        "cybersecurity": html_low.count("cybersecurity"),
+        "managed it services": html_low.count("managed it services"),
+        "it strategy": html_low.count("it strategy"),
+        "enterprise solutions": html_low.count("enterprise solutions"),
+        "proconnect": html_low.count("proconnect"),
+    }
+    off_domain_hits = sum(off_domain_markers.values())
+
+    site_name = (input_snapshot.get("site_name") or "").strip()
+    placeholder_markers = {
+        "grace community church": html_low.count("grace community church"),
+        "grace community": html_low.count("grace community"),
+    }
+    placeholder_hits = sum(placeholder_markers.values())
+
+    expect_blog = bool(input_snapshot.get("enable_blog"))
+    expect_livestream = bool(input_snapshot.get("enable_livestream"))
+    expect_chatbot = bool(input_snapshot.get("enable_chatbot"))
+    has_blog = bool(re.search(r'id=["\']blog["\']|href=["\']#blog["\']|/blog\b|>\s*blog\s*<', html, re.I))
+    has_livestream = bool(re.search(r'id=["\']livestream["\']|live\s*stream|href=["\']#livestream["\']', html, re.I))
+    has_chatbot = bool(re.search(r'chatbot|chat bubble|id=["\']chat[^"\']*["\']|aria-label=["\'][^"\']*chat', html, re.I))
+
+    web_search_requested = bool(input_snapshot.get("use_web_search"))
+    web_search_empty = "=== Web Research ===" in extra_context and "No external content found" in extra_context
+
+    checks = []
+    checks.append({
+        "name": "Reference Data Richness",
+        "status": "pass" if (len(nav_links) > 0 or scraped_image_count > 0) else "warning",
+        "details": (
+            f"reference_urls={len(reference_urls)}, nav_links={len(nav_links)}, scraped_images={scraped_image_count}. "
+            "Low extracted structure/images reduces domain anchoring for the model."
+        ),
+    })
+    checks.append({
+        "name": "Web Research Coverage",
+        "status": "warning" if (web_search_requested and web_search_empty) else "pass",
+        "details": (
+            "Web search returned no external content; model had less factual grounding beyond prompt/reference extraction."
+            if (web_search_requested and web_search_empty)
+            else "Web research either not requested or returned content."
+        ),
+    })
+    checks.append({
+        "name": "Domain Relevance in Output",
+        "status": "warning" if (medical_intent and off_domain_hits > 0) else "pass",
+        "details": (
+            f"medical_intent={medical_intent}, off_domain_hits={off_domain_hits}, markers={off_domain_markers}"
+        ),
+    })
+    checks.append({
+        "name": "Image Localization",
+        "status": "pass" if remote_img_count == 0 else "warning",
+        "details": (
+            f"local_images={local_img_count}, remote_images={remote_img_count}. "
+            "Remote images can still appear when source extraction is sparse or generated HTML contains non-placeholder URLs."
+        ),
+    })
+    checks.append({
+        "name": "Output Structure",
+        "status": "pass" if section_count >= 4 else "warning",
+        "details": f"Detected {section_count} <section> blocks in generated HTML.",
+    })
+    checks.append({
+        "name": "Brand Placeholder Leakage",
+        "status": "warning" if placeholder_hits > 0 else "pass",
+        "details": (
+            f"site_name={site_name!r}, placeholder_hits={placeholder_hits}, markers={placeholder_markers}."
+        ),
+    })
+    checks.append({
+        "name": "Feature Flag Fulfillment",
+        "status": "warning" if ((expect_blog and not has_blog) or (expect_livestream and not has_livestream) or (expect_chatbot and not has_chatbot)) else "pass",
+        "details": (
+            f"expected(blog={expect_blog},live={expect_livestream},chatbot={expect_chatbot}) "
+            f"observed(blog={has_blog},live={has_livestream},chatbot={has_chatbot})."
+        ),
+    })
+
+    can_do = [
+        "Apply business name, contact fields, and structural guardrails deterministically after generation.",
+        "Use extracted reference images when available, otherwise fall back to generated placeholder seeds.",
+        "Produce responsive multi-section layouts from minimal textual requirements.",
+    ]
+    cannot_do = [
+        "Guarantee domain-accurate long-form copy when reference extraction is sparse and web research returns no content.",
+        "Infer missing product catalog details that are not present in user requirements or extracted source context.",
+        "Reliably preserve competitor/reference site semantics without explicit, structured product data."
+    ]
+    user_expected_inputs = [
+        "Provide 6-12 explicit product/service names in requirements or categories.",
+        "Provide at least one rich reference URL with accessible headings/nav/images.",
+        "If web search is enabled, include domain keywords (brand, product line, city) in requirements for better retrieval.",
+        "Review and refine generated output in Staging when requirements are broad or sparse."
+    ]
+
+    summary = (
+        "Build narrative generated from persisted input snapshot, source context, and final HTML. "
+        "Drift risk increases when extracted reference context is sparse or contradictory to requested domain."
+    )
+
+    return {
+        "website_id": website_id,
+        "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "summary": summary,
+        "inputs_used": {
+            "requirements": req,
+            "build_mode": input_snapshot.get("build_mode"),
+            "classification": input_snapshot.get("classification"),
+            "classification_label": input_snapshot.get("classification_label"),
+            "classification_group": input_snapshot.get("classification_group"),
+            "reference_urls": reference_urls,
+            "reference_usage_by_url": input_snapshot.get("reference_usage_by_url") or [],
+            "use_web_search": web_search_requested,
+            "use_social_search": bool(input_snapshot.get("use_social_search")),
+            "location": input_snapshot.get("location"),
+            "email": input_snapshot.get("email"),
+            "phone": input_snapshot.get("phone"),
+        },
+        "checks": checks,
+        "can_do": can_do,
+        "cannot_do": cannot_do,
+        "user_expected_inputs": user_expected_inputs,
+    }
+
+
+def _log_build_narrative(website_id: str, narrative: dict) -> None:
+    try:
+        os.makedirs("logs", exist_ok=True)
+        payload = {
+            "ts": datetime.datetime.utcnow().isoformat() + "Z",
+            "website_id": website_id,
+            "narrative": narrative,
+        }
+        with open("logs/build_narratives.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        logger.info("[%s] 📝 build narrative logged", website_id)
+    except Exception as exc:
+        logger.warning("[%s] Failed to write build narrative log: %s", website_id, exc)
+
+
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
 class CreateWebsiteRequest(BaseModel):
@@ -65,6 +285,10 @@ class CreateWebsiteRequest(BaseModel):
     description: Optional[str] = None
     theme: str = "modern"
     classification: str = "generic"
+    classification_label: Optional[str] = None
+    classification_group: Optional[str] = None
+    build_mode: str = "agentic_only"            # combined | agentic_only
+    output_target: str = "legacy"               # legacy | react | vue | php | ...
     logo_url: Optional[str] = None
     domain: Optional[str] = None
     hosting_env: str = "s3"
@@ -75,7 +299,7 @@ class CreateWebsiteRequest(BaseModel):
     enable_chatbot: bool = False
     enable_blog: bool = False
     enable_livestream: bool = False
-    num_pages: int = 1
+    content_depth: str = 'standard'  # minimal | standard | detailed | enterprise
     custom_css: Optional[str] = None
 
 
@@ -84,10 +308,18 @@ class BuildWebsiteRequest(BaseModel):
     use_web_search: bool = True
     use_social_search: bool = False
     existing_website_url: Optional[str] = None      # scrape this URL to pre-seed the build
-    num_pages: int = 1                              # number of pages to generate
+    existing_website_urls: Optional[List[str]] = None  # optional multi-reference URLs
+    reference_usage_by_url: Optional[List[dict]] = None  # e.g. [{"url":"https://...","usage":"picture references"}]
+    content_depth: str = 'standard'                 # minimal | standard | detailed | enterprise
+    niche: Optional[str] = None                     # UI niche/category hint
     include_shopping_cart: bool = False             # enable e-commerce / cart features
+    build_mode: Optional[str] = None                # combined | agentic_only
+    output_target: Optional[str] = None             # legacy | react | vue | php | ...
+    classification_label: Optional[str] = None
+    classification_group: Optional[str] = None
     # Optional structured fields — enriches AI prompt when provided
     categories: Optional[List[str]] = None          # e.g. ["Cakes","Pastries","Breads"]
+    catalog_items: Optional[List[str]] = None        # exact product/model names — prevents AI hallucination
     location: Optional[str] = None                  # e.g. "123 Main St, New York, NY 10001"
     email: Optional[str] = None                     # e.g. "info@mybakery.com"
     phone: Optional[str] = None                     # e.g. "+1-212-555-0199"
@@ -116,19 +348,17 @@ class StagedHtmlRequest(BaseModel):
     html: str
 
 
+ALLOWED_BUILD_MODES = {"combined", "agentic_only"}
+ALLOWED_OUTPUT_TARGETS = {"legacy", "react", "vue", "php"}
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _check_plan_limits(user_id: str, num_pages: int, needs_cart: bool):
+def _check_plan_limits(user_id: str, needs_cart: bool):
     user = db.fetchone("SELECT plan FROM users WHERE user_id = %s", (user_id,))
     plan = user["plan"] if user else "free"
     plan_info = PLANS.get(plan, PLANS["free"])
 
-    if num_pages > plan_info["max_pages"]:
-        raise HTTPException(
-            status_code=402,
-            detail=f"Your '{plan}' plan allows up to {plan_info['max_pages']} pages. "
-                   f"Upgrade to build more.",
-        )
     if needs_cart and not plan_info["shopping_cart"]:
         raise HTTPException(
             status_code=402,
@@ -277,26 +507,40 @@ async def scrape_existing_website(
 async def create_website(body: CreateWebsiteRequest, request: Request,
                          current_user: dict = Depends(require_app_user_or_above)):
     user_id = current_user["sub"]
-    _check_plan_limits(user_id, body.num_pages, body.include_shopping_cart)
+    _check_plan_limits(user_id, body.include_shopping_cart)
 
     if body.theme not in THEMES:
         raise HTTPException(status_code=400, detail=f"Unknown theme. Available: {list(THEMES)}")
+
+    build_mode = (body.build_mode or "agentic_only").strip().lower()
+    if build_mode not in ALLOWED_BUILD_MODES:
+        raise HTTPException(status_code=400, detail=f"Unknown build_mode. Available: {sorted(ALLOWED_BUILD_MODES)}")
+
+    output_target = (body.output_target or "legacy").strip().lower()
+    if output_target not in ALLOWED_OUTPUT_TARGETS:
+        raise HTTPException(status_code=400, detail=f"Unknown output_target. Available: {sorted(ALLOWED_OUTPUT_TARGETS)}")
+
+    classification_label = (body.classification_label or body.classification or "generic").strip()
+    classification_group = (body.classification_group or "general").strip()
 
     website_id = str(uuid.uuid4())
     db.execute(
         """INSERT INTO websites
            (website_id, user_id, name, title, description, logo_url, domain,
                 hosting_env, image_storage_backend, image_storage_config,
-                theme, classification, custom_css, cart_features, enable_chatbot, enable_blog, enable_livestream, status)
-              VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
+                                theme, classification, classification_label, classification_group, build_mode, output_target,
+                                custom_css, cart_features, enable_chatbot, enable_blog, enable_livestream, content_depth, status)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft')""",
         (website_id, user_id, body.name, body.title, body.description or "",
          body.logo_url or "", body.domain or "", body.hosting_env,
             body.image_storage_backend or "auto", json.dumps(body.image_storage_config or {}),
-            body.theme, body.classification, body.custom_css or "",
+                        body.theme, body.classification, classification_label, classification_group, build_mode, output_target,
+                        body.custom_css or "",
          json.dumps(body.cart_features or []),
          1 if body.enable_chatbot else 0,
          1 if body.enable_blog else 0,
-         1 if body.enable_livestream else 0),
+         1 if body.enable_livestream else 0,
+         body.content_depth),
     )
     log_event("website_created", user_id=user_id, website_id=website_id,
               ip_address=request.client.host)
@@ -330,16 +574,155 @@ async def build_website_pages(
                 trace_id, site.get("name"), site.get("theme"),
                 site.get("cart_features"), site.get("enable_chatbot"))
 
+    requested_build_mode = (body.build_mode or site.get("build_mode") or "agentic_only").strip().lower()
+    if requested_build_mode not in ALLOWED_BUILD_MODES:
+        raise HTTPException(status_code=400, detail=f"Unknown build_mode. Available: {sorted(ALLOWED_BUILD_MODES)}")
+
+    requested_output_target = (body.output_target or site.get("output_target") or "legacy").strip().lower()
+    if requested_output_target not in ALLOWED_OUTPUT_TARGETS:
+        raise HTTPException(status_code=400, detail=f"Unknown output_target. Available: {sorted(ALLOWED_OUTPUT_TARGETS)}")
+
+    requested_class_label = (
+        body.classification_label
+        or site.get("classification_label")
+        or site.get("classification")
+        or "generic"
+    ).strip()
+    requested_class_group = (
+        body.classification_group
+        or site.get("classification_group")
+        or "general"
+    ).strip()
+
+    # Collect and dedupe reference URLs while preserving order.
+    reference_urls: List[str] = []
+    primary_reference = (body.existing_website_url or "").strip()
+    if primary_reference:
+        reference_urls.append(primary_reference)
+    for raw_url in (body.existing_website_urls or []):
+        url = (raw_url or "").strip()
+        if url and url not in reference_urls:
+            reference_urls.append(url)
+
+    if requested_build_mode == "combined" and not reference_urls:
+        raise HTTPException(status_code=400, detail="Combined mode requires at least one reference URL")
+
+    reference_usage_map: Dict[str, str] = {}
+    for item in (body.reference_usage_by_url or []):
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "").strip()
+        usage = str(item.get("usage") or "").strip()
+        if not url or not usage:
+            continue
+        reference_usage_map[url] = usage[:300]
+
+    db.execute(
+        "UPDATE websites SET build_mode = %s, output_target = %s, classification_label = %s, classification_group = %s, updated_at = CURRENT_TIMESTAMP() "
+        "WHERE website_id = %s",
+        (requested_build_mode, requested_output_target, requested_class_label, requested_class_group, website_id),
+    )
+
     # Gather web/social content
     extra_context = ""
 
-    # ── Scrape existing website if URL provided ────────────────────────────────
-    if body.existing_website_url:
-        logger.info("[%s] 🔗 Scraping existing website: %s", trace_id, body.existing_website_url)
-        t1 = time.time()
-        scraped_context = scrape_to_prompt_context(body.existing_website_url)
-        extra_context += "\n\n" + scraped_context
-        logger.info("[%s] 🔗 Scraping done in %.1fs", trace_id, time.time() - t1)
+    # ── Scrape reference websites if URL(s) provided ───────────────────────────
+    scraped_title = None
+    nav_links: List[str] = []
+    scraped_reference_summaries: List[dict] = []
+    reference_images: List[str] = []
+    reference_quality: List[dict] = []
+    failed_reference_urls: List[str] = []
+    if reference_urls:
+        for idx, ref_url in enumerate(reference_urls, start=1):
+            logger.info("[%s] 🔗 Scraping reference website %d/%d: %s", trace_id, idx, len(reference_urls), ref_url)
+            t1 = time.time()
+            try:
+                per_url_usage = reference_usage_map.get(ref_url, "")
+                scraped = scrape_website(ref_url)
+                scraped_context = prompt_context_from_scraped_data(scraped)
+                # Label this clearly as a reference/competitor site so the AI uses it for
+                # domain/industry inspiration but does NOT copy the brand name or identity.
+                extra_context += (
+                    f"\n\n=== REFERENCE SITE {idx}/{len(reference_urls)} (for domain & content inspiration only) ===\n"
+                    f"Reference URL: {ref_url}\n"
+                    + (f"How to use this reference: {per_url_usage}\n" if per_url_usage else "") +
+                    "The following content was scraped from a reference/competitor website. "
+                    "Use it to understand the INDUSTRY, PRODUCTS, SERVICES, and TERMINOLOGY relevant to the build. "
+                    "Do NOT use the brand name, logo, email, phone, or identity from this reference site. "
+                    "The actual brand being built is specified in the WEBSITE BUILD SPECIFICATION above.\n\n"
+                ) + scraped_context
+
+                this_title = scraped.get("title")
+                this_nav_links = [l["text"] for l in scraped.get("nav_links", []) if l.get("text")]
+                this_images = scraped.get("images", [])
+                this_quality = _reference_quality_metrics(scraped)
+                if not scraped_title and this_title:
+                    scraped_title = this_title
+                nav_links.extend(this_nav_links)
+                reference_images.extend(img for img in this_images if img not in reference_images)
+                reference_quality.append({"url": ref_url, **this_quality})
+                scraped_reference_summaries.append({
+                    "url": ref_url,
+                    "title": this_title,
+                    "nav_links": this_nav_links,
+                    "images": this_images[:10],
+                })
+                logger.info("[%s] 🔗 Scraping done for %s in %.1fs", trace_id, ref_url, time.time() - t1)
+            except Exception as exc:
+                logger.warning("[%s] Could not scrape reference URL %s: %s", trace_id, ref_url, exc)
+                failed_reference_urls.append(ref_url)
+
+        # Deduplicate nav links preserving order.
+        nav_links = list(dict.fromkeys(nav_links))
+
+        # Combined-mode reference quality check: proceed even if sparse,
+        # but record a warning so user-provided context is treated as primary.
+        if requested_build_mode == "combined":
+            usable = [q for q in reference_quality if _is_reference_usable(q)]
+            agg_headings = sum(q.get("headings", 0) for q in reference_quality)
+            agg_paragraphs = sum(q.get("paragraphs", 0) for q in reference_quality)
+            agg_images = sum(q.get("images", 0) for q in reference_quality)
+            agg_nav = sum(q.get("nav_links", 0) for q in reference_quality)
+
+            sparse = (
+                len(usable) == 0
+                or agg_headings < 2
+                or agg_paragraphs < 1
+                or (agg_images < 1 and agg_nav < 1)
+            )
+
+            if sparse:
+                per_ref = "; ".join(
+                    f"{q['url']} => title={'yes' if q.get('title') else 'no'}, "
+                    f"desc_len={q.get('description_len', 0)}, headings={q.get('headings', 0)}, "
+                    f"paras={q.get('paragraphs', 0)}, nav={q.get('nav_links', 0)}, images={q.get('images', 0)}"
+                    for q in reference_quality
+                ) or "no successful reference extraction"
+
+                failed_hint = (
+                    f" Failed URLs: {', '.join(failed_reference_urls)}."
+                    if failed_reference_urls else ""
+                )
+
+                logger.warning(
+                    "[%s] Combined build proceeding with sparse reference extraction. "
+                    "Metrics: usable_refs=%s/%s, agg_headings=%s, agg_paragraphs=%s, agg_nav=%s, agg_images=%s. "
+                    "Per-reference: %s.%s",
+                    trace_id,
+                    len(usable),
+                    len(reference_urls),
+                    agg_headings,
+                    agg_paragraphs,
+                    agg_nav,
+                    agg_images,
+                    per_ref,
+                    failed_hint,
+                )
+                extra_context += (
+                    "\n\n=== REFERENCE QUALITY WARNING ===\n"
+                    "Reference extraction is sparse (limited paragraphs/nav). Use imported fields and user requirements as the primary truth."
+                )
 
     if body.use_web_search:
         logger.info("[%s] 🌐 Running web search...", trace_id)
@@ -356,34 +739,92 @@ async def build_website_pages(
 
     # ── Assemble full LLM prompt via RequirementsAnalystAgent ─────────────────
 
-    # If scraping, extract title and nav_links for prompt
-    scraped_title = None
-    nav_links = None
-    if body.existing_website_url:
-        try:
-            scraped = scrape_website(body.existing_website_url)
-            scraped_title = scraped.get('title')
-            nav_links = [l['text'] for l in scraped.get('nav_links', []) if l.get('text')]
-        except Exception as exc:
-            logger.warning("[%s] Could not extract title/nav_links from scrape: %s", trace_id, exc)
+    # Keep compatibility with older prompt logic that expects Optional[list].
+    # Nav precedence: explicit menu in requirements > user-edited nav chips > scraped nav links.
+    user_nav_links: List[str] = []
+    req_nav_match = re.search(
+        r"NAVIGATION\s*\([^\)]*\)\s*:\s*(.+)",
+        body.requirements or "",
+        re.I,
+    )
+    if req_nav_match:
+        user_nav_links = [n.strip() for n in req_nav_match.group(1).split("|") if n.strip()]
+
+    nav_links_for_prompt = (user_nav_links or body.categories or nav_links) or None
 
     analyst_req = AnalystRequest(
         requirements=body.requirements,
         use_web_search=body.use_web_search,
         use_social_search=body.use_social_search,
-        existing_website_url=body.existing_website_url,
+        existing_website_url=reference_urls[0] if reference_urls else None,
+        existing_website_urls=reference_urls or None,
+        build_mode=requested_build_mode,
+        output_target=requested_output_target,
         categories=body.categories,
+        catalog_items=body.catalog_items,
         location=body.location,
         email=body.email,
         phone=body.phone,
         booking_prefix=body.booking_prefix,
+        niche=body.niche,
         social_links=body.social_links,
         website_id=website_id,
         include_shopping_cart=body.include_shopping_cart,
-        scraped_title=scraped_title,
-        nav_links=nav_links,
+        # NOTE: scraped_title is intentionally NOT passed here — it comes from an external
+        # reference/competitor URL and must not replace the user's DB site title as the business name.
+        # The scraped content is already in extra_context for AI enrichment.
+        scraped_title=None,
+        nav_links=nav_links_for_prompt,
+        classification=site.get("classification", "generic") or "generic",
+        classification_label=requested_class_label,
+        classification_group=requested_class_group,
+        content_depth=body.content_depth,
     )
     full_prompt, cart_features = build_prompt(analyst_req, site, extra_context)
+
+    input_snapshot = {
+        "site_name": site.get("title") or site.get("name") or "",
+        "requirements": body.requirements,
+        "use_web_search": body.use_web_search,
+        "use_social_search": body.use_social_search,
+        "existing_website_url": reference_urls[0] if reference_urls else None,
+        "existing_website_urls": reference_urls,
+        "reference_usage_by_url": [
+            {"url": u, "usage": reference_usage_map[u]} for u in reference_urls if u in reference_usage_map
+        ],
+        "build_mode": requested_build_mode,
+        "output_target": requested_output_target,
+        "classification": site.get("classification", "generic") or "generic",
+        "classification_label": requested_class_label,
+        "classification_group": requested_class_group,
+        "categories": body.categories or [],
+        "catalog_items": body.catalog_items or [],
+        "location": body.location,
+        "email": body.email,
+        "phone": body.phone,
+        "booking_prefix": body.booking_prefix,
+        "niche": body.niche,
+        "social_links": body.social_links or {},
+        "content_depth": body.content_depth,
+        "include_shopping_cart": body.include_shopping_cart,
+        "enable_chatbot": bool(site.get("enable_chatbot")),
+        "enable_blog": bool(site.get("enable_blog")),
+        "enable_livestream": bool(site.get("enable_livestream")),
+        "cart_features": cart_features,
+        "theme": site.get("theme", "modern") or "modern",
+    }
+    source_context = {
+        "scraped_title": scraped_title,
+        "nav_links": nav_links_for_prompt or [],
+        "reference_urls": reference_urls,
+        "reference_usage_by_url": [
+            {"url": u, "usage": reference_usage_map[u]} for u in reference_urls if u in reference_usage_map
+        ],
+        "reference_sites": scraped_reference_summaries,
+        "reference_quality": reference_quality,
+        "failed_reference_urls": failed_reference_urls,
+        "extra_context": extra_context,
+    }
 
     logger.info("[%s] 🏗  Prompt ready (%d chars, %d cart features, chatbot=%s) — queuing build",
                 trace_id, len(full_prompt), len(cart_features), bool(site.get("enable_chatbot")))
@@ -392,34 +833,74 @@ async def build_website_pages(
     db.execute(
         "UPDATE websites SET build_status = 'queued', build_job_id = %s, "
         "build_started_at = CURRENT_TIMESTAMP(), build_error = NULL, "
-        "updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
-        (trace_id, website_id),
+        "input_snapshot_json = %s, source_context_json = %s, updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+        (trace_id, json.dumps(input_snapshot), json.dumps(source_context), website_id),
     )
 
     # ── Background task — does NOT block the HTTP response ────────────────────
-    # Use the real site name as the project/folder name (not first words of the prompt)
-    _site_name = site.get("name") or site.get("title") or ""
-    if scraped_title:
-        _site_name = scraped_title
-        # Strip duplicate suffix e.g. "Foo – Foo" → "Foo"
-        if " – " in _site_name:
-            _parts = [p.strip() for p in _site_name.split(" – ")]
-            if _parts[0] == _parts[-1]:
-                _site_name = _parts[0]
+    # Use the DB site title/name as the project folder name — never the scraped reference URL title
+    _site_name = site.get("title") or site.get("name") or ""
 
-    def _run_build(wid: str, prompt: str, site_name: str, uid: str, ip: str, tid: str, t_start: float, theme: str = "modern", classification: str = "generic"):
+    def _run_build(
+        wid: str,
+        prompt: str,
+        site_name: str,
+        uid: str,
+        ip: str,
+        tid: str,
+        t_start: float,
+        theme: str = "modern",
+        classification: str = "generic",
+        classification_label: str = "Generic",
+        classification_group: str = "general",
+        build_mode: str = "agentic_only",
+        output_target: str = "legacy",
+        ref_imgs: list = None,
+        wsite_id: str = "",
+    ):
         try:
+            # ── Log classification context being sent to CrewAI ──
+            logger.info(
+                "[%s] 🏷️  Classification context for CrewAI: key=%s label='%s' group='%s'",
+                tid, classification, classification_label, classification_group
+            )
+            
             db.execute(
                 "UPDATE websites SET build_status = 'running', updated_at = CURRENT_TIMESTAMP() "
                 "WHERE website_id = %s",
                 (wid,),
             )
-            output_path = build_website(prompt, project_name=site_name, theme_key=theme, classification=classification)
+            output_path = build_website(
+                prompt,
+                project_name=site_name,
+                theme_key=theme,
+                classification=classification,
+                classification_label=classification_label,
+                classification_group=classification_group,
+                build_mode=build_mode,
+                output_target=output_target,
+                reference_images=ref_imgs,
+                website_id=wsite_id,
+            )
             local_path = output_path.get("output_dir", "") if isinstance(output_path, dict) else ""
+            fallback_used = bool(output_path.get("fallback")) if isinstance(output_path, dict) else False
+            fallback_error = output_path.get("error") if isinstance(output_path, dict) else None
+            next_status = "fallback" if fallback_used else "built"
+
+            row = db.fetchone(
+                "SELECT input_snapshot_json, source_context_json FROM websites WHERE website_id = %s",
+                (wid,),
+            ) or {}
+            snapshot_obj = _safe_json_loads(row.get("input_snapshot_json"), {})
+            source_obj = _safe_json_loads(row.get("source_context_json"), {})
+            narrative = _generate_build_narrative(wid, snapshot_obj, source_obj, local_path)
+            source_obj["build_narrative"] = narrative
+            _log_build_narrative(wid, narrative)
+
             db.execute(
-                "UPDATE websites SET build_status = 'built', status = 'built', "
-                "build_error = NULL, local_path = %s, updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
-                (local_path, wid),
+                "UPDATE websites SET build_status = %s, "
+                "build_error = %s, local_path = %s, source_context_json = %s, updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+                (next_status, fallback_error, local_path, json.dumps(source_obj), wid),
             )
             log_event("website_built", user_id=uid, website_id=wid, ip_address=ip)
             logger.info("[%s] 🎉 BUILD COMPLETE  website_id=%s  total=%.1fs",
@@ -439,6 +920,12 @@ async def build_website_pages(
         request.client.host, trace_id, t0,
         site.get("theme", "modern") or "modern",
         site.get("classification", "generic") or "generic",
+        requested_class_label,
+        requested_class_group,
+        requested_build_mode,
+        requested_output_target,
+        reference_images or [],
+        website_id,
     )
 
     # Optionally include the JWT token from the Authorization header if present
@@ -452,6 +939,8 @@ async def build_website_pages(
         "job_id":    trace_id,
         "status":    "queued",
         "website_id": website_id,
+        "build_mode": requested_build_mode,
+        "output_target": requested_output_target,
     }
     if token:
         response["token"] = token
@@ -497,6 +986,48 @@ async def get_build_status(
         response["error"] = site.get("build_error")
 
     return response
+
+
+@router.get("/{website_id}/build-narrative")
+async def get_build_narrative(
+    website_id: str,
+    current_user: dict = Depends(require_app_user_or_above),
+):
+    """Return a concrete post-build narrative explaining what happened and why."""
+    user_id = current_user["sub"]
+    site = db.fetchone(
+        """SELECT website_id, name, build_status, local_path, input_snapshot_json, source_context_json
+           FROM websites
+           WHERE website_id = %s AND user_id = %s""",
+        (website_id, user_id),
+    )
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+
+    source_obj = _safe_json_loads(site.get("source_context_json"), {})
+    narrative = source_obj.get("build_narrative")
+
+    if not narrative:
+        snapshot_obj = _safe_json_loads(site.get("input_snapshot_json"), {})
+        narrative = _generate_build_narrative(
+            website_id,
+            snapshot_obj,
+            source_obj,
+            site.get("local_path") or "",
+        )
+        source_obj["build_narrative"] = narrative
+        db.execute(
+            "UPDATE websites SET source_context_json = %s, updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+            (json.dumps(source_obj), website_id),
+        )
+        _log_build_narrative(website_id, narrative)
+
+    return {
+        "website_id": website_id,
+        "name": site.get("name"),
+        "build_status": site.get("build_status"),
+        "narrative": narrative,
+    }
 
 
 @router.get("/{website_id}/build-stream")
@@ -840,7 +1371,8 @@ async def list_my_websites(
         if not website_id:
             return {"items": [], "total": 0, "page": page, "pages": 1}
         site = db.fetchone(
-            "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, image_storage_backend, image_storage_config, "
+            "SELECT website_id, name, title, theme, classification, classification_label, classification_group, build_mode, output_target, "
+            "status, domain, s3_url, cart_features, image_storage_backend, image_storage_config, "
             "enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
             "FROM websites WHERE website_id = ?",
             (website_id,),
@@ -857,7 +1389,8 @@ async def list_my_websites(
     total = total_row["cnt"] if total_row else 0
 
     items = db.fetchall(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, cart_features, image_storage_backend, image_storage_config, enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
+        "SELECT website_id, name, title, theme, classification, classification_label, classification_group, build_mode, output_target, "
+        "status, domain, s3_url, cart_features, image_storage_backend, image_storage_config, enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
         "FROM websites WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
         (effective_id, limit, offset),
     ) or []
@@ -880,7 +1413,7 @@ async def list_websites(
     total = total_row["cnt"] if total_row else 0
 
     items = db.fetchall(
-        "SELECT website_id, name, title, theme, status, domain, s3_url, image_storage_backend, image_storage_config, local_path, build_status, created_at"
+        "SELECT website_id, name, title, theme, classification, classification_label, classification_group, build_mode, output_target, status, domain, s3_url, image_storage_backend, image_storage_config, local_path, build_status, created_at"
         " FROM websites WHERE user_id = %s ORDER BY created_at DESC LIMIT %s OFFSET %s",
         (user_id, limit, offset),
     ) or []

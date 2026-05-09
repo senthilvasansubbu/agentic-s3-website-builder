@@ -42,7 +42,8 @@ theme_agent = Agent(
     CODE STANDARDS:
     - Semantic HTML5, CSS custom properties (--primary, --secondary, etc.) mapped from THEME_SPEC
     - CSS Grid / Flexbox layout, vanilla JS only
-    - Every image uses: <img src="https://source.unsplash.com/featured/{W}x{H}/?{keyword}" loading="lazy" alt="...">
+    - Every image uses: <img src="https://picsum.photos/seed/KEYWORD/1200/800" loading="lazy" alt="..."> and replaces KEYWORD with a short relevant word for the section (e.g. "laboratory", "medical", "salon", "food").
+    - CRITICAL — BRAND IDENTITY: The WEBSITE NAME given in the build spec is the ONLY brand name you may use. NEVER invent a new brand, company, or product name. Use the exact business name verbatim in the <title>, navbar, and hero heading.
     - Navbar: logo (business name), nav links, sticky on scroll
     - Hero: full-width gradient background, H1 business name, tagline, two CTA buttons
     - Each content section: heading, sub-heading, cards or list items, Unsplash images

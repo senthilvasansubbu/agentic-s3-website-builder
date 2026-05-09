@@ -51,6 +51,13 @@ TABLES = [
         s3_bucket     VARCHAR(200),
         image_storage_backend VARCHAR(20) DEFAULT 'auto', -- auto | local | s3 | gdrive
         image_storage_config  VARIANT,
+        classification VARCHAR(50) DEFAULT 'generic',
+        build_mode    VARCHAR(20)  DEFAULT 'agentic_only', -- combined | agentic_only
+        output_target VARCHAR(30)  DEFAULT 'legacy',       -- legacy | react | vue | php | ...
+        classification_label VARCHAR(120),
+        classification_group VARCHAR(120),
+        input_snapshot_json VARIANT,
+        source_context_json VARIANT,
         s3_url        VARCHAR(500),
         status        VARCHAR(20)  DEFAULT 'draft',
         plan_required VARCHAR(20)  DEFAULT 'free',
@@ -406,6 +413,38 @@ def run_migrations():
     if not _applied(7):
         _safe_alter("ALTER TABLE websites ADD COLUMN image_storage_secrets_enc TEXT")
         _mark(7, "encrypted website storage credentials")
+
+    # ── Version 8: generation contract fields ───────────────────────────────
+    if not _applied(8):
+        _safe_alter("ALTER TABLE websites ADD COLUMN build_mode TEXT DEFAULT 'agentic_only'")
+        _safe_alter("ALTER TABLE websites ADD COLUMN output_target TEXT DEFAULT 'legacy'")
+        _safe_alter("ALTER TABLE websites ADD COLUMN classification_label TEXT")
+        _safe_alter("ALTER TABLE websites ADD COLUMN input_snapshot_json TEXT")
+        _safe_alter("ALTER TABLE websites ADD COLUMN source_context_json TEXT")
+        _mark(8, "build mode/output target/classification label/context snapshot columns")
+
+    # ── Version 9: grouped classification taxonomy ─────────────────────────
+    if not _applied(9):
+        _safe_alter("ALTER TABLE websites ADD COLUMN classification_group TEXT")
+        _mark(9, "grouped classification taxonomy column")
+
+    # ── Version 10: content depth (replaces num_pages) ────────────────────
+    if not _applied(10):
+        _safe_alter("ALTER TABLE websites ADD COLUMN content_depth TEXT DEFAULT 'standard'")
+        # Migrate existing num_pages values to closest depth tier
+        try:
+            db.execute("""
+                UPDATE websites SET content_depth = CASE
+                    WHEN num_pages <= 1 THEN 'minimal'
+                    WHEN num_pages <= 3 THEN 'standard'
+                    WHEN num_pages <= 5 THEN 'detailed'
+                    ELSE 'enterprise'
+                END
+                WHERE content_depth IS NULL OR content_depth = 'standard'
+            """)
+        except Exception:
+            pass
+        _mark(10, "content_depth column replacing num_pages")
 
     # ── Always re-seed plan_features (INSERT OR IGNORE = idempotent) ─────────
     _seed_plan_features()

@@ -78,6 +78,100 @@
     input, select, textarea { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 7px; font-size: .88rem; outline: none; transition: border-color .15s; width: 100%; }
     input:focus, select:focus, textarea:focus { border-color: var(--accent); }
     textarea { resize: vertical; min-height: 80px; }
+    /* ── Field hints ── */
+    .field-hint { font-size:.72rem; color:var(--muted); margin-top:4px; line-height:1.45; }
+    .field-hint em { color:var(--text); font-style:normal; font-weight:500; }
+    /* Import flow stepper */
+    .import-flow-steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 14px 0 16px;
+    }
+    .import-flow-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255,255,255,.02);
+      min-height: 50px;
+    }
+    .import-flow-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--muted);
+      flex: 0 0 22px;
+      transition: all .2s ease;
+    }
+    .import-flow-label {
+      font-size: .78rem;
+      color: var(--muted);
+      line-height: 1.3;
+      font-weight: 600;
+    }
+    .import-flow-step.complete .import-flow-dot {
+      border-color: var(--success);
+      background: rgba(34,197,94,.18);
+      color: var(--success);
+    }
+    .import-flow-step.complete .import-flow-label { color: #cfead7; }
+    .import-flow-step.current {
+      border-color: rgba(99,102,241,.55);
+      background: rgba(99,102,241,.14);
+      box-shadow: 0 0 0 2px rgba(99,102,241,.15) inset;
+    }
+    .import-flow-step.current .import-flow-dot {
+      border-color: var(--accent);
+      background: rgba(99,102,241,.28);
+      color: #fff;
+    }
+    .import-flow-step.current .import-flow-label { color: var(--text); }
+    .import-flow-step.next {
+      border-color: rgba(245,158,11,.55);
+      background: rgba(245,158,11,.1);
+    }
+    .import-flow-step.next .import-flow-dot {
+      border-color: var(--warn);
+      color: var(--warn);
+      background: rgba(245,158,11,.16);
+    }
+    .import-flow-step.next .import-flow-label::after {
+      content: ' (next)';
+      color: var(--warn);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: .64rem;
+      letter-spacing: .2px;
+    }
+    .import-flow-hint {
+      font-size: .74rem;
+      color: var(--muted);
+      margin-top: -2px;
+      margin-bottom: 8px;
+    }
+    /* ── Tag Input ── */
+    .tag-input-wrap { display:flex; flex-wrap:wrap; gap:6px; align-items:center; min-height:42px; padding:7px 10px; border:1px solid var(--border); border-radius:7px; background:var(--bg); cursor:text; transition:border-color .15s; }
+    .tag-input-wrap:focus-within { border-color:var(--accent); }
+    .tag-chip { display:inline-flex; align-items:center; gap:5px; background:rgba(99,102,241,.18); color:var(--accent); border:1px solid rgba(99,102,241,.3); border-radius:20px; padding:3px 10px 3px 11px; font-size:.78rem; font-weight:500; white-space:nowrap; cursor:pointer; transition:background .15s; }
+    .tag-chip:hover { background:rgba(99,102,241,.28); }
+    .tag-chip.editing { background:rgba(99,102,241,.08); border-color:var(--accent); outline:none; }
+    .tag-chip .chip-x { font-size:.75rem; line-height:1; color:var(--muted); margin-left:2px; cursor:pointer; border-radius:50%; padding:0 2px; }
+    .tag-chip .chip-x:hover { color:#ef4444; background:rgba(239,68,68,.15); }
+    .tag-input-inner { border:none; background:transparent; outline:none; color:var(--text); font-size:.84rem; min-width:160px; flex:1; padding:1px 0; }
+    /* ── Tooltip ── */
+    .help-icon { display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; background:rgba(99,102,241,.18); color:var(--accent); font-size:.62rem; font-weight:800; cursor:default; margin-left:5px; position:relative; vertical-align:middle; }
+    .help-icon:hover .tip { display:block; }
+    .tip { display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:#1a1f2e; border:1px solid var(--border); color:var(--text); font-size:.72rem; font-weight:400; padding:8px 10px; border-radius:7px; width:240px; white-space:normal; z-index:200; line-height:1.5; box-shadow:0 4px 16px rgba(0,0,0,.35); pointer-events:none; }
+    .tip::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:#1a1f2e; }
     .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
     .theme-card { border: 2px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer; font-size: .82rem; transition: border-color .2s, box-shadow .2s; position: relative; }
     .theme-card:hover, .theme-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.18); }
@@ -93,12 +187,15 @@
     .theme-card .selected-badge { position: absolute; top: 6px; right: 6px; background: var(--accent); color: #fff; font-size: .6rem; font-weight: 700; padding: 2px 7px; border-radius: 20px; display: none; }
     .theme-card.selected .selected-badge { display: block; }
     /* Classification picker */
-    .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 20px; }
-    .class-card { border: 2px solid var(--border); border-radius: 10px; padding: 12px 10px; cursor: pointer; text-align: center; font-size: .8rem; transition: border-color .2s, box-shadow .2s; position: relative; background: var(--card); }
+    .class-groups { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .class-group { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: rgba(99,102,241,.04); }
+    .class-group-title { font-size: .74rem; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .class-group-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .class-card { border: 2px solid var(--border); border-radius: 10px; padding: 12px 10px; cursor: pointer; text-align: center; font-size: .8rem; transition: border-color .2s, box-shadow .2s; position: relative; background: var(--card); min-height: 118px; display: flex; flex-direction: column; justify-content: center; }
     .class-card:hover, .class-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.18); }
     .class-card .class-icon { font-size: 1.6rem; margin-bottom: 6px; }
-    .class-card .class-label { font-weight: 700; font-size: .8rem; margin-bottom: 2px; }
-    .class-card .class-desc { font-size: .68rem; color: var(--muted); }
+    .class-card .class-label { font-weight: 700; font-size: .8rem; margin-bottom: 4px; }
+    .class-card .class-desc { font-size: .68rem; color: var(--muted); line-height: 1.35; }
     .class-card .selected-badge { position: absolute; top: 5px; right: 5px; background: var(--accent); color: #fff; font-size: .58rem; font-weight: 700; padding: 1px 6px; border-radius: 20px; display: none; }
     .class-card.selected .selected-badge { display: block; }
     /* Theme Preview Modal — upgraded */
@@ -156,6 +253,7 @@
       #main { margin-left: 60px; padding: 16px; }
       .form-row { grid-template-columns: 1fr; }
       .form-group.full { grid-column: span 1; }
+      .import-flow-steps { grid-template-columns: 1fr; gap: 8px; }
     }
 
     /* Chatbot Widget */
@@ -296,6 +394,19 @@
           <option value="dark">Dark</option>
           <option value="nature">Nature</option>
           <option value="ecommerce">E-Commerce</option>
+          <option value="ocean">Ocean</option>
+          <option value="sunrise">Sunrise</option>
+          <option value="serene">Serene</option>
+          <option value="terra">Terra</option>
+          <option value="slate">Slate</option>
+          <option value="blossom">Blossom</option>
+          <option value="photography">Aurora</option>
+          <option value="school">Summit</option>
+          <option value="hospital">Clarity</option>
+          <option value="student">Pulse</option>
+          <option value="comic">Spark</option>
+          <option value="professional">Keystone</option>
+          <option value="trendy">Nova</option>
         </select>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
@@ -377,25 +488,62 @@
         ✨ Agentic Build
       </button>
     </div>
+    <div id="importFlowSteps" class="import-flow-steps" aria-label="Import flow progress">
+      <div class="import-flow-step" data-step="1"><span class="import-flow-dot">1</span><span class="import-flow-label">Add Site URL</span></div>
+      <div class="import-flow-step" data-step="2"><span class="import-flow-dot">2</span><span class="import-flow-label">Pick Type & Theme</span></div>
+      <div class="import-flow-step" data-step="3"><span class="import-flow-dot">3</span><span class="import-flow-label">Fetch & Review</span></div>
+      <div class="import-flow-step" data-step="4"><span class="import-flow-dot">4</span><span class="import-flow-label">Generate Website</span></div>
+    </div>
+    <div id="importFlowHint" class="import-flow-hint"></div>
 
     <!-- Import panel -->
     <div id="buildPanel-import" class="card" style="border-top-left-radius:0;border-top-right-radius:0">
       <div style="font-size:.9rem;font-weight:600;color:var(--text);margin-bottom:4px">🔗 Import from Existing Website</div>
-      <div style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Paste your current website URL — we'll extract business info and pre-fill the Agentic Build form.</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">Paste your current website URL — we'll extract business info and pre-fill the Agentic Build form.</div>
+      <div class="field-hint" style="margin-bottom:10px">💡 <em>Best results:</em> use a URL with visible navigation, headings, and product/service content. Social media links and gated pages won't extract well.</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="existingUrl" type="url" placeholder="https://yourexistingwebsite.com" style="flex:1" />
-        <button class="btn btn-secondary" onclick="fetchWebsiteInfo()" id="fetchUrlBtn">🔍 Fetch Info</button>
       </div>
-      <div id="fetchUrlStatus" style="margin-top:8px;font-size:.8rem;display:none"></div>
+      <div class="field-hint" style="margin-top:6px">Start with your homepage or a page that clearly shows services/products. Avoid login pages, social profile links, and URLs that require sign-in.</div>
+      <div style="margin-top:8px;display:flex;align-items:flex-start;gap:8px;max-width:680px">
+        <input id="importIsOwnUrl" type="checkbox" style="margin-top:2px;width:14px;height:14px;flex:0 0 auto;cursor:pointer" />
+        <label for="importIsOwnUrl" style="margin:0;font-size:.8rem;line-height:1.35;color:var(--muted);cursor:pointer;display:block">
+          This is my own website URL (allow contact fields to be pre-filled from the imported site)
+        </label>
+      </div>
+      <div class="field-hint" style="margin-top:4px">Check this only for your own website. Leave it unchecked for competitor/reference sites so your contact info is not overwritten.</div>
+      <div style="margin-top:10px">
+        <label style="font-size:.78rem;color:var(--muted);display:block;margin-bottom:4px">Additional reference URLs with usage note <span style="font-size:.72rem">(optional, one per line)</span></label>
+        <textarea id="existingUrls" placeholder="https://microsoft.com - inspirational&#10;https://msn.com - theme&#10;https://google.com - fyi" style="min-height:104px"></textarea>
+        <div class="field-hint">Format each line as: <em>URL - how to use it</em>. This is requested so Agentic AI can understand the exact purpose of every reference (for example visual inspiration, theme direction, or background context) and apply each URL correctly while generating your website.</div>
+      </div>
 
-      <div style="margin-top:22px">
-        <p style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px">Step 1 — What type of website is this?</p>
-        <div class="class-grid" id="importClassGrid"></div>
+      <div style="margin-top:20px;padding:12px 14px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);border-radius:8px">
+        <p style="font-size:.78rem;color:var(--accent);font-weight:600;margin:0">📋 Next: Select your Business Type and Visual Theme below (required to fetch)</p>
       </div>
-      <div>
-        <p style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px">Step 2 — Choose a visual theme</p>
+
+      <div style="margin-top:20px">
+        <p style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px">Business Classification</p>
+        <p style="font-size:.78rem;color:var(--muted);margin:-4px 0 10px">Pick the closest match. It helps AI choose better layout patterns, content tone, and section priorities.</p>
+        <div class="class-groups" id="importClassGrid"></div>
+      </div>
+      <div style="margin-top:20px">
+        <p style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px">Visual Theme</p>
+        <p style="font-size:.78rem;color:var(--muted);margin:-4px 0 10px">This controls colors, typography feel, and visual style. You can change it later.</p>
         <div class="theme-grid" id="importThemeGrid"></div>
       </div>
+
+      <div style="margin-top:20px;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary" onclick="fetchWebsiteInfo()" id="fetchUrlBtn" style="flex:1">🔍 Fetch Info from URLs</button>
+        <span id="fetchBtnRequirement" style="font-size:.75rem;color:var(--warn);font-weight:600;display:none;white-space:nowrap">⚠️ Select Type & Theme</span>
+      </div>
+      <div id="fetchUrlStatus" style="margin-top:8px;font-size:.8rem;display:none"></div>
+      <div id="fetchUrlDetails" style="margin-top:8px;font-size:.78rem;color:var(--muted);display:none;line-height:1.5"></div>
+      <div id="referenceQualityIndicator" style="margin-top:10px;display:none;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(99,102,241,.06)">
+        <div id="referenceQualitySummary" style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:6px"></div>
+        <div id="referenceQualityDetails" style="font-size:.76rem;color:var(--muted);line-height:1.45"></div>
+      </div>
+      <div class="field-hint" style="margin-top:8px">After Fetch: review the extracted summary and chips in Agentic Build, then adjust anything you want before generating.</div>
 
       <p style="margin-top:16px;font-size:.82rem;color:var(--muted);padding:12px 14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px">
         ✅ After selecting above, click <strong>✨ Agentic Build</strong> — all fields will be pre-filled. Review and click <em>Generate Website</em>.
@@ -405,33 +553,123 @@
     <!-- Agentic Build panel -->
     <div id="buildPanel-agent" class="card" style="display:none;border-top-left-radius:0;border-top-right-radius:0">
 
+      <div class="form-row">
+        <div class="form-group">
+          <label>Build Flow</label>
+          <select id="buildMode">
+            <option value="agentic_only" selected>Agentic Only</option>
+            <option value="combined">Combined (Import + Agentic)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Output Target</label>
+          <select id="buildOutputTarget">
+            <option value="legacy" selected>Legacy (HTML/CSS/JS)</option>
+            <option value="react">React</option>
+            <option value="vue">Vue</option>
+            <option value="php">PHP</option>
+          </select>
+        </div>
+      </div>
+
       <p style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px">Website Classification</p>
-      <div class="class-grid" id="agentClassGrid"></div>
+      <p style="font-size:.78rem;color:var(--muted);margin:-4px 0 10px">Pick the closest leaf classification. The selected type is sent to Agentic AI and stored with the website record.</p>
+      <div class="class-groups" id="agentClassGrid"></div>
 
       <div class="form-row">
-        <div class="form-group"><label>Website Name</label><input id="buildName" placeholder="e.g. My Bakery Shop" /></div>
-        <div class="form-group"><label>Niche / Category</label><input id="buildNiche" placeholder="e.g. Food, Tech, Portfolio…" /></div>
+        <div class="form-group">
+          <label>Website Name <span class="help-icon">?<span class="tip">The business or site name. Used as the page title, header logo text, and folder name for the generated files. Keep it concise.</span></span></label>
+          <input id="buildName" placeholder="e.g. Amazon, Microsoft, Uber" />
+        </div>
+        <div class="form-group">
+          <label>Niche / Category <span class="help-icon">?<span class="tip">A short keyword describing your business type. Helps the AI pick relevant imagery and copy style. E.g. Diagnostics, Bakery, Law, Fitness.</span></span></label>
+          <input id="buildNiche" placeholder="e.g. Diagnostics, Bakery, Law, Portfolio…" />
+        </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Number of Pages</label><select id="buildPages"><option value="1">1 page</option><option value="3" selected>3 pages</option><option value="5">5 pages</option><option value="10">10 pages</option></select></div>
-        <div class="form-group"><label>Primary Color</label><input type="color" id="buildColor" value="#6366f1" style="height:40px;padding:4px;" /></div>
+        <div class="form-group">
+          <label>Content Depth <span class="help-icon">?<span class="tip">Controls how detailed the AI-generated content is. Minimal = single-scroll landing page. Standard = 3–5 sections. Detailed = rich multi-section site. Enterprise = full depth with caseStudies and extensive copy.</span></span></label>
+          <select id="buildDepth"><option value="minimal">Minimal — single scroll landing page</option><option value="standard" selected>Standard — 3–5 rich sections</option><option value="detailed">Detailed — full multi-section site</option><option value="enterprise">Enterprise — full depth, extensive copy</option></select>
+          <div class="field-hint">Higher depth = longer build time.</div>
+        </div>
+        <div class="form-group">
+          <label>Primary Color <span class="help-icon">?<span class="tip">Sets the accent/brand color used for buttons, highlights, and links. Tip: pick your brand's primary color.</span></span></label>
+          <input type="color" id="buildColor" value="#6366f1" style="height:40px;padding:4px;" />
+        </div>
       </div>
-      <div class="form-group full" style="margin-bottom:16px"><label>Requirements (describe your site)</label><textarea id="buildReq" placeholder="Tell us about your business, products, services, or goals…"></textarea></div>
+      <div class="form-group full" style="margin-bottom:10px">
+        <label>Imported Summary (from URL Fetch)</label>
+        <textarea id="importedSummary" readonly placeholder="After Fetch Info, extracted summary appears here. It is NOT auto-injected into Context unless you choose to use it." style="min-height:92px;opacity:.92"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:-2px 0 12px">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="useImportedSummaryReplace()">Use Summary in Context</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="appendImportedSummaryToContext()">Append Summary to Context</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="clearImportedSummary()">Ignore / Clear Summary</button>
+      </div>
+      <div class="form-group full" style="margin-bottom:16px">
+        <label>Context &amp; Requirements for Agentic AI <span class="help-icon">?<span class="tip">Describe your business in plain language. Include what you sell/offer, who your customers are, your tone (professional, friendly, luxury), and any specific sections you want. The richer the context, the better the output.</span></span></label>
+        <textarea id="buildReq" placeholder="Scenario 1: Local service business (e.g., salon, clinic, agency). Mention your core services, location, audience, and preferred tone.\n\nScenario 2: Product/catalog business (e.g., store, distributor, manufacturer). Mention product categories, buyer types, and desired sections like Products, Pricing, and Contact.\n\nScenario 3: Personal or professional brand (e.g., coach, consultant, artist). Mention your expertise, target clients, goals, and CTA such as Book a Call or Get a Quote."></textarea>
+      </div>
 
       <div class="form-row">
-        <div class="form-group"><label>Product / Service Categories</label><input id="buildCategories" placeholder="e.g. Cakes, Breads, Pastries, Beverages" /></div>
-        <div class="form-group"><label>Business Location / Address</label><input id="buildLocation" placeholder="123 Main St, New York, NY 10001" /></div>
+        <div class="form-group">
+          <label>Page Sections &amp; Nav Groups <span class="help-icon">?<span class="tip">Each entry becomes a tab in the navigation and a distinct visual section on the page. Drag chips to reorder. Click a chip to edit; × to remove.</span></span></label>
+          <div class="tag-input-wrap" id="navTagWrap" onclick="navTagWrapClick(event)">
+            <!-- chips injected by JS -->
+            <input class="tag-input-inner" id="navTagInput" placeholder="e.g. Products, Services, About — press comma or Enter to add" autocomplete="off" />
+          </div>
+          <input type="hidden" id="buildCategories" />
+          <div class="field-hint">Each chip = one nav link + one page section. <em>Drag to reorder</em>. Fetching a URL above auto-fills from the site's navigation.</div>
+        </div>
+        <div class="form-group">
+          <label>Business Location / Address <span class="help-icon">?<span class="tip">Full street address. Used in the Contact section and auto-embedded as a Google Maps iframe.</span></span></label>
+          <input id="buildLocation" placeholder="123 Main St, New York, NY 10001" />
+          <div class="field-hint">Appears in the Contact section with an embedded map.</div>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Product / Model Names <span style="font-size:.74rem;color:var(--muted);font-weight:400">(exact names only — prevents AI hallucination)</span> <span class="help-icon">?<span class="tip">List the exact product or model names. Each becomes a product card. The AI will NOT invent any names. Click a tag to edit it; press × to remove.</span></span></label>
+        <div class="tag-input-wrap" id="catalogTagWrap" onclick="catalogTagWrapClick(event)">
+          <!-- chips injected by JS -->
+          <input class="tag-input-inner" id="catalogTagInput" placeholder="e.g. Model X Pro, Widget 200 — type a name and press Enter or comma to add" autocomplete="off" />
+        </div>
+        <!-- hidden comma-list read by build payload -->
+        <input type="hidden" id="buildCatalogItems" />
+        <div class="field-hint">⚠️ Leave blank to let the AI guess, or type exact product/model names to prevent hallucination. <em>Drag to reorder. Fetching a URL above auto-fills from the scraped site.</em> Click a tag to edit; × to remove.</div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Contact Email</label><input id="buildEmail" type="email" placeholder="info@yourbusiness.com" /></div>
-        <div class="form-group"><label>Contact Phone</label><input id="buildPhone" type="tel" placeholder="+1-555-000-0000" /></div>
+        <div class="form-group">
+          <label>Contact Email <span class="help-icon">?<span class="tip">Placed in the Contact section and footer. Used for the contact form's mailto link. Use your real business email.</span></span></label>
+          <input id="buildEmail" type="email" placeholder="info@yourbusiness.com" />
+        </div>
+        <div class="form-group">
+          <label>Contact Phone <span class="help-icon">?<span class="tip">Displayed in the Contact section, header, and footer. Include country code for clickable tel: links.</span></span></label>
+          <input id="buildPhone" type="tel" placeholder="+91-98765-43210" />
+        </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Instagram URL(s)</label><input id="buildInstagram" placeholder="https://instagram.com/yourbusiness (comma-separate multiple)" /></div>
-        <div class="form-group"><label>Facebook URL(s)</label><input id="buildFacebook" placeholder="https://facebook.com/yourbusiness (comma-separate multiple)" /></div>
+        <div class="form-group">
+          <label>Booking / Order Prefix <span class="help-icon">?<span class="tip">A short code prepended to auto-generated order/booking reference numbers. E.g. "BK" produces BK-1746123456. Only relevant when Shopping Cart is enabled.</span></span></label>
+          <input id="buildBookingPrefix" placeholder="e.g. BK, ORD, RES" />
+          <div class="field-hint">Used when Shopping Cart is enabled. <em>BK</em> → order refs like BK-17461234.</div>
+        </div>
+        <div class="form-group"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>LinkedIn URL(s)</label><input id="buildLinkedin" placeholder="https://linkedin.com/company/yourbusiness (comma-separate multiple)" /></div>
+        <div class="form-group">
+          <label>Instagram URL(s) <span class="help-icon">?<span class="tip">Full Instagram profile URL(s). Shown as icon links in the footer. Use comma to separate multiple pages.</span></span></label>
+          <input id="buildInstagram" placeholder="https://instagram.com/yourbusiness" />
+        </div>
+        <div class="form-group">
+          <label>Facebook URL(s) <span class="help-icon">?<span class="tip">Full Facebook page URL(s). Shown as icon links in the footer.</span></span></label>
+          <input id="buildFacebook" placeholder="https://facebook.com/yourbusiness" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>LinkedIn URL(s) <span class="help-icon">?<span class="tip">Full LinkedIn company or profile URL(s). Shown as icon links in the footer.</span></span></label>
+          <input id="buildLinkedin" placeholder="https://linkedin.com/company/yourbusiness" />
+        </div>
         <div class="form-group"></div>
       </div>
       <div id="socialSearchRow" style="display:none;margin-top:4px;padding:10px 14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;font-size:.82rem;color:var(--muted)">
@@ -443,7 +681,7 @@
 
       <div style="margin-top:20px">
         <div class="toggle-row" id="toggleRowCart">
-          <div><div class="toggle-label">Enable Shopping Cart <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">Add e-commerce functionality to your site</div></div>
+          <div><div class="toggle-label">Enable Shopping Cart <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">Add e-commerce functionality — product catalog, cart, checkout, order management</div></div>
           <label class="toggle"><input type="checkbox" id="buildCart" onchange="toggleCartFeatures()"><span class="slider"></span></label>
         </div>
         <div id="cartFeaturesPanel" style="display:none;margin-top:12px;padding:16px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px">
@@ -465,23 +703,23 @@
           </div>
         </div>
         <div class="toggle-row">
-          <div><div class="toggle-label">Web Search Enhanced</div><div class="toggle-desc">AI uses live web data for content generation</div></div>
+          <div><div class="toggle-label">Web Search Enhanced</div><div class="toggle-desc">AI uses live web data for richer, more accurate content. Recommended — disable only for offline/private builds.</div></div>
           <label class="toggle"><input type="checkbox" id="buildWebSearch" checked><span class="slider"></span></label>
         </div>
         <div class="toggle-row" id="toggleRowSocial">
-          <div><div class="toggle-label">Auto-search Social Profiles <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">If no social URLs entered, agent searches and links official profiles automatically</div></div>
+          <div><div class="toggle-label">Auto-search Social Profiles <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">If you didn't enter social URLs above, the AI searches Google for your official accounts by business name and links them automatically.</div></div>
           <label class="toggle"><input type="checkbox" id="buildSocialSearch" onchange="toggleSocialSearch()"><span class="slider"></span></label>
         </div>
         <div class="toggle-row" id="toggleRowLivestream">
-          <div><div class="toggle-label">Enable Live Stream <span class="plan-badge" style="font-size:.68rem;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Enterprise</span></div><div class="toggle-desc">Add a Live Stream page with embedded player, chat and schedule</div></div>
+          <div><div class="toggle-label">Enable Live Stream <span class="plan-badge" style="font-size:.68rem;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Enterprise</span></div><div class="toggle-desc">Adds a /livestream page with an embeddable video player placeholder, event schedule, and chat section.</div></div>
           <label class="toggle"><input type="checkbox" id="buildLivestream"><span class="slider"></span></label>
         </div>
         <div class="toggle-row" id="toggleRowBlog">
-          <div><div class="toggle-label">Enable Blog <span class="plan-badge" style="font-size:.68rem;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Enterprise</span></div><div class="toggle-desc">Add a Blog page with sample posts and navigation link</div></div>
+          <div><div class="toggle-label">Enable Blog <span class="plan-badge" style="font-size:.68rem;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Enterprise</span></div><div class="toggle-desc">Adds a /blog page with 3 AI-written sample posts in your domain. You can edit or replace posts after publishing.</div></div>
           <label class="toggle"><input type="checkbox" id="buildBlog"><span class="slider"></span></label>
         </div>
         <div class="toggle-row" id="toggleRowChatbot">
-          <div><div class="toggle-label">Enable Chatbot <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">Add a floating customer-support chat widget to every page</div></div>
+          <div><div class="toggle-label">Enable Chatbot <span class="plan-badge" style="font-size:.68rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px">Pro+</span></div><div class="toggle-desc">Adds a floating chat widget in the bottom-right corner of every page for visitor support queries.</div></div>
           <label class="toggle"><input type="checkbox" id="buildChatbot"><span class="slider"></span></label>
         </div>
       </div>
@@ -643,6 +881,28 @@
 
     <!-- Status bar -->
     <div id="stagingStatusBar" style="margin-top:8px;font-size:.79rem;color:var(--muted);min-height:18px"></div>
+
+    <!-- Agentic Build Narrative -->
+    <div id="stagingNarrativeCard" class="card" style="display:none;margin-top:12px;padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-size:.85rem;font-weight:700;color:var(--text)">🧠 Agentic Build Narrative</div>
+        <div id="stagingNarrativeMeta" style="font-size:.74rem;color:var(--muted)"></div>
+      </div>
+      <div id="stagingNarrativeBadgeWrap" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="stagingNarrativeBadge" style="font-size:.72rem;font-weight:700;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:rgba(99,102,241,.08)">⌛ Evaluating</span>
+        <span id="stagingNarrativeBadgeText" style="font-size:.74rem;color:var(--muted)"></span>
+      </div>
+      <!-- Classification Context Display -->
+      <div id="stagingNarrativeClassification" style="margin-top:8px;padding:8px;background:rgba(99,102,241,.04);border:1px solid rgba(99,102,241,.15);border-radius:6px;display:none">
+        <div style="font-size:.72rem;font-weight:700;color:var(--text);margin-bottom:4px">📋 Classification Context</div>
+        <div style="font-size:.73rem;color:var(--text);line-height:1.4">
+          <span style="color:var(--muted)">Classification:</span> <span id="stagingNarrativeClassKey" style="color:var(--accent)">—</span>
+          <span style="margin-left:16px;color:var(--muted)">Label:</span> <span id="stagingNarrativeClassLabel">—</span>
+          <span style="margin-left:16px;color:var(--muted)">Group:</span> <span id="stagingNarrativeClassGroup" style="color:var(--accent)">—</span>
+        </div>
+      </div>
+      <pre id="stagingNarrativeBody" style="margin-top:10px;white-space:pre-wrap;word-break:break-word;font-size:.78rem;line-height:1.5;color:var(--text);max-height:300px;overflow:auto;background:rgba(99,102,241,.06);padding:12px;border:1px solid var(--border);border-radius:8px"></pre>
+    </div>
   </div>
 
   <!-- ── Add Section Modal ── -->
@@ -712,13 +972,26 @@
               <option value="dark">Dark</option>
               <option value="nature">Nature</option>
               <option value="ecommerce">E-Commerce</option>
+              <option value="ocean">Ocean</option>
+              <option value="sunrise">Sunrise</option>
+              <option value="serene">Serene</option>
+              <option value="terra">Terra</option>
+              <option value="slate">Slate</option>
+              <option value="blossom">Blossom</option>
+              <option value="photography">Aurora</option>
+              <option value="school">Summit</option>
+              <option value="hospital">Clarity</option>
+              <option value="student">Pulse</option>
+              <option value="comic">Spark</option>
+              <option value="professional">Keystone</option>
+              <option value="trendy">Nova</option>
             </select>
           </div>
         </div>
 
         <div class="form-group" style="margin-bottom:16px">
-          <label>Updated Requirements</label>
-          <textarea id="ewReq" style="min-height:130px" placeholder="Describe what to change, add, or improve. The AI will rebuild the website based on your new instructions…"></textarea>
+          <label>Updated Context &amp; Requirements for Agentic AI</label>
+          <textarea id="ewReq" style="min-height:130px" placeholder="Describe what to change, add, or improve. The AI will rebuild the website based on your updated context and instructions…"></textarea>
         </div>
 
         <div class="form-row">

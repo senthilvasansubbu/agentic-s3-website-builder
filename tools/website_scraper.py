@@ -11,11 +11,12 @@ Improvements over v1:
 """
 import re
 import logging
+import json
 import urllib.request
 import urllib.error
 from html.parser import HTMLParser
 from typing import Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, unquote
 
 logger = logging.getLogger("website_builder.scraper")
 
@@ -43,6 +44,9 @@ class _SiteParser(HTMLParser):
         self.phones: list[str] = []
         self.nav_links: list[dict] = []   # list of {text, href}
         self.images: list[str] = []
+        self.videos: list[str] = []
+        self.audios: list[str] = []
+        self.embeds: list[str] = []
         self.inline_styles: list[str] = []
 
         self._in_title = False
@@ -50,13 +54,46 @@ class _SiteParser(HTMLParser):
         self._current_para = False
         self._current_nav = False
         self._in_nav_link = False
+        self._in_video = False
+        self._in_audio = False
         self._nav_link_href = ""
         self._buf = ""
         self._skip_tags = {"script", "style", "noscript", "svg", "iframe"}
         self._current_skip_depth = 0
 
+    @staticmethod
+    def _is_video_url(url: str) -> bool:
+        return bool(re.search(r"\.(mp4|webm|ogv|mov|m4v|m3u8)(?:$|[?#])", url, re.I))
+
+    @staticmethod
+    def _is_audio_url(url: str) -> bool:
+        return bool(re.search(r"\.(mp3|wav|ogg|m4a|aac|flac)(?:$|[?#])", url, re.I))
+
+    def _add_video(self, src: str):
+        if src and src not in self.videos:
+            self.videos.append(src)
+
+    def _add_audio(self, src: str):
+        if src and src not in self.audios:
+            self.audios.append(src)
+
+    def _add_embed(self, src: str):
+        if src and src not in self.embeds:
+            self.embeds.append(src)
+
     def handle_starttag(self, tag, attrs):
         attr = dict(attrs)
+        if tag == "iframe":
+            src = attr.get("src", "").strip()
+            if src and not src.startswith("data:"):
+                abs_src = urljoin(self.base_url, src)
+                # Keep common playable embeds to re-use in rebuilt sites.
+                if re.search(r"youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com", abs_src, re.I):
+                    self._add_embed(abs_src)
+                    if re.search(r"youtube\.com|youtu\.be|vimeo\.com", abs_src, re.I):
+                        self._add_video(abs_src)
+            self._current_skip_depth += 1
+            return
         if tag in self._skip_tags:
             self._current_skip_depth += 1
             return
@@ -82,13 +119,60 @@ class _SiteParser(HTMLParser):
             self._current_nav = True
         if tag == "a":
             href = attr.get("href", "").strip()
+            if href:
+                abs_href = urljoin(self.base_url, href)
+                if self._is_video_url(abs_href):
+                    self._add_video(abs_href)
+                elif self._is_audio_url(abs_href):
+                    self._add_audio(abs_href)
             if self._current_nav and href:
                 abs_href = urljoin(self.base_url, href)
                 self._in_nav_link = True
                 self._nav_link_href = abs_href
                 self._buf = ""
+        if tag == "video":
+            self._in_video = True
+            src = (
+                attr.get("src", "").strip()
+                or attr.get("data-src", "").strip()
+                or attr.get("data-original", "").strip()
+            )
+            if src and not src.startswith("data:"):
+                self._add_video(urljoin(self.base_url, src))
+        if tag == "audio":
+            self._in_audio = True
+            src = (
+                attr.get("src", "").strip()
+                or attr.get("data-src", "").strip()
+                or attr.get("data-original", "").strip()
+            )
+            if src and not src.startswith("data:"):
+                self._add_audio(urljoin(self.base_url, src))
+        if tag == "source":
+            src = (
+                attr.get("src", "").strip()
+                or attr.get("data-src", "").strip()
+                or attr.get("data-original", "").strip()
+            )
+            if src and not src.startswith("data:"):
+                abs_src = urljoin(self.base_url, src)
+                media_type = attr.get("type", "").lower().strip()
+                if self._in_video or media_type.startswith("video/") or self._is_video_url(abs_src):
+                    self._add_video(abs_src)
+                elif self._in_audio or media_type.startswith("audio/") or self._is_audio_url(abs_src):
+                    self._add_audio(abs_src)
         if tag == "img":
-            src = attr.get("src", "").strip()
+            # Support lazy-loaded carousels that often use data-* attributes.
+            src = (
+                attr.get("src", "").strip()
+                or attr.get("data-src", "").strip()
+                or attr.get("data-lazy-src", "").strip()
+                or attr.get("data-original", "").strip()
+            )
+            if not src:
+                srcset = attr.get("data-srcset", "").strip() or attr.get("srcset", "").strip()
+                if srcset:
+                    src = srcset.split(",")[0].strip().split(" ")[0].strip()
             if src and not src.startswith("data:"):
                 abs_src = urljoin(self.base_url, src)
                 if abs_src not in self.images:
@@ -125,6 +209,10 @@ class _SiteParser(HTMLParser):
             self._in_nav_link = False
             self._nav_link_href = ""
             self._buf = ""
+        if tag == "video":
+            self._in_video = False
+        if tag == "audio":
+            self._in_audio = False
 
     def handle_data(self, data):
         if self._current_skip_depth > 0:
@@ -164,6 +252,183 @@ def _extract_colors(parser: _SiteParser, raw_html: str) -> list[str]:
     return [c for c in sorted(colors) if c not in exclude][:20]
 
 
+def _extract_jsonld_products(raw_html: str, base_url: str) -> list[dict]:
+    """Extract Product name/image pairs from JSON-LD blobs."""
+    products: list[dict] = []
+    blocks = re.findall(r"<script[^>]*type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>", raw_html, re.I | re.S)
+    for b in blocks:
+        text = b.strip()
+        if not text:
+            continue
+        try:
+            obj = json.loads(text)
+            nodes = obj if isinstance(obj, list) else [obj]
+        except Exception:
+            continue
+        for n in nodes:
+            if not isinstance(n, dict):
+                continue
+            ntype = str(n.get("@type", "")).lower()
+            if "product" not in ntype:
+                continue
+            name = str(n.get("name", "")).strip()
+            img = n.get("image", "")
+            if isinstance(img, list):
+                img = img[0] if img else ""
+            img = str(img or "").strip()
+            if not name and not img:
+                continue
+            if img and not img.startswith("data:"):
+                img = urljoin(base_url, img)
+            products.append({"name": name, "image": img})
+    return products
+
+
+def _extract_carousel_products(raw_html: str, base_url: str) -> list[dict]:
+    """Heuristic extraction for product carousels (swiper/slick/owl/slider)."""
+    products: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    # Capture likely slide/item blocks.
+    block_pat = re.compile(
+        r"<(?:div|li|article|section)[^>]*class=[\"'][^\"']*(?:carousel|swiper|slick|owl|slide|slider)[^\"']*[\"'][^>]*>(.*?)</(?:div|li|article|section)>",
+        re.I | re.S,
+    )
+    text_pat = re.compile(r"<(?:h[1-6]|a|span|p)[^>]*>(.*?)</(?:h[1-6]|a|span|p)>", re.I | re.S)
+    img_pat = re.compile(
+        r"<(?:img|source)[^>]*(?:src|data-src|data-lazy-src|data-original|data-srcset|srcset)=[\"']([^\"']+)[\"'][^>]*>",
+        re.I,
+    )
+
+    for m in block_pat.finditer(raw_html):
+        block = m.group(1)
+
+        imgs: list[str] = []
+        for im in img_pat.findall(block):
+            val = im.split(",")[0].strip().split(" ")[0].strip()
+            if not val or val.startswith("data:"):
+                continue
+            imgs.append(urljoin(base_url, val))
+
+        labels: list[str] = []
+        for t in text_pat.findall(block):
+            txt = re.sub(r"<[^>]+>", " ", t)
+            txt = re.sub(r"\s+", " ", txt).strip()
+            if not txt:
+                continue
+            if len(txt) < 4 or len(txt) > 90:
+                continue
+            low = txt.lower()
+            if low in {"read more", "learn more", "shop now", "view details", "next", "prev", "previous"}:
+                continue
+            labels.append(txt)
+
+        if not imgs and not labels:
+            continue
+
+        if labels:
+            for i, label in enumerate(labels[:8]):
+                img = imgs[i] if i < len(imgs) else (imgs[0] if imgs else "")
+                key = (label.lower(), img)
+                if key in seen:
+                    continue
+                seen.add(key)
+                products.append({"name": label, "image": img})
+        elif imgs:
+            for img in imgs[:8]:
+                key = ("", img)
+                if key in seen:
+                    continue
+                seen.add(key)
+                products.append({"name": "", "image": img})
+
+    return products
+
+
+def _clean_label_from_asset_path(path_or_url: str) -> str:
+    name = unquote(path_or_url or "")
+    name = name.split("?")[0].split("#")[0]
+    name = name.rsplit("/", 1)[-1]
+    name = re.sub(r"\.(?:png|jpe?g|webp|gif|svg)$", "", name, flags=re.I)
+    # Remove bundler hash suffixes like "-C0RQ820i"
+    name = re.sub(r"-[A-Za-z0-9]{6,}$", "", name)
+    name = re.sub(r"[_\-]+", " ", name).strip()
+    if not name:
+        return ""
+    low = name.lower()
+    if re.fullmatch(r"product\d*", low):
+        return ""
+    if low in {"image", "img", "banner", "hero", "thumbnail", "assets", "asset", "sharer"}:
+        return ""
+    if len(name) < 3 or len(name) > 80:
+        return ""
+    return name
+
+
+def _extract_products_from_asset_chunks(base_url: str, raw_html: str, timeout: int = PAGE_TIMEOUT) -> list[dict]:
+    """
+    Fallback for JS-heavy sites: inspect Vite/Webpack asset bundles for
+    product image URLs and derive labels from filenames/paths.
+    """
+    products: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    # Discover entry scripts from homepage HTML.
+    script_srcs = re.findall(r"<script[^>]+src=[\"']([^\"']+)[\"']", raw_html, re.I)
+    entry_js = [urljoin(base_url, s) for s in script_srcs if "/assets/" in s and s.endswith(".js")]
+    entry_js = entry_js[:3]
+    if not entry_js:
+        return products
+
+    chunk_names: set[str] = set()
+    for js_url in entry_js:
+        try:
+            txt, _ = _fetch_text(js_url, timeout=timeout)
+        except Exception:
+            continue
+        # Extract likely product-related chunks.
+        for c in re.findall(r"([A-Za-z0-9_-]*(?:Product|product)[A-Za-z0-9_-]*\.js)", txt):
+            chunk_names.add(c)
+
+    if not chunk_names:
+        return products
+
+    origin = f"{urlparse(base_url).scheme}://{urlparse(base_url).netloc}"
+    for c in list(chunk_names)[:8]:
+        chunk_url = f"{origin}/assets/{c}"
+        try:
+            txt, _ = _fetch_text(chunk_url, timeout=timeout)
+        except Exception:
+            continue
+
+        # Absolute and relative asset image URLs in JS bundles.
+        abs_imgs = re.findall(r"https?://[^\"']+/assets/[^\"']+\.(?:png|jpe?g|webp|gif|svg)", txt, re.I)
+        rel_imgs = re.findall(r"/assets/[^\"']+\.(?:png|jpe?g|webp|gif|svg)", txt, re.I)
+
+        # Product detail links can also yield good labels.
+        prod_links = re.findall(r"https?://[^\"']+/(?:[a-z0-9-]+/){1,6}", txt, re.I)
+
+        link_labels = []
+        for link in prod_links[:120]:
+            slug = link.rstrip("/").rsplit("/", 1)[-1]
+            lbl = _clean_label_from_asset_path(slug)
+            if lbl:
+                link_labels.append(lbl)
+
+        all_imgs = abs_imgs + [urljoin(origin, p) for p in rel_imgs]
+        for i, img in enumerate(all_imgs[:120]):
+            lbl = _clean_label_from_asset_path(img)
+            if not lbl and i < len(link_labels):
+                lbl = link_labels[i]
+            key = (lbl.lower(), img)
+            if key in seen:
+                continue
+            seen.add(key)
+            products.append({"name": lbl, "image": img})
+
+    return products
+
+
 def _fetch_html(url: str, timeout: int = PAGE_TIMEOUT) -> tuple[str, str]:
     """Return (raw_html, final_url)."""
     headers = {
@@ -180,6 +445,27 @@ def _fetch_html(url: str, timeout: int = PAGE_TIMEOUT) -> tuple[str, str]:
             ct = resp.headers.get_content_type()
             if "html" not in ct:
                 raise ValueError(f"URL does not return HTML (got {ct!r})")
+            charset = resp.headers.get_param("charset") or "utf-8"
+            return resp.read().decode(charset, errors="replace"), resp.geturl()
+    except urllib.error.HTTPError as exc:
+        raise ValueError(f"HTTP {exc.code} fetching {url}: {exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise ValueError(f"Could not reach {url}: {exc.reason}") from exc
+
+
+def _fetch_text(url: str, timeout: int = PAGE_TIMEOUT) -> tuple[str, str]:
+    """Return (text, final_url) for text-like responses (JS/JSON/HTML)."""
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (compatible; WebsiteBuilderBot/1.0; "
+            "+https://github.com/senthilvasansubbu/agentic-s3-website-builder)"
+        ),
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             charset = resp.headers.get_param("charset") or "utf-8"
             return resp.read().decode(charset, errors="replace"), resp.geturl()
     except urllib.error.HTTPError as exc:
@@ -229,6 +515,26 @@ def scrape_website(url: str, timeout: int = PAGE_TIMEOUT) -> dict:
         hp.feed(raw_html)
     except Exception as exc:
         logger.warning("HTML parser error on homepage (non-fatal): %s", exc)
+
+    # Enrich extraction with carousel/json-ld product signals that are often
+    # missed by simple static parsers on modern JS-heavy storefront pages.
+    carousel_products = _extract_carousel_products(raw_html, final_url)
+    jsonld_products = _extract_jsonld_products(raw_html, final_url)
+    js_chunk_products = _extract_products_from_asset_chunks(final_url, raw_html, timeout=timeout)
+    merged_products: list[dict] = []
+    seen_prod: set[tuple[str, str]] = set()
+    for p in (carousel_products + jsonld_products + js_chunk_products):
+        nm = str(p.get("name", "")).strip()
+        im = str(p.get("image", "")).strip()
+        key = (nm.lower(), im)
+        if key in seen_prod:
+            continue
+        seen_prod.add(key)
+        merged_products.append({"name": nm, "image": im})
+        if nm and nm not in hp.headings:
+            hp.headings.append(nm)
+        if im and im not in hp.images:
+            hp.images.append(im)
 
     colors = _extract_colors(hp, raw_html)
     visited = {final_url, final_url.rstrip("/")}
@@ -289,26 +595,25 @@ def scrape_website(url: str, timeout: int = PAGE_TIMEOUT) -> dict:
         "phones": hp.phones[:5],
         "nav_links": deduped_nav[:12],
         "images": hp.images[:15],
+        "videos": hp.videos[:15],
+        "audios": hp.audios[:15],
+        "embeds": hp.embeds[:15],
+        "carousel_products": merged_products[:24],
         "colors": colors,
         "subpages": subpage_data,
         "raw_text_snippet": " ".join(hp.paragraphs[:6])[:800],
     }
     logger.info(
-        "Scraped %s — title=%r emails=%s phones=%s headings=%d colors=%d subpages=%d",
+        "Scraped %s — title=%r emails=%s phones=%s headings=%d colors=%d subpages=%d media(v=%d,a=%d,e=%d)",
         url, title, result["emails"], result["phones"],
         len(result["headings"]), len(colors), len(subpage_data),
+        len(result["videos"]), len(result["audios"]), len(result["embeds"]),
     )
     return result
 
 
-def scrape_to_prompt_context(url: str) -> str:
-    """Scrape url (+ sub-pages) and return a string ready for the AI build prompt."""
-    try:
-        data = scrape_website(url)
-    except Exception as exc:
-        logger.warning("Failed to scrape %s: %s", url, exc)
-        return f"[Website scraping failed for {url}: {exc}]"
-
+def prompt_context_from_scraped_data(data: dict) -> str:
+    """Build AI prompt context text from an already-scraped website payload."""
     lines = [
         "=== EXTRACTED FROM EXISTING WEBSITE ===",
         f"Source URL: {data['url']}",
@@ -333,6 +638,18 @@ def scrape_to_prompt_context(url: str) -> str:
         for p in data["paragraphs"][:5]:
             lines.append(f"  {p}")
 
+    if data.get("carousel_products"):
+        lines.append("\nProduct Hints Detected (Carousel / JSON-LD):")
+        for p in data["carousel_products"][:12]:
+            nm = (p.get("name") or "").strip()
+            im = (p.get("image") or "").strip()
+            if nm and im:
+                lines.append(f"  • {nm} — {im}")
+            elif nm:
+                lines.append(f"  • {nm}")
+            elif im:
+                lines.append(f"  • {im}")
+
     for sp in data.get("subpages", []):
         lines.append(f"\n--- Page: {sp['page']} ({sp['url']}) ---")
         for h in sp["headings"][:6]:
@@ -343,9 +660,22 @@ def scrape_to_prompt_context(url: str) -> str:
     if data["colors"]:
         lines.append(f"\nBrand Colours Detected: {', '.join(data['colors'][:8])}")
 
+    if data.get("videos"):
+        lines.append("\nDetected Video Assets (re-use these where relevant):")
+        for i, v in enumerate(data["videos"][:10], 1):
+            lines.append(f"  {i}. {v}")
+    if data.get("audios"):
+        lines.append("\nDetected Audio Assets (re-use these where relevant):")
+        for i, a in enumerate(data["audios"][:10], 1):
+            lines.append(f"  {i}. {a}")
+    if data.get("embeds"):
+        lines.append("\nDetected Embedded Media URLs (YouTube/Vimeo/SoundCloud):")
+        for i, e in enumerate(data["embeds"][:10], 1):
+            lines.append(f"  {i}. {e}")
+
     # ── Image / Logo directives ────────────────────────────────────────────────
     all_images = data["images"]
-    og_image   = data.get("og_image", "")
+    og_image = data.get("og_image", "")
 
     # Identify logo: prefer any image whose URL contains "logo", "icon", or "brand";
     # fall back to the first image on the page.
@@ -378,6 +708,12 @@ def scrape_to_prompt_context(url: str) -> str:
             "about section, and any other relevant sections based on visual context."
         )
 
+    if data.get("videos") or data.get("audios") or data.get("embeds"):
+        lines.append(
+            "INSTRUCTION: If media sections are included, prefer the detected "
+            "audio/video/embed URLs above instead of placeholders."
+        )
+
     lines.append(
         "\n=== REDESIGN DIRECTIVE ===\n"
         "You have been given the FULL content of an existing business website above.\n"
@@ -406,3 +742,13 @@ def scrape_to_prompt_context(url: str) -> str:
         "10. NO Lorem Ipsum — every text must come from real extracted content.\n"
     )
     return "\n".join(lines)
+
+
+def scrape_to_prompt_context(url: str) -> str:
+    """Scrape url (+ sub-pages) and return a string ready for the AI build prompt."""
+    try:
+        data = scrape_website(url)
+    except Exception as exc:
+        logger.warning("Failed to scrape %s: %s", url, exc)
+        return f"[Website scraping failed for {url}: {exc}]"
+    return prompt_context_from_scraped_data(data)

@@ -12,13 +12,14 @@ def _slugify(name: str) -> str:
     return slug or "website"
 
 
-def _website_dir(project_name: str) -> str:
+def _website_dir(project_name: str, output_target: str = "legacy") -> str:
     """Return the output subfolder path for a given project, creating it if needed.
 
     Structure:
         output/
           staging/
-            <website-slug>/
+                        <website-slug>/
+                            <output-target>/
               index.html          ← main page
               pages/              ← additional pages
               assets/
@@ -28,21 +29,22 @@ def _website_dir(project_name: str) -> str:
     """
     base = os.getenv("OUTPUT_DIR", "output")
     slug = _slugify(project_name)
-    site_dir = os.path.join(base, "staging", slug)
-    for sub in ("pages", "assets/css", "assets/js", "assets/images"):
+    target = _slugify(output_target or "legacy")
+    site_dir = os.path.join(base, "staging", slug, target)
+    for sub in ("pages", "assets/css", "assets/js", "assets/images", "assets/audio", "assets/video"):
         os.makedirs(os.path.join(site_dir, sub), exist_ok=True)
     return site_dir
 
 
 def generate_html(design_spec: dict, code: str, project_name: str,
-                  page_name: str = "index") -> str:
+                  page_name: str = "index", output_target: str = "legacy") -> str:
     """Write an HTML page into the website's subfolder.
 
     - page_name='index'  → saved as  output/staging/<slug>/index.html
     - page_name='about'  → saved as  output/staging/<slug>/pages/about.html
     """
 
-    site_dir = _website_dir(project_name)
+    site_dir = _website_dir(project_name, output_target=output_target)
 
     # Save images, CSS, JS to their respective folders (support nested folders)
     images = design_spec.get('images', {})
@@ -53,6 +55,24 @@ def generate_html(design_spec: dict, code: str, project_name: str,
         img_path = os.path.join(img_dir, img_file)
         with open(img_path, 'wb') as imgf:
             imgf.write(img_bytes)
+
+    audio_files = design_spec.get('audio', {})
+    for fname, media_bytes in audio_files.items():
+        media_folder, media_file = os.path.split(fname)
+        media_dir = os.path.join(site_dir, 'assets/audio', media_folder)
+        os.makedirs(media_dir, exist_ok=True)
+        media_path = os.path.join(media_dir, media_file)
+        with open(media_path, 'wb') as mf:
+            mf.write(media_bytes)
+
+    video_files = design_spec.get('video', {})
+    for fname, media_bytes in video_files.items():
+        media_folder, media_file = os.path.split(fname)
+        media_dir = os.path.join(site_dir, 'assets/video', media_folder)
+        os.makedirs(media_dir, exist_ok=True)
+        media_path = os.path.join(media_dir, media_file)
+        with open(media_path, 'wb') as mf:
+            mf.write(media_bytes)
 
     css_files = design_spec.get('css', {})
     for fname, css_code in css_files.items():
@@ -84,6 +104,14 @@ def generate_html(design_spec: dict, code: str, project_name: str,
     for fname in js_files:
         rel_path = f"assets/js/{fname}"
         html_code = html_code.replace(f'/static/js/{fname}', rel_path)
+    for fname in audio_files:
+        rel_path = f"assets/audio/{fname}"
+        html_code = html_code.replace(f'/static/audio/{fname}', rel_path)
+        html_code = html_code.replace(f'/static/media/{fname}', rel_path)
+    for fname in video_files:
+        rel_path = f"assets/video/{fname}"
+        html_code = html_code.replace(f'/static/video/{fname}', rel_path)
+        html_code = html_code.replace(f'/static/media/{fname}', rel_path)
 
     if page_name == "index":
         filepath = os.path.join(site_dir, "index.html")
@@ -97,9 +125,9 @@ def generate_html(design_spec: dict, code: str, project_name: str,
     return filepath
 
 
-def create_index_html(files: list, project_name: str) -> str:
+def create_index_html(files: list, project_name: str, output_target: str = "legacy") -> str:
     """Create (or overwrite) the index.html listing all generated pages."""
-    site_dir = _website_dir(project_name)
+    site_dir = _website_dir(project_name, output_target=output_target)
     filepath = os.path.join(site_dir, "index.html")
 
     links = "".join(
@@ -133,6 +161,6 @@ def create_index_html(files: list, project_name: str) -> str:
     return filepath
 
 
-def get_website_dir(project_name: str) -> str:
+def get_website_dir(project_name: str, output_target: str = "legacy") -> str:
     """Public helper — returns the website output directory path."""
-    return _website_dir(project_name)
+    return _website_dir(project_name, output_target=output_target)

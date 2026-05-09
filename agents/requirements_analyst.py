@@ -57,16 +57,25 @@ class BuildRequest:
     use_web_search: bool = False
     use_social_search: bool = False
     existing_website_url: Optional[str] = None
+    existing_website_urls: Optional[List[str]] = None
+    build_mode: str = "agentic_only"
+    output_target: str = "legacy"
     categories: Optional[List[str]] = None
+    catalog_items: Optional[List[str]] = None   # exact product/model names — no AI hallucination
     location: Optional[str] = None
+    niche: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     booking_prefix: Optional[str] = None
     social_links: Optional[Dict[str, Any]] = None
+    classification: str = "generic"
+    classification_label: Optional[str] = None
+    classification_group: Optional[str] = None
     website_id: Optional[str] = None
     include_shopping_cart: bool = False
     scraped_title: Optional[str] = None  # New: scraped business/site title
     nav_links: Optional[list] = None     # New: scraped nav links (list of str)
+    content_depth: Optional[str] = 'standard'  # minimal | standard | detailed | enterprise
 
 
 def _parse_cart_features(site: Dict[str, Any]) -> List[str]:
@@ -91,6 +100,113 @@ def _auto_extract_categories(requirements: str) -> List[str]:
         return []
     cats = [c.strip() for item in raw for c in item.split(",") if c.strip()]
     return cats
+
+
+def _detect_medical_domain(requirements: str) -> bool:
+    """Check if this is a medical/diagnostic/pharmaceutical domain."""
+    medical_keywords = r"\b(medical|medicinal|diagnostic|diagnostics|pharma|pharmaceutical|laboratory|lab\s*equipment|reagent|reseller|distributor|hospital|clinic|healthcare|health\s*care|device|analyzer|analyzer)\b"
+    return bool(re.search(medical_keywords, requirements or "", re.I))
+
+
+# Canonical grouped taxonomy used by the build UI.
+CLASSIFICATION_SERVICES = {
+    'b2b': ['Product Demo', 'Pricing & Quote', 'Partnership Inquiry', 'Bulk Order', 'Technical Support', 'Account Consultation'],
+    'b2c': ['Product Inquiry', 'Order Support', 'Shipping Information', 'Returns & Exchanges', 'Customer Support', 'Product Recommendations'],
+    'ecommerce_store': ['Browse Catalog', 'Bulk Purchase Inquiry', 'Order Tracking', 'Returns & Replacement', 'Product Availability', 'Checkout Support'],
+    'medical_practice': ['Schedule Appointment', 'Patient Consultation', 'Follow-up Visit', 'Prescription Refill', 'Teleconsultation', 'Patient Support'],
+    'diagnostics_lab': ['Book a Test', 'Health Package Inquiry', 'Sample Collection', 'Report Assistance', 'Corporate Screening', 'Lab Support'],
+    'medical_equipment': ['Equipment Consultation', 'Product Demonstration', 'Request a Quote', 'Installation & Training', 'Maintenance & Support', 'Reagent Supply'],
+    'pharmacy_wellness': ['Medicine Availability', 'Wellness Consultation', 'Refill Support', 'Home Delivery Inquiry', 'Product Guidance', 'Customer Support'],
+    'tutor': ['Book a Session', 'Course Inquiry', 'Learning Plan Discussion', 'Exam Preparation', 'Parent Consultation', 'Study Materials'],
+    'school': ['Admissions Inquiry', 'Campus Visit', 'Program Information', 'Fee Structure', 'Faculty Interaction', 'Parent Support'],
+    'training_institute': ['Enroll in Program', 'Certification Inquiry', 'Placement Support', 'Batch Schedule', 'Demo Class', 'Course Counseling'],
+    'research_lab': ['Research Collaboration', 'Publication Inquiry', 'Lab Partnership', 'Grant Discussion', 'Data Access Request', 'Scientific Consulting'],
+    'law_firm': ['Free Consultation', 'Case Review', 'Document Review', 'Legal Notice Support', 'Contract Advisory', 'Client Meeting'],
+    'engineering_services': ['Project Consultation', 'Technical Assessment', 'Design Review', 'Implementation Support', 'Maintenance Contract', 'Proposal Request'],
+    'real_estate_agency': ['Schedule Property Visit', 'Property Inquiry', 'Rental Consultation', 'Valuation Request', 'Buyer Assistance', 'Seller Consultation'],
+    'startup_saas': ['Schedule Demo', 'Pricing Inquiry', 'Trial Access', 'Implementation Call', 'Enterprise Plan', 'Customer Success'],
+    'manufacturer_distributor': ['Request Catalog', 'Dealer Inquiry', 'Bulk Pricing', 'Industry Consultation', 'After-Sales Support', 'Supply Partnership'],
+    'restaurant': ['Reserve a Table', 'Private Dining', 'Catering Inquiry', 'Event Booking', 'Delivery Support', 'Special Request'],
+    'salon_spa': ['Book Appointment', 'Service Pricing', 'Bridal Package Inquiry', 'Membership Details', 'Gift Voucher', 'Consultation'],
+    'fitness_wellness': ['Join Membership', 'Trial Session', 'Personal Training', 'Nutrition Consultation', 'Class Schedule', 'Wellness Program'],
+    'artist_portfolio': ['Commission Inquiry', 'Artwork Purchase', 'Exhibition Invitation', 'Collaboration Request', 'Portfolio Review', 'Custom Project'],
+    'photographer': ['Book a Session', 'Print Order', 'Event Coverage Inquiry', 'Studio Visit', 'Portfolio Review', 'Licensing Request'],
+    'musician_band': ['Booking Inquiry', 'Merchandise Order', 'Event/Show Inquiry', 'Press Inquiry', 'Fan Message', 'Collaboration Request'],
+    'freelancer': ['Hire Me', 'Project Inquiry', 'Rate Consultation', 'Proposal Request', 'Availability Check', 'Portfolio Discussion'],
+    'writer_blogger': ['Newsletter Signup', 'Book Purchase Inquiry', 'Content Collaboration', 'Speaking Inquiry', 'Guest Post Proposal', 'Fan Message'],
+    'student_portfolio': ['Project Discussion', 'Mentorship Request', 'Internship Inquiry', 'Resume Review', 'Collaboration Request', 'Portfolio Feedback'],
+    'ngo': ['Donate Now', 'Volunteer Signup', 'Program Partnership', 'Grant Inquiry', 'Event Participation', 'Support Request'],
+    'religious_org': ['Join a Service', 'Event Registration', 'Donation', 'Volunteer Signup', 'Prayer Request', 'Community Inquiry'],
+    'cultural_org': ['Event Registration', 'Membership Inquiry', 'Program Information', 'Heritage Showcase', 'Sponsorship Inquiry', 'Volunteer'],
+    'charity_foundation': ['Donate to a Cause', 'Campaign Participation', 'Volunteer Signup', 'Partnership Proposal', 'Grant Inquiry', 'Impact Report'],
+    'community_club': ['Join as Member', 'Event Registration', 'Match/Event Schedule', 'Sponsorship Inquiry', 'Volunteer', 'Club Inquiry'],
+    'generic': ['General Inquiry', 'Product Information', 'Service Request', 'Quote Request', 'Support Request', 'Schedule Callback'],
+}
+
+CLASSIFICATION_ALIASES = {
+    'doctor': 'medical_practice',
+    'teacher': 'tutor',
+    'lawyer': 'law_firm',
+    'engineer': 'engineering_services',
+    'startup': 'startup_saas',
+    'artist': 'artist_portfolio',
+    'student': 'student_portfolio',
+    'salon': 'salon_spa',
+    'realestate': 'real_estate_agency',
+    'fitness': 'fitness_wellness',
+    'scientist': 'research_lab',
+    'photo': 'photographer',
+    'band': 'musician_band',
+    'musician': 'musician_band',
+    'freelance': 'freelancer',
+    'blogger': 'writer_blogger',
+    'writer': 'writer_blogger',
+    'temple': 'religious_org',
+    'church': 'religious_org',
+    'mosque': 'religious_org',
+    'charity': 'charity_foundation',
+    'foundation': 'charity_foundation',
+    'club': 'community_club',
+    'sports_club': 'community_club',
+    'cultural': 'cultural_org',
+}
+
+def _get_medical_services() -> List[str]:
+    """Return medical-specific services for booking/inquiry forms."""
+    return [
+        "Equipment Consultation",
+        "Product Demonstration",
+        "Installation & Training",
+        "Maintenance & Support",
+        "Replacement Parts",
+        "Reagent Supply",
+        "Warranty & Service",
+    ]
+
+
+def _get_services_for_classification(class_key: str) -> List[str]:
+    """Get booking services based on classification key."""
+    normalized = CLASSIFICATION_ALIASES.get(class_key, class_key)
+    return CLASSIFICATION_SERVICES.get(normalized, CLASSIFICATION_SERVICES['generic'])
+
+
+def _get_domain_services_directive(class_key: str, class_label: str, class_group: str = "general") -> str:
+    """Inject domain-specific booking form guidance into prompt based on classification."""
+    normalized = CLASSIFICATION_ALIASES.get(class_key, class_key)
+    services = _get_services_for_classification(normalized)
+    return (
+        f"\n\n=== DOMAIN-SPECIFIC BOOKING/INQUIRY SERVICES ===\n"
+        f"Classification Group: {class_group}\n"
+        f"Classification: {class_label}\n"
+        f"The booking/inquiry form service dropdown MUST use ONLY these {class_label.lower()}-relevant options:\n"
+        + "\n".join(f"- {svc}" for svc in services) + "\n"
+        f"Do NOT use generic or unrelated services. Keep all form copy, CTAs, and booking options strictly relevant to {class_label.lower()} services.\n"
+    )
+
+
+def _get_medical_services_directive() -> str:
+    """Inject medical-specific booking form guidance into prompt."""
+    return _get_domain_services_directive('medical_equipment', 'Medical Equipment', 'Healthcare & Life Sciences')
 
 
 def _build_cart_section(cart_features: List[str]) -> str:
@@ -122,16 +238,17 @@ This website has a live product catalogue managed via the platform API.
 
 You MUST:
 1. Add a "Shop" link in the main navigation bar (before the CTA button) that
-   links to  #shop  (same-page anchor) OR to  /pages/shop.html  if generating
-   a multi-page site.
-2. Create a dedicated Shop section (id="shop") with:
+    links to  /shop  as a dedicated page entry point.
+2. Do NOT render the Shop catalogue inline inside index.html.
+    The homepage should only expose the navigation link to /shop.
+3. The separate Shop experience should provide:
    - A search bar (input type="text" id="shopSearch") that filters the product
      grid in real time.
    - A product grid (CSS grid, 3-4 columns on desktop, 2 on tablet, 1 on mobile).
    - Each product card must show: product image, name, price (formatted with
      currency symbol), a short description snippet, category badge, and an
      "Add to Cart" button styled with the site accent colour.
-3. Load products dynamically with this JavaScript (place before </body>):
+4. Load products dynamically with this JavaScript (place before </body>):
 
 <script>
 (function () {{
@@ -184,7 +301,7 @@ You MUST:
 }})();
 </script>
 
-4. Add this CSS for the product cards inside a <style> block:
+5. Add this CSS for the product cards inside a <style> block:
 .product-card{{background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,.08);overflow:hidden;transition:transform .2s,box-shadow .2s}}
 .product-card:hover{{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.13)}}
 .product-img-wrap{{position:relative}}
@@ -208,11 +325,12 @@ def _build_feature_flag_sections(site: Dict[str, Any]) -> str:
     if site.get("enable_blog"):
         parts.append(
             "\n\n=== Blog Section ===\n"
-            "Include a Blog section on the website with a dedicated /blog page. "
-            "The blog page should display a grid of sample blog post cards, each with "
+            "Include Blog as a dedicated /blog page. "
+            "Do NOT render blog cards or blog content inline inside index.html. "
+            "The separate blog page should display a grid of sample blog post cards, each with "
             "a title, short excerpt, author, date, reading time, and a 'Read More' link. "
             "Include at least 3 realistic sample blog posts relevant to the business niche. "
-            "Add a 'Blog' link in the main navigation."
+            "Add a 'Blog' link in the main navigation that points to /blog."
         )
     if site.get("enable_chatbot"):
         parts.append(
@@ -226,14 +344,37 @@ def _build_feature_flag_sections(site: Dict[str, Any]) -> str:
     return "".join(parts)
 
 
+def _build_non_cart_catalog_directive(body: BuildRequest) -> str:
+    """Ensure imported/listed products are rendered as content, not cart placeholders."""
+    if body.include_shopping_cart:
+        return ""
+
+    mode = (body.build_mode or "agentic_only").strip().lower()
+    combined_hint = (
+        "This build is in COMBINED mode with imported website context. "
+        "Preserve and modernize product/service listings from imported content. "
+        if mode == "combined" or body.existing_website_url or body.existing_website_urls else ""
+    )
+
+    return (
+        "\n\n=== NON-CART CATALOG DIRECTIVE ===\n"
+        f"{combined_hint}"
+        "If the brief/imported content contains products, services, SKUs, catalog items, or equipment names, "
+        "you MUST render them as visible website content cards/tables with real names and descriptions.\n"
+        "Do NOT output generic placeholders like 'Product 1', 'Item A', or empty cards.\n"
+        "Do NOT include Add to Cart, Buy Now, checkout, pricing widgets, or cart controls when shopping cart is disabled.\n"
+        "Use informational CTAs only (for example: Learn More, View Details, Contact Sales, Request Quote)."
+    )
+
+
 def _build_enrichment_section(
     body: BuildRequest,
     site: Dict[str, Any],
     cats: List[str],
     scraped_images: Optional[List[str]] = None,
 ) -> str:
-    # Prefer scraped title (real business name) over the DB record name
-    site_name = body.scraped_title or site.get("name") or site.get("title") or "Business"
+    # Prefer scraped title, then user-entered title, then DB slug name
+    site_name = body.scraped_title or site.get("title") or site.get("name") or "Business"
     # Strip duplicate suffix e.g. "Foo – Foo" → "Foo"
     if " – " in site_name:
         parts = [p.strip() for p in site_name.split(" – ")]
@@ -244,7 +385,21 @@ def _build_enrichment_section(
         "\n\n=== CONTENT & STYLE ENRICHMENT ===",
         "You MUST use every piece of information below in the generated website.",
         f"Business Name: {site_name}",
+        f"Build Mode: {body.build_mode}",
+        f"Output Target: {body.output_target}",
     ]
+
+    class_key = body.classification or site.get("classification", "generic") or "generic"
+    class_key = CLASSIFICATION_ALIASES.get(class_key, class_key)
+    class_label = body.classification_label or site.get("classification_label") or class_key
+    class_group = body.classification_group or site.get("classification_group") or "general"
+    lines.append(
+        "\nClassification Context:\n"
+        f"- Classification Key: {class_key}\n"
+        f"- Classification Label: {class_label}\n"
+        f"- Classification Group: {class_group}\n"
+        "Treat this as a global blueprint standard for layout hierarchy, CTA tone, section ordering, trust signals, and content voice."
+    )
 
     if site_desc:
         lines.append(
@@ -253,29 +408,57 @@ def _build_enrichment_section(
             "and category cards."
         )
 
-    # Categories
+    if body.niche:
+        lines.append(
+            f"\nBusiness Niche / Category Hint: {body.niche}\n"
+            "Treat this niche as a hard relevance guardrail for hero copy, sections, keywords, and visuals."
+        )
+
+    # Page sections / nav groups
     if cats:
         cat_list = "\n".join(f"  - {c}" for c in cats)
         lines.append(
-            f"\nProduct/Service Categories (create a visual card for EACH):\n{cat_list}"
+            f"\nPage Sections & Navigation Groups (create a dedicated nav link AND a full visual section with cards/content for EACH):\n{cat_list}\n"
+            f"IMPORTANT: Each entry above MUST appear in the top-level navigation AND as a distinct section in the page layout."
         )
-        # Only suggest Unsplash if no real scraped images are available
+        # Only suggest placeholder images if no real scraped images are available
         if not scraped_images:
-            unsplash_hints = "\n".join(
-                f"  - {c}: https://source.unsplash.com/featured/400x300/"
-                f"?{c.lower().replace(' ', ',')}"
+            image_hints = "\n".join(
+                f"  - {c}: https://picsum.photos/seed/{c.lower().replace(' ', '-')}/400/300"
                 for c in cats
             )
-            lines.append(f"\nSuggested Unsplash images per category:\n{unsplash_hints}")
+            lines.append(f"\nSuggested placeholder images per category:\n{image_hints}")
+        # Only suggest placeholder images if no real scraped images are available
+        if not scraped_images:
+            image_hints = "\n".join(
+                f"  - {c}: https://picsum.photos/seed/{c.lower().replace(' ', '-')}/400/300"
+                for c in cats
+            )
+            lines.append(f"\nSuggested placeholder images per category:\n{image_hints}")
+
+    # Exact catalog items — strict no-hallucination directive
+    catalog = getattr(body, 'catalog_items', None) or []
+    if catalog:
+        item_list = "\n".join(f"  - {item}" for item in catalog)
+        lines.append(
+            f"\n=== EXACT PRODUCT / MODEL NAMES (STRICT) ===\n"
+            f"The following are the ONLY real product/model names to use in this website:\n"
+            f"{item_list}\n"
+            f"IMPORTANT RULES:\n"
+            f"- Use ONLY the names listed above. Do NOT invent, embellish, or generate any additional product names.\n"
+            f"- Do NOT add products not on this list. Every product card must map to one of these names exactly.\n"
+            f"- Fabricated product names (e.g. random strings, variant suffixes) will break user trust — avoid them entirely.\n"
+            f"- If a category has no matching product in this list, render the category section with a 'Contact us for details' note instead of placeholder items."
+        )
 
     # Location + Google Maps embed
     location = body.location or ""
     if location:
-        map_query = urllib.parse.quote(location)
+        map_query = urllib.parse.quote_plus(location.strip())
         lines.append(
             f"\nBusiness Location: {location}\n"
             f"Embed this Google Map in the Contact section:\n"
-            f'<iframe src="https://maps.google.com/maps?q={map_query}&output=embed" '
+            f'<iframe src="https://www.google.com/maps?q={map_query}&output=embed" '
             f'width="100%" height="350" style="border:0;border-radius:12px" '
             f'allowfullscreen loading="lazy"></iframe>'
         )
@@ -299,7 +482,7 @@ def _build_enrichment_section(
     if body.social_links:
         sl = body.social_links
         social_parts = []
-        for platform in ("instagram", "facebook", "linkedin"):
+        for platform in ("instagram", "facebook", "linkedin", "x", "youtube", "tiktok"):
             val = sl.get(platform)
             if val:
                 urls = val if isinstance(val, list) else [val]
@@ -326,18 +509,21 @@ def _build_enrichment_section(
             "Use this real image as the hero section background (CSS background-image)."
         )
     else:
-        niche_kw = (cats[0] if cats else site_name).lower().replace(" ", ",")
+        niche_kw = (cats[0] if cats else site_name).lower().replace(" ", "-")
         lines.append(
             f"\nHero background image: "
-            f"https://source.unsplash.com/featured/1400x700/?{niche_kw}"
+            f"https://picsum.photos/seed/{niche_kw}/1400/700"
         )
 
     # Classification directive
-    classification = site.get("classification", "generic") or "generic"
+    classification = class_key
+    classification_label = class_label
+    classification_group = class_group
     if classification and classification != "generic":
         lines.append(
             f"\n=== AUDIENCE / CLASSIFICATION ===\n"
-            f"SITE TYPE:        {classification.upper()}\n"
+            f"SITE TYPE:        {classification_label.upper()} ({classification.upper()})\n"
+            f"INDUSTRY GROUP:   {classification_group.upper()}\n"
             "Tailor all copy, CTAs, navigation labels, and section content to suit this audience profile."
         )
 
@@ -388,6 +574,7 @@ def build_prompt(
 
     # Use scraped title and nav links if present
     site_title = body.scraped_title or site.get("title") or site.get("name") or "Business"
+    site_logo_url = (site.get("logo_url") or "").strip()
     # Strip duplicate suffix e.g. "Foo – Foo" → "Foo"
     if " – " in site_title:
         _parts = [p.strip() for p in site_title.split(" – ")]
@@ -399,8 +586,17 @@ def build_prompt(
     priority_lines = [
         "=== WEBSITE BUILD SPECIFICATION ===",
         f"WEBSITE NAME: {site_title}",
-        f"You MUST use '{site_title}' as the HTML <title>, the navbar logo/text, and the hero heading.",
+        f"CRITICAL: You MUST use '{site_title}' as the HTML <title>, the navbar logo/text, and the hero heading.",
+        f"CRITICAL: Do NOT invent a new brand or company name. Use ONLY '{site_title}' throughout all content.",
+        f"BUILD MODE: {body.build_mode}",
+        f"OUTPUT TARGET: {body.output_target}",
     ]
+    if body.classification_label:
+        priority_lines.append(f"CLASSIFICATION LABEL: {body.classification_label}")
+    if body.classification_group:
+        priority_lines.append(f"CLASSIFICATION GROUP: {body.classification_group}")
+    if site_logo_url:
+        priority_lines.append(f"Business Logo URL: {site_logo_url}")
     if nav_links:
         priority_lines.append(
             "NAVIGATION (use exactly these items in this order): "
@@ -411,10 +607,34 @@ def build_prompt(
             "SITE TYPE: Informational — NO 'Buy Now', 'Order Now', 'Add to Cart', "
             "or 'Book Now' buttons. CTAs must be 'Learn More', 'Contact Us', 'Get in Touch', etc."
         )
+
+    # Inject an explicit INDUSTRY directive so the LLM never drifts into
+    # a different sector (e.g. generating cloud/tech content for a medical supplier).
+    site_desc = site.get("description") or ""
+    industry_hint = site_desc[:300] if site_desc else (body.requirements or "")[:300]
+    priority_lines += [
+        "CRITICAL — INDUSTRY LOCK:",
+        f"  The business described in this brief is: {industry_hint}",
+        "  ALL generated copy, section headings, product names, and service descriptions",
+        "  MUST directly relate to this specific business and industry.",
+        "  Do NOT generate content for any other industry (cloud, tech, spa, fashion, etc.)",
+        "  unless that is explicitly the business described above.",
+    ]
+
     priority_header = "\n".join(priority_lines) + "\n\n"
 
     # Base: user requirements + any pre-fetched research context
     prompt = priority_header + body.requirements + extra_context
+    _DEPTH_DIRECTIVES = {
+        'minimal':    "CONTENT DEPTH — MINIMAL: Generate a single-scroll landing page with a bold hero, 2–3 concise content sections, and a compact contact footer. Keep copy short and punchy. Do NOT add extra pages or lengthy descriptions.",
+        'standard':   "CONTENT DEPTH — STANDARD: Generate a standard multi-section website with a hero, 3–5 distinct content sections, and a contact area. Include clear headings and supporting copy for each section.",
+        'detailed':   "CONTENT DEPTH — DETAILED: Generate a comprehensive website. Each nav section must be a fully developed page section with extended copy, team bios where relevant, testimonials, FAQ, and detailed product/service descriptions.",
+        'enterprise': "CONTENT DEPTH — ENTERPRISE: Generate a full enterprise-depth website. Every nav section must be richly developed with multiple subsections, detailed product specs, case studies, extensive social proof, multiple CTAs per section, and a comprehensive multi-column footer.",
+    }
+    _depth_key = (body.content_depth or 'standard').lower()
+    if _depth_key in _DEPTH_DIRECTIVES:
+        prompt += "\n\n" + _DEPTH_DIRECTIVES[_depth_key]
+
 
 
     # Cart features (only if shopping cart is enabled)
@@ -433,11 +653,21 @@ def build_prompt(
     prompt += _build_feature_flag_sections(site)
 
 
+    # Non-cart catalog behavior
+    prompt += _build_non_cart_catalog_directive(body)
+
+
     # Resolve categories
     cats = list(body.categories or [])
     if not cats:
         cats = _auto_extract_categories(body.requirements)
 
+    # Inject domain-specific services based on classification
+    class_key = body.classification or site.get("classification", "generic") or "generic"
+    class_key = CLASSIFICATION_ALIASES.get(class_key, class_key)
+    class_label = body.classification_label or site.get("classification_label") or class_key
+    class_group = body.classification_group or site.get("classification_group") or "general"
+    prompt += _get_domain_services_directive(class_key, class_label, class_group)
 
     # Extract scraped images for enrichment (from extra_context already in prompt)
     import re as _re

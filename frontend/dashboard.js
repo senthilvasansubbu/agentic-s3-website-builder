@@ -11,26 +11,65 @@ const THEMES = [
   { id: 'dark',       label: 'Dark',        primary: '#7c3aed', secondary: '#4f46e5', accent: '#06b6d4', bg: '#0f172a', text: '#e2e8f0', gradient: 'linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%)', fontHeading: 'Montserrat',       fontBody: 'Roboto',     desc: 'Bold & immersive' },
   { id: 'nature',     label: 'Nature',      primary: '#276749', secondary: '#38a169', accent: '#f6ad55', bg: '#f0fff4', text: '#1a202c', gradient: 'linear-gradient(135deg,#276749 0%,#38a169 100%)', fontHeading: 'Merriweather',     fontBody: 'Lato',       desc: 'Organic & calming' },
   { id: 'ecommerce',  label: 'E-Commerce',  primary: '#dd6b20', secondary: '#c05621', accent: '#3182ce', bg: '#ffffff', text: '#2d3748', gradient: 'linear-gradient(135deg,#dd6b20 0%,#c05621 100%)', fontHeading: 'Nunito',           fontBody: 'Open Sans',  desc: 'Conversion-focused' },
+  { id: 'ocean',      label: 'Ocean',       primary: '#0f4c81', secondary: '#0a6fa6', accent: '#14b8a6', bg: '#f3fbff', text: '#12324a', gradient: 'linear-gradient(135deg,#0f4c81 0%,#0a6fa6 100%)', fontHeading: 'Manrope',          fontBody: 'Source Sans 3', desc: 'Crisp and professional' },
+  { id: 'sunrise',    label: 'Sunrise',     primary: '#b45309', secondary: '#ea580c', accent: '#f59e0b', bg: '#fff9f1', text: '#3f2a1d', gradient: 'linear-gradient(135deg,#b45309 0%,#ea580c 100%)', fontHeading: 'Merriweather Sans', fontBody: 'Nunito Sans',  desc: 'Warm and welcoming' },
+  { id: 'serene',     label: 'Serene',      primary: '#2563eb', secondary: '#0ea5e9', accent: '#10b981', bg: '#f8fbff', text: '#1f2937', gradient: 'linear-gradient(135deg,#2563eb 0%,#0ea5e9 100%)', fontHeading: 'IBM Plex Sans',    fontBody: 'Atkinson Hyperlegible', desc: 'High readability first' },
+  { id: 'terra',      label: 'Terra',       primary: '#7c2d12', secondary: '#9a3412', accent: '#65a30d', bg: '#fff8f5', text: '#2f1e16', gradient: 'linear-gradient(135deg,#7c2d12 0%,#9a3412 100%)', fontHeading: 'Archivo',          fontBody: 'Noto Sans',    desc: 'Earthy and grounded' },
+  { id: 'slate',      label: 'Slate',       primary: '#334155', secondary: '#475569', accent: '#0ea5e9', bg: '#f8fafc', text: '#0f172a', gradient: 'linear-gradient(135deg,#334155 0%,#475569 100%)', fontHeading: 'Barlow',           fontBody: 'Public Sans',  desc: 'Corporate and clean' },
+  { id: 'blossom',    label: 'Blossom',     primary: '#be185d', secondary: '#db2777', accent: '#0ea5a4', bg: '#fff5fa', text: '#3c1f33', gradient: 'linear-gradient(135deg,#be185d 0%,#db2777 100%)', fontHeading: 'Plus Jakarta Sans', fontBody: 'Work Sans',    desc: 'Soft and lively' },
+  { id: 'photography', label: 'Aurora',      primary: '#111827', secondary: '#374151', accent: '#f59e0b', bg: '#f9fafb', text: '#111827', gradient: 'linear-gradient(135deg,#111827 0%,#374151 100%)', fontHeading: 'DM Serif Display', fontBody: 'Source Sans 3', desc: 'High-contrast editorial look' },
+  { id: 'school',      label: 'Summit',      primary: '#1d4ed8', secondary: '#2563eb', accent: '#f97316', bg: '#f8fbff', text: '#1f2937', gradient: 'linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)', fontHeading: 'Cabin',            fontBody: 'Nunito Sans',  desc: 'Clear and approachable tone' },
+  { id: 'hospital',    label: 'Clarity',     primary: '#0f766e', secondary: '#0ea5a4', accent: '#2563eb', bg: '#f2fbfa', text: '#0f172a', gradient: 'linear-gradient(135deg,#0f766e 0%,#0ea5a4 100%)', fontHeading: 'PT Sans',          fontBody: 'Lato',         desc: 'Clean, calm, and trustworthy' },
+  { id: 'student',     label: 'Pulse',       primary: '#7c3aed', secondary: '#8b5cf6', accent: '#f43f5e', bg: '#faf7ff', text: '#312e81', gradient: 'linear-gradient(135deg,#7c3aed 0%,#8b5cf6 100%)', fontHeading: 'Quicksand',        fontBody: 'Atkinson Hyperlegible', desc: 'Bright and readable energy' },
+  { id: 'comic',       label: 'Spark',       primary: '#e11d48', secondary: '#f97316', accent: '#2563eb', bg: '#fffdf5', text: '#1f2937', gradient: 'linear-gradient(135deg,#e11d48 0%,#f97316 100%)', fontHeading: 'Baloo 2',          fontBody: 'Nunito Sans',  desc: 'Playful color-forward style' },
+  { id: 'professional', label: 'Keystone',   primary: '#1f2937', secondary: '#374151', accent: '#0ea5e9', bg: '#f9fafb', text: '#111827', gradient: 'linear-gradient(135deg,#1f2937 0%,#374151 100%)', fontHeading: 'Manrope',          fontBody: 'Public Sans',  desc: 'Refined and business-ready' },
+  { id: 'trendy',      label: 'Nova',        primary: '#db2777', secondary: '#9333ea', accent: '#06b6d4', bg: '#fff7fe', text: '#3f3f46', gradient: 'linear-gradient(135deg,#db2777 0%,#9333ea 100%)', fontHeading: 'Sora',             fontBody: 'Inter',        desc: 'Vibrant modern aesthetic' },
 ];
 let selectedTheme = 'modern';
+let selectedBuildMode = 'agentic_only';
+let selectedOutputTarget = 'legacy';
+let lastReferenceQuality = null;
+let importFlowBuildStarted = false;
+
+const IMPORT_FLOW_LABELS = {
+  1: 'Add Site URL',
+  2: 'Pick Type & Theme',
+  3: 'Fetch & Review',
+  4: 'Generate Website',
+};
 
 const CLASSIFICATIONS = [
-  { id: 'b2b',         icon: '🤝', label: 'B2B',          desc: 'Business to business',   cta: 'Request a Demo',     nav: ['Solutions','Case Studies','Pricing','About','Contact'], hero: 'Enterprise solutions that drive measurable ROI', sections: ['solutions','case-studies','stats','testimonials','integrations','contact'] },
-  { id: 'b2c',         icon: '🛍️', label: 'B2C',          desc: 'Business to consumer',   cta: 'Shop Now',           nav: ['Products','Offers','About','Reviews','Contact'], hero: 'Products your customers will love', sections: ['products','offers','reviews','gallery','contact'] },
-  { id: 'doctor',      icon: '🩺', label: 'Doctor',        desc: 'Medical / clinic',       cta: 'Book Appointment',   nav: ['Services','About','Credentials','Patients','Contact'], hero: 'Compassionate care you can trust', sections: ['services','credentials','team','patient-info','testimonials','appointment'] },
-  { id: 'lawyer',      icon: '⚖️', label: 'Lawyer',        desc: 'Legal / law firm',       cta: 'Free Consultation',  nav: ['Practice Areas','Results','About','Team','Contact'], hero: 'Experienced legal counsel. Results that matter.', sections: ['practice-areas','results','team','testimonials','consultation'] },
-  { id: 'teacher',     icon: '📚', label: 'Teacher',       desc: 'Educator / tutor',       cta: 'Enroll Now',         nav: ['Courses','About','Curriculum','Testimonials','Contact'], hero: 'Empowering learners to reach their full potential', sections: ['courses','curriculum','testimonials','certifications','enroll'] },
-  { id: 'restaurant',  icon: '🍽️', label: 'Restaurant',    desc: 'Food & dining',          cta: 'Reserve a Table',    nav: ['Menu','About','Gallery','Reservations','Contact'], hero: 'An unforgettable dining experience', sections: ['menu','gallery','specials','testimonials','reservation','contact'] },
-  { id: 'engineer',    icon: '⚙️', label: 'Engineer',      desc: 'Freelancer / technical', cta: 'Hire Me',            nav: ['Portfolio','Skills','Experience','About','Contact'], hero: 'Building robust solutions with modern technology', sections: ['portfolio','skills','experience','open-source','contact'] },
-  { id: 'startup',     icon: '🚀', label: 'Startup / SaaS', desc: 'Tech product',          cta: 'Start Free Trial',   nav: ['Features','Pricing','Testimonials','Blog','Contact'], hero: 'The smarter way to grow your business', sections: ['features','how-it-works','pricing','testimonials','faq','cta'] },
-  { id: 'artist',      icon: '🎨', label: 'Artist',        desc: 'Creative / portfolio',   cta: 'Commission Work',    nav: ['Gallery','Process','Exhibitions','About','Contact'], hero: 'Art that speaks without words', sections: ['gallery','process','exhibitions','press','commissions','contact'] },
-  { id: 'ngo',         icon: '🌍', label: 'NGO / Non-Profit', desc: 'Non-profit / cause',  cta: 'Donate Now',         nav: ['Mission','Impact','Programs','Volunteer','Donate'], hero: 'Together we can make a difference', sections: ['mission','impact-stats','programs','team','stories','donate'] },
-  { id: 'scientist',   icon: '🔬', label: 'Scientist',     desc: 'Research / academic',    cta: 'View Research',      nav: ['Research','Publications','Lab','About','Contact'], hero: 'Advancing knowledge through rigorous research', sections: ['research','publications','lab','collaborations','contact'] },
-  { id: 'student',     icon: '🎓', label: 'Student',       desc: 'Portfolio / CV site',    cta: 'View My Work',       nav: ['Projects','Skills','About','Resume','Contact'], hero: 'Ready to build something great together', sections: ['projects','skills','education','certifications','contact'] },
-  { id: 'salon',       icon: '💇', label: 'Salon / Spa',   desc: 'Beauty & wellness',      cta: 'Book Treatment',     nav: ['Services','Gallery','Team','Pricing','Contact'], hero: 'Your haven of beauty and relaxation', sections: ['services','gallery','team','pricing','testimonials','booking'] },
-  { id: 'realestate',  icon: '🏠', label: 'Real Estate',   desc: 'Property / agency',      cta: 'View Properties',    nav: ['Properties','Services','About','Testimonials','Contact'], hero: 'Finding you the perfect place to call home', sections: ['listings','services','team','testimonials','valuation','contact'] },
-  { id: 'fitness',     icon: '💪', label: 'Fitness',       desc: 'Gym / trainer',          cta: 'Join Now',           nav: ['Programs','Trainers','Pricing','Success Stories','Contact'], hero: 'Transform your body and mind', sections: ['programs','trainers','pricing','success-stories','schedule','contact'] },
-  { id: 'generic',     icon: '🌐', label: 'General',       desc: 'Any other business',     cta: 'Get in Touch',       nav: ['About','Services','Gallery','Testimonials','Contact'], hero: 'Welcome to our website', sections: ['services','about','gallery','testimonials','contact'] },
+  { id: 'b2b', group: 'business-model', groupLabel: 'Business Model & Commerce', icon: '🤝', label: 'B2B Services', desc: 'Business-to-business company', cta: 'Request a Demo', nav: ['Solutions','Case Studies','Pricing','About','Contact'], hero: 'Enterprise solutions that drive measurable ROI', sections: ['solutions','case-studies','stats','testimonials','integrations','contact'] },
+  { id: 'b2c', group: 'business-model', groupLabel: 'Business Model & Commerce', icon: '🛍️', label: 'B2C Brand', desc: 'Direct-to-consumer business', cta: 'Shop Now', nav: ['Products','Offers','About','Reviews','Contact'], hero: 'Products your customers will love', sections: ['products','offers','reviews','gallery','contact'] },
+  { id: 'ecommerce_store', group: 'business-model', groupLabel: 'Business Model & Commerce', icon: '🛒', label: 'E-Commerce Store', desc: 'Catalog and online selling', cta: 'Browse Catalog', nav: ['Products','Collections','Offers','Support','Contact'], hero: 'A storefront built for product discovery and conversion', sections: ['products','collections','offers','reviews','contact'] },
+  { id: 'medical_practice', group: 'healthcare', groupLabel: 'Healthcare & Life Sciences', icon: '🩺', label: 'Medical Practice', desc: 'Doctor, clinic, patient care', cta: 'Book Appointment', nav: ['Services','Doctors','Patients','Testimonials','Contact'], hero: 'Compassionate care you can trust', sections: ['services','credentials','team','patient-info','testimonials','appointment'] },
+  { id: 'diagnostics_lab', group: 'healthcare', groupLabel: 'Healthcare & Life Sciences', icon: '🧪', label: 'Diagnostics Lab', desc: 'Pathology, testing, reports', cta: 'Book a Test', nav: ['Tests','Packages','Process','Reports','Contact'], hero: 'Accurate diagnostics with dependable turnaround', sections: ['tests','packages','process','trust','contact'] },
+  { id: 'medical_equipment', group: 'healthcare', groupLabel: 'Healthcare & Life Sciences', icon: '🔬', label: 'Medical Equipment', desc: 'Devices, analyzers, reseller', cta: 'Request Quote', nav: ['Products','Brands','Applications','Service','Contact'], hero: 'Reliable laboratory and diagnostic equipment for clinical workflows', sections: ['products','brands','applications','service','contact'] },
+  { id: 'pharmacy_wellness', group: 'healthcare', groupLabel: 'Healthcare & Life Sciences', icon: '💊', label: 'Pharmacy / Wellness', desc: 'Retail pharmacy or wellness', cta: 'Talk to Us', nav: ['Products','Wellness','Support','Offers','Contact'], hero: 'Trusted healthcare products and wellness support', sections: ['products','wellness','support','offers','contact'] },
+  { id: 'tutor', group: 'education', groupLabel: 'Education & Training', icon: '📚', label: 'Tutor / Coach', desc: 'Individual educator or tutor', cta: 'Book a Session', nav: ['Courses','About','Curriculum','Testimonials','Contact'], hero: 'Personalized learning that helps students progress', sections: ['courses','curriculum','testimonials','certifications','enroll'] },
+  { id: 'school', group: 'education', groupLabel: 'Education & Training', icon: '🏫', label: 'School / Academy', desc: 'School, academy, institution', cta: 'Apply Now', nav: ['Programs','Admissions','Faculty','Campus','Contact'], hero: 'A learning environment built for student growth', sections: ['programs','admissions','faculty','campus','contact'] },
+  { id: 'training_institute', group: 'education', groupLabel: 'Education & Training', icon: '🧑‍🏫', label: 'Training Institute', desc: 'Skills, coaching, certification', cta: 'Enroll Now', nav: ['Courses','Placements','Curriculum','Testimonials','Contact'], hero: 'Career-focused training with practical outcomes', sections: ['courses','placements','curriculum','testimonials','contact'] },
+  { id: 'research_lab', group: 'education', groupLabel: 'Education & Training', icon: '🧬', label: 'Research Lab', desc: 'Academic or scientific research', cta: 'View Research', nav: ['Research','Publications','Lab','Collaborations','Contact'], hero: 'Advancing knowledge through rigorous research', sections: ['research','publications','lab','collaborations','contact'] },
+  { id: 'law_firm', group: 'professional-services', groupLabel: 'Professional Services', icon: '⚖️', label: 'Law Firm', desc: 'Legal practice and advisory', cta: 'Free Consultation', nav: ['Practice Areas','Results','About','Team','Contact'], hero: 'Experienced legal counsel. Results that matter.', sections: ['practice-areas','results','team','testimonials','consultation'] },
+  { id: 'engineering_services', group: 'professional-services', groupLabel: 'Professional Services', icon: '⚙️', label: 'Engineering Services', desc: 'Consulting, technical services', cta: 'Discuss a Project', nav: ['Services','Projects','Capabilities','About','Contact'], hero: 'Engineering expertise that turns ideas into delivery', sections: ['services','projects','capabilities','about','contact'] },
+  { id: 'real_estate_agency', group: 'professional-services', groupLabel: 'Professional Services', icon: '🏠', label: 'Real Estate Agency', desc: 'Property sales and rentals', cta: 'View Properties', nav: ['Listings','Services','About','Testimonials','Contact'], hero: 'Finding you the perfect place to call home', sections: ['listings','services','team','testimonials','valuation','contact'] },
+  { id: 'startup_saas', group: 'technology-industrial', groupLabel: 'Technology & Industrial', icon: '🚀', label: 'Startup / SaaS', desc: 'Software product or platform', cta: 'Start Free Trial', nav: ['Features','Pricing','Testimonials','Blog','Contact'], hero: 'The smarter way to grow your business', sections: ['features','how-it-works','pricing','testimonials','faq','cta'] },
+  { id: 'manufacturer_distributor', group: 'technology-industrial', groupLabel: 'Technology & Industrial', icon: '🏭', label: 'Manufacturer / Distributor', desc: 'Industrial catalog and supply', cta: 'Request Catalog', nav: ['Products','Industries','Capabilities','Support','Contact'], hero: 'Products, supply, and support built for operational scale', sections: ['products','industries','capabilities','support','contact'] },
+  { id: 'restaurant', group: 'hospitality-lifestyle', groupLabel: 'Hospitality & Lifestyle', icon: '🍽️', label: 'Restaurant', desc: 'Food and dining business', cta: 'Reserve a Table', nav: ['Menu','About','Gallery','Reservations','Contact'], hero: 'An unforgettable dining experience', sections: ['menu','gallery','specials','testimonials','reservation','contact'] },
+  { id: 'salon_spa', group: 'hospitality-lifestyle', groupLabel: 'Hospitality & Lifestyle', icon: '💇', label: 'Salon / Spa', desc: 'Beauty and wellness services', cta: 'Book Treatment', nav: ['Services','Gallery','Team','Pricing','Contact'], hero: 'Your haven of beauty and relaxation', sections: ['services','gallery','team','pricing','testimonials','booking'] },
+  { id: 'fitness_wellness', group: 'hospitality-lifestyle', groupLabel: 'Hospitality & Lifestyle', icon: '💪', label: 'Fitness / Wellness', desc: 'Gym, studio, personal training', cta: 'Join Now', nav: ['Programs','Trainers','Pricing','Success Stories','Contact'], hero: 'Transform your body and mind', sections: ['programs','trainers','pricing','success-stories','schedule','contact'] },
+  { id: 'artist_portfolio', group: 'creative-personal', groupLabel: 'Creative & Personal Brand', icon: '🎨', label: 'Artist / Portfolio', desc: 'Creative brand or portfolio', cta: 'Commission Work', nav: ['Gallery','Process','Exhibitions','About','Contact'], hero: 'Art that speaks without words', sections: ['gallery','process','exhibitions','press','commissions','contact'] },
+  { id: 'photographer', group: 'creative-personal', groupLabel: 'Creative & Personal Brand', icon: '📷', label: 'Photographer', desc: 'Photo studio, prints, bookings', cta: 'Book a Session', nav: ['Portfolio','Services','Prints','About','Contact'], hero: 'Capturing moments that last a lifetime', sections: ['portfolio','services','prints','packages','testimonials','booking'] },
+  { id: 'musician_band', group: 'creative-personal', groupLabel: 'Creative & Personal Brand', icon: '🎵', label: 'Musician / Band', desc: 'Discography, events, merch', cta: 'Listen Now', nav: ['Music','Events','Merch','About','Contact'], hero: 'Feel every note, live every beat', sections: ['music','events','merch','gallery','press','contact'] },
+  { id: 'freelancer', group: 'creative-personal', groupLabel: 'Creative & Personal Brand', icon: '💼', label: 'Freelancer / Consultant', desc: 'Services, rates, hire me', cta: 'Hire Me', nav: ['Services','Portfolio','Rates','About','Contact'], hero: 'Expert skills ready to work for you', sections: ['services','portfolio','rates','testimonials','faq','contact'] },
+  { id: 'writer_blogger', group: 'creative-personal', groupLabel: 'Creative & Personal Brand', icon: '✍️', label: 'Writer / Blogger', desc: 'Articles, books, newsletter', cta: 'Read My Work', nav: ['Blog','Books','Newsletter','About','Contact'], hero: 'Words that inspire, stories that matter', sections: ['featured-posts','books','newsletter','about','categories','contact'] },
+  { id: 'student_portfolio', group: 'creative-personal', groupLabel: 'Creative & Personal Brand', icon: '🎓', label: 'Student Portfolio', desc: 'Resume, projects, profile', cta: 'View My Work', nav: ['Projects','Skills','About','Resume','Contact'], hero: 'Ready to build something great together', sections: ['projects','skills','education','certifications','contact'] },
+  { id: 'ngo', group: 'community-nonprofit', groupLabel: 'Community & Nonprofit', icon: '🌍', label: 'NGO / Non-Profit', desc: 'Mission-driven organization', cta: 'Donate Now', nav: ['Mission','Impact','Programs','Volunteer','Donate'], hero: 'Together we can make a difference', sections: ['mission','impact-stats','programs','team','stories','donate'] },
+  { id: 'religious_org', group: 'community-nonprofit', groupLabel: 'Community & Nonprofit', icon: '🕌', label: 'Religious / Spiritual Organization', desc: 'Events, services, donations', cta: 'Join Us', nav: ['About','Events','Services','Donate','Contact'], hero: 'A place of faith, community, and belonging', sections: ['about','events','services','gallery','donations','contact'] },
+  { id: 'cultural_org', group: 'community-nonprofit', groupLabel: 'Community & Nonprofit', icon: '🏛️', label: 'Cultural Organization', desc: 'Events, heritage, programs', cta: 'Explore Events', nav: ['Events','Heritage','Programs','Gallery','Contact'], hero: 'Celebrating culture, preserving heritage', sections: ['events','heritage','programs','gallery','membership','contact'] },
+  { id: 'charity_foundation', group: 'community-nonprofit', groupLabel: 'Community & Nonprofit', icon: '❤️', label: 'Charity / Foundation', desc: 'Campaigns, impact, fundraising', cta: 'Support a Cause', nav: ['Causes','Impact','Campaigns','Volunteer','Donate'], hero: 'Every contribution creates lasting change', sections: ['causes','impact','campaigns','team','stories','donate'] },
+  { id: 'community_club', group: 'community-nonprofit', groupLabel: 'Community & Nonprofit', icon: '🏆', label: 'Community / Sports Club', desc: 'Events, membership, standings', cta: 'Join the Club', nav: ['Events','Members','Standings','About','Contact'], hero: 'United by passion, driven by community', sections: ['events','standings','members','gallery','news','contact'] },
+  { id: 'generic', group: 'general', groupLabel: 'General', icon: '🌐', label: 'General Business', desc: 'Fallback for mixed businesses', cta: 'Get in Touch', nav: ['About','Services','Gallery','Testimonials','Contact'], hero: 'Welcome to our website', sections: ['services','about','gallery','testimonials','contact'] },
 ];
 let selectedClassification = 'generic';
 
@@ -194,6 +233,9 @@ async function init() {
   document.getElementById('statPlan').textContent = (currentUser.plan || '—').toUpperCase();
   buildThemeGrid();
   buildClassGrids();
+  _initNavTagInput();
+  _initCatalogTagInput();
+  _initImportFlowStepper();
 
   const role = currentUser.role || 'app_user';
   localStorage.setItem('wb_role', role);
@@ -234,6 +276,88 @@ async function init() {
   const validPages = ['overview','websites','build','staging','edit-website','cart-items','billing','feedback','monitoring','team','coupons','notifications','clients'];
   if (hash && validPages.includes(hash)) showPage(hash);
   else showPage('overview');
+}
+
+function _setImportFlowStep(currentStep) {
+  const wrap = document.getElementById('importFlowSteps');
+  if (!wrap) return;
+  const steps = [...wrap.querySelectorAll('.import-flow-step')];
+  if (!steps.length) return;
+
+  const step = Math.min(4, Math.max(1, Number(currentStep) || 1));
+  const nextStep = step < 4 ? step + 1 : null;
+
+  steps.forEach((el, idx) => {
+    const n = idx + 1;
+    el.classList.remove('complete', 'current', 'next');
+    if (n < step) el.classList.add('complete');
+    else if (n === step) el.classList.add('current');
+    else if (nextStep && n === nextStep) el.classList.add('next');
+  });
+
+  const hint = document.getElementById('importFlowHint');
+  if (!hint) return;
+  const currentLabel = IMPORT_FLOW_LABELS[step] || 'Step';
+  if (nextStep) {
+    const nextLabel = IMPORT_FLOW_LABELS[nextStep] || 'Next';
+    hint.textContent = `Current: ${currentLabel} • Next: ${nextLabel}`;
+  } else {
+    hint.textContent = `Current: ${currentLabel} • Next: Build is running`;
+  }
+}
+
+function _updateImportFlowStepper() {
+  const importPanel = document.getElementById('buildPanel-import');
+  const isImportTab = importPanel ? importPanel.style.display !== 'none' : true;
+  const primary = document.getElementById('existingUrl')?.value.trim() || '';
+  const extra = document.getElementById('existingUrls')?.value.trim() || '';
+  const hasAnyUrl = !!(primary || extra);
+  const hasSelections = selectedClassification && selectedTheme;
+
+  let step = 1;
+  if (importFlowBuildStarted) step = 4;
+  else if (!isImportTab) step = 3;
+  else if (hasSelections) step = 3;
+  else if (hasAnyUrl) step = 2;
+
+  _setImportFlowStep(step);
+
+  // Update Fetch button requirement indicator
+  const reqIndicator = document.getElementById('fetchBtnRequirement');
+  const fetchBtn = document.getElementById('fetchUrlBtn');
+  if (reqIndicator && fetchBtn) {
+    if (!hasSelections) {
+      reqIndicator.style.display = '';
+      fetchBtn.style.opacity = '0.55';
+      fetchBtn.style.pointerEvents = 'none';
+      fetchBtn.style.cursor = 'not-allowed';
+    } else {
+      reqIndicator.style.display = 'none';
+      fetchBtn.style.opacity = '1';
+      fetchBtn.style.pointerEvents = 'auto';
+      fetchBtn.style.cursor = 'pointer';
+    }
+  }
+}
+
+function _initImportFlowStepper() {
+  const existingUrlEl = document.getElementById('existingUrl');
+  const existingUrlsEl = document.getElementById('existingUrls');
+
+  if (existingUrlEl) {
+    existingUrlEl.addEventListener('input', () => {
+      importFlowBuildStarted = false;
+      _updateImportFlowStepper();
+    });
+  }
+  if (existingUrlsEl) {
+    existingUrlsEl.addEventListener('input', () => {
+      importFlowBuildStarted = false;
+      _updateImportFlowStepper();
+    });
+  }
+
+  _updateImportFlowStepper();
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -278,14 +402,19 @@ function featureBadges(w) {
   return badges.join(' ') || '<span style="color:var(--muted);font-size:.82rem">—</span>';
 }
 
-function statusBadge(status) {
+function statusBadge(status, buildStatus) {
   if (status === 'inactive') {
     return `<span class="tag" style="background:#fff3cd;color:#856404">⏸ Offline</span>`;
   }
-  if (status === 'published' || status === 'built' || status === 'live') {
+  // If status is 'live', it's been deployed to production
+  if (status === 'live' || status === 'published') {
     return `<span class="tag published">🟢 Live</span>`;
   }
-  if (status === 'error') {
+  // If status is 'draft' but build_status is 'built', it's ready to deploy
+  if ((status === 'draft' || status === 'built') && (buildStatus === 'built' || buildStatus === 'fallback')) {
+    return `<span class="tag" style="background:#e0f2fe;color:#0369a1;border:1px solid #0369a1;white-space:nowrap">✓ Ready</span>`;
+  }
+  if (status === 'error' || buildStatus === 'error') {
     return `<span class="tag danger">❌ Error</span>`;
   }
   return `<span class="tag draft">📝 Draft</span>`;
@@ -303,7 +432,7 @@ function siteRowReadOnly(w) {
     <td>${domainDisplay}</td>
     <td style="text-transform:capitalize">${w.theme || '—'}</td>
     <td>${featureBadges(w)}</td>
-    <td>${statusBadge(w.status)}</td>
+    <td>${statusBadge(w.status, w.build_status)}</td>
     <td style="color:var(--muted);font-size:.82rem;white-space:nowrap">${dateStr}</td>
     <td style="color:var(--muted);font-size:.82rem;white-space:nowrap">${changedStr}</td>
   </tr>`;
@@ -335,7 +464,7 @@ function siteRow(w) {
     <td>${domainDisplay}</td>
     <td style="text-transform:capitalize">${w.theme || '—'}</td>
     <td>${featureBadges(w)}</td>
-    <td id="status-${w.website_id}">${statusBadge(w.status)}</td>
+    <td id="status-${w.website_id}">${statusBadge(w.status, w.build_status)}</td>
     <td style="color:var(--muted);font-size:.82rem;white-space:nowrap">${dateStr}</td>
     <td style="color:var(--muted);font-size:.82rem;white-space:nowrap">${changedStr}</td>
     <td id="actions-${w.website_id}" style="white-space:nowrap">
@@ -645,34 +774,6 @@ async function loadAllSites() {
 }
 
 // ── Build Website ──────────────────────────────────────────────────────────
-function buildThemeGrid() {
-  document.getElementById('themeGrid').innerHTML = THEMES.map(t => `
-    <div class="theme-card ${t.id === selectedTheme ? 'selected' : ''}" id="tc-${t.id}" onclick="selectTheme('${t.id}')">
-      <div class="swatch" style="background:${t.gradient}">
-        <div class="swatch-fonts">
-          <div class="sh">${t.fontHeading}</div>
-          <div class="sb">${t.fontBody}</div>
-        </div>
-        <span class="selected-badge">✓ Selected</span>
-      </div>
-      <div class="card-body">
-        <div class="card-label">${t.label}</div>
-        <div class="card-desc">${t.desc}</div>
-        <button class="preview-btn" onclick="event.stopPropagation();openThemePreview('${t.id}')">👁 Preview</button>
-      </div>
-    </div>`).join('');
-}
-
-function selectTheme(id) {
-  selectedTheme = id;
-  document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
-  const card = document.getElementById('tc-' + id);
-  if (card) card.classList.add('selected');
-}
-
-let currentPreviewTheme = 'modern';
-let currentPreviewClass = 'generic';
-
 // ── Classification grid builders ───────────────────────────────────────────
 function classCardHTML(c, gridId) {
   return `<div class="class-card ${c.id === selectedClassification ? 'selected' : ''}" id="${gridId}-cc-${c.id}" onclick="selectClassification('${c.id}')">
@@ -683,10 +784,27 @@ function classCardHTML(c, gridId) {
   </div>`;
 }
 
+function classificationGroupsHTML(gridId) {
+  const groups = [];
+  const seen = new Set();
+  for (const item of CLASSIFICATIONS) {
+    if (seen.has(item.group)) continue;
+    seen.add(item.group);
+    groups.push({ id: item.group, label: item.groupLabel });
+  }
+  return groups.map(group => {
+    const cards = CLASSIFICATIONS
+      .filter(item => item.group === group.id)
+      .map(item => classCardHTML(item, gridId))
+      .join('');
+    return `<section class="class-group"><div class="class-group-title">${group.label}</div><div class="class-group-grid">${cards}</div></section>`;
+  }).join('');
+}
+
 function buildClassGrids() {
   ['importClassGrid','agentClassGrid'].forEach(gid => {
     const el = document.getElementById(gid);
-    if (el) el.innerHTML = CLASSIFICATIONS.map(c => classCardHTML(c, gid)).join('');
+    if (el) el.innerHTML = classificationGroupsHTML(gid);
   });
 }
 
@@ -702,6 +820,8 @@ function selectClassification(id) {
     currentPreviewClass = id;
     refreshPreview();
   }
+  // Update import flow stepper when selection changes
+  _updateImportFlowStepper();
 }
 
 // ── Theme grid builders ─────────────────────────────────────────────────────
@@ -745,6 +865,8 @@ function selectTheme(id) {
     currentPreviewTheme = id;
     refreshPreview();
   }
+  // Update import flow stepper when selection changes
+  _updateImportFlowStepper();
 }
 
 // ── Preview modal ───────────────────────────────────────────────────────────
@@ -902,9 +1024,345 @@ function getSelectedCartFeatures() {
   return [...document.querySelectorAll('input[name="cartFeature"]:checked')].map(el => el.value);
 }
 
+async function _pollBuildStatusUntilTerminal(websiteId, { onUpdate, maxAttempts = 180, intervalMs = 5000 } = {}) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const snap = await apiFetch(`/websites/${websiteId}/build-status`);
+    const status = snap?.build_status || 'queued';
+    const error = snap?.error || '';
+
+    if (typeof onUpdate === 'function') onUpdate(status, error);
+    if (['built', 'error', 'not_found'].includes(status)) {
+      return { status, error };
+    }
+
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  return { status: 'timeout', error: '' };
+}
+
+function _parseReferenceUrlEntries(raw = '') {
+  const lines = String(raw || '')
+    .split(/\n+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const entries = [];
+  for (const line of lines) {
+    const parts = line.split(/\s+-\s+/);
+    const left = (parts[0] || '').trim();
+    const usage = (parts.slice(1).join(' - ') || '').trim();
+    const urlMatch = left.match(/https?:\/\/[^\s,]+/i) || line.match(/https?:\/\/[^\s,]+/i);
+    if (!urlMatch) continue;
+    entries.push({ url: urlMatch[0].trim(), usage });
+  }
+  return entries;
+}
+
+function useImportedSummaryReplace() {
+  const src = document.getElementById('importedSummary')?.value?.trim() || '';
+  const reqEl = document.getElementById('buildReq');
+  if (!src || !reqEl) {
+    toast('No imported summary available to apply', false);
+    return;
+  }
+  reqEl.value = src;
+  toast('Imported summary applied to Context');
+}
+
+function appendImportedSummaryToContext() {
+  const src = document.getElementById('importedSummary')?.value?.trim() || '';
+  const reqEl = document.getElementById('buildReq');
+  if (!src || !reqEl) {
+    toast('No imported summary available to append', false);
+    return;
+  }
+  const cur = (reqEl.value || '').trim();
+  reqEl.value = cur ? `${cur}\n\n${src}` : src;
+  toast('Imported summary appended to Context');
+}
+
+function clearImportedSummary() {
+  const el = document.getElementById('importedSummary');
+  if (!el) return;
+  el.value = '';
+  toast('Imported summary cleared');
+}
+
+// ── Nav Sections Tag-chip Input (with drag-to-reorder) ────────────────────
+let _navTags = [];
+let _navDragIdx = null;
+let _navEditedByUser = false;
+
+function _syncNavHidden() {
+  const el = document.getElementById('buildCategories');
+  if (el) el.value = _navTags.join(', ');
+}
+
+function _renderNavChips() {
+  const wrap = document.getElementById('navTagWrap');
+  const input = document.getElementById('navTagInput');
+  if (!wrap || !input) return;
+  wrap.querySelectorAll('.tag-chip').forEach(c => c.remove());
+  _navTags.forEach((tag, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.dataset.idx = i;
+    chip.draggable = true;
+    chip.style.cursor = 'grab';
+    chip.innerHTML = `${_escHtml(tag)}<span class="chip-x" data-idx="${i}" title="Remove">×</span>`;
+    // click to edit
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (e.target.classList.contains('chip-x')) { _navRemove(+e.target.dataset.idx); return; }
+      _navEditChip(e.currentTarget, +e.currentTarget.dataset.idx);
+    });
+    // drag reorder
+    chip.addEventListener('dragstart', (e) => {
+      _navDragIdx = i;
+      chip.style.opacity = '0.5';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    chip.addEventListener('dragend', () => { chip.style.opacity = ''; _navDragIdx = null; });
+    chip.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    chip.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const from = _navDragIdx;
+      const to = +e.currentTarget.dataset.idx;
+      if (from === null || from === to) return;
+      const moved = _navTags.splice(from, 1)[0];
+      _navTags.splice(to, 0, moved);
+      _navEditedByUser = true;
+      _renderNavChips();
+    });
+    wrap.insertBefore(chip, input);
+  });
+  _syncNavHidden();
+}
+
+function _navAddTag(raw) {
+  const val = raw.trim();
+  if (!val) return;
+  if (_navTags.some(t => t.toLowerCase() === val.toLowerCase())) return;
+  _navTags.push(val);
+  _navEditedByUser = true;
+  _renderNavChips();
+}
+
+function _navRemove(idx) {
+  _navTags.splice(idx, 1);
+  _navEditedByUser = true;
+  _renderNavChips();
+}
+
+function _navEditChip(chip, idx) {
+  const current = _navTags[idx];
+  const editInput = document.createElement('input');
+  editInput.className = 'tag-input-inner';
+  editInput.value = current;
+  editInput.style.minWidth = Math.max(80, current.length * 9) + 'px';
+  chip.replaceWith(editInput);
+  editInput.focus();
+  editInput.select();
+  let committed = false;
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    const newVal = editInput.value.trim();
+    if (editInput.parentNode) editInput.remove();
+    if (newVal) _navTags[idx] = newVal;
+    else _navTags.splice(idx, 1);
+    _navEditedByUser = true;
+    _renderNavChips();
+  };
+  editInput.addEventListener('blur', commit);
+  editInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { committed = true; if (editInput.parentNode) editInput.remove(); _renderNavChips(); }
+  });
+}
+
+function navTagWrapClick(e) {
+  if (e.target.classList.contains('tag-chip') || e.target.classList.contains('chip-x')) return;
+  document.getElementById('navTagInput')?.focus();
+}
+
+function _initNavTagInput() {
+  const input = document.getElementById('navTagInput');
+  if (!input) return;
+  _navTags = [];
+  _navEditedByUser = false;
+  _renderNavChips();
+  input.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
+      e.preventDefault();
+      _navAddTag(input.value);
+      input.value = '';
+      return;
+    }
+    if (e.key === 'Backspace' && !input.value && _navTags.length) {
+      _navRemove(_navTags.length - 1);
+    }
+  });
+  input.addEventListener('input', () => {
+    const v = input.value;
+    if (v.endsWith(',')) { _navAddTag(v.slice(0, -1)); input.value = ''; }
+  });
+  input.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    text.split(/[,\n]+/).forEach(p => _navAddTag(p));
+    input.value = '';
+  });
+}
+// ── End Nav Sections Tag-chip Input ─────────────────────────────────────────
+
+// ── Catalog Tag-chip Input ──────────────────────────────────────────────────
+const CATALOG_DEFAULT = [
+  'Turbochem Optima','Jokoh Ex D','Jokoh Ex Ds','Dynacount 3D Plus',
+  'Dynacount 5D PRO','Dynacount 5D Elite','Vision','Labscan 3D','Labscan 100',
+  'PlexMAT8','AFIAS 2','AFIAS 3','AFIAS 6','AFIAS 10','Sprinter XL'
+];
+
+let _catalogTags = [];
+let _catalogDragIdx = null;
+let _catalogEditedByUser = false;
+
+function _syncCatalogHidden() {
+  const el = document.getElementById('buildCatalogItems');
+  if (el) el.value = _catalogTags.join(', ');
+}
+
+function _renderCatalogChips() {
+  const wrap = document.getElementById('catalogTagWrap');
+  const input = document.getElementById('catalogTagInput');
+  if (!wrap || !input) return;
+  wrap.querySelectorAll('.tag-chip').forEach(c => c.remove());
+  _catalogTags.forEach((tag, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.dataset.idx = i;
+    chip.draggable = true;
+    chip.style.cursor = 'grab';
+    chip.innerHTML = `${_escHtml(tag)}<span class="chip-x" data-idx="${i}" title="Remove">×</span>`;
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (e.target.classList.contains('chip-x')) { _catalogRemove(+e.target.dataset.idx); return; }
+      _catalogEditChip(e.currentTarget, +e.currentTarget.dataset.idx);
+    });
+    chip.addEventListener('dragstart', (e) => {
+      _catalogDragIdx = i;
+      chip.style.opacity = '0.5';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    chip.addEventListener('dragend', () => { chip.style.opacity = ''; _catalogDragIdx = null; });
+    chip.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    chip.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const from = _catalogDragIdx;
+      const to = +e.currentTarget.dataset.idx;
+      if (from === null || from === to) return;
+      const moved = _catalogTags.splice(from, 1)[0];
+      _catalogTags.splice(to, 0, moved);
+      _catalogEditedByUser = true;
+      _renderCatalogChips();
+    });
+    wrap.insertBefore(chip, input);
+  });
+  _syncCatalogHidden();
+}
+
+function _escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _catalogAddTag(raw) {
+  const val = raw.trim();
+  if (!val) return;
+  const low = val.toLowerCase();
+  if (_catalogTags.some(t => t.toLowerCase() === low)) return;
+  _catalogTags.push(val);
+  _catalogEditedByUser = true;
+  _renderCatalogChips();
+}
+
+function _catalogRemove(idx) {
+  _catalogTags.splice(idx, 1);
+  _catalogEditedByUser = true;
+  _renderCatalogChips();
+}
+
+function _catalogEditChip(chip, idx) {
+  const current = _catalogTags[idx];
+  const editInput = document.createElement('input');
+  editInput.className = 'tag-input-inner';
+  editInput.value = current;
+  editInput.style.minWidth = Math.max(80, current.length * 9) + 'px';
+  chip.replaceWith(editInput);
+  editInput.focus();
+  editInput.select();
+  let committed = false;
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    const newVal = editInput.value.trim();
+    if (editInput.parentNode) editInput.remove();
+    if (newVal) _catalogTags[idx] = newVal;
+    else _catalogTags.splice(idx, 1);
+    _catalogEditedByUser = true;
+    _renderCatalogChips();
+  };
+  editInput.addEventListener('blur', commit);
+  editInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { committed = true; if (editInput.parentNode) editInput.remove(); _renderCatalogChips(); }
+  });
+}
+
+function catalogTagWrapClick(e) {
+  if (e.target.classList.contains('tag-chip') || e.target.classList.contains('chip-x')) return;
+  document.getElementById('catalogTagInput')?.focus();
+}
+
+function _initCatalogTagInput() {
+  const input = document.getElementById('catalogTagInput');
+  if (!input) return;
+  // Start empty — values are populated from URL fetch or typed by user
+  _catalogTags = [];
+  _catalogEditedByUser = false;
+  _renderCatalogChips();
+
+  input.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
+      e.preventDefault();
+      _catalogAddTag(input.value);
+      input.value = '';
+      return;
+    }
+    if (e.key === 'Backspace' && !input.value && _catalogTags.length) {
+      _catalogRemove(_catalogTags.length - 1);
+    }
+  });
+
+  input.addEventListener('input', () => {
+    const v = input.value;
+    if (v.endsWith(',')) {
+      _catalogAddTag(v.slice(0, -1));
+      input.value = '';
+    }
+  });
+
+  input.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    text.split(/[,\n]+/).forEach(p => _catalogAddTag(p));
+    input.value = '';
+  });
+}
+// ── End Catalog Tag-chip Input ──────────────────────────────────────────────
+
 function resetBuildForm() {
   ['buildName', 'buildNiche', 'buildReq'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('buildPages').value = '3';
+  document.getElementById('buildDepth').value = 'standard';
   document.getElementById('buildColor').value = '#6366f1';
   document.getElementById('buildCart').checked = false;
   document.getElementById('cartFeaturesPanel').style.display = 'none';
@@ -912,65 +1370,577 @@ function resetBuildForm() {
   document.getElementById('buildLivestream').checked = false;
   document.getElementById('buildBlog').checked = false;
   document.getElementById('buildChatbot').checked = false;
+  document.getElementById('buildMode').value = 'agentic_only';
+  document.getElementById('buildOutputTarget').value = 'legacy';
+  document.getElementById('buildBookingPrefix').value = '';
+  const existingUrlEl = document.getElementById('existingUrl');
+  const existingUrlsEl = document.getElementById('existingUrls');
+  const importOwnEl = document.getElementById('importIsOwnUrl');
+  const importedSummaryEl = document.getElementById('importedSummary');
+  if (existingUrlEl) existingUrlEl.value = '';
+  if (existingUrlsEl) existingUrlsEl.value = '';
+  if (importOwnEl) importOwnEl.checked = false;
+  if (importedSummaryEl) importedSummaryEl.value = '';
+  importFlowBuildStarted = false;
+  selectedBuildMode = 'agentic_only';
+  selectedOutputTarget = 'legacy';
   selectedTheme = 'modern';
   selectedClassification = 'generic';
+  _navTags = [];
+  _navEditedByUser = false;
+  _renderNavChips();
+  _catalogTags = [];
+  _catalogEditedByUser = false;
+  _renderCatalogChips();
   buildThemeGrid();
   buildClassGrids();
+  _updateImportFlowStepper();
+}
+
+function selectedClassificationMeta() {
+  return CLASSIFICATIONS.find(c => c.id === selectedClassification)
+    || { id: selectedClassification || 'generic', label: selectedClassification || 'Generic', group: 'general', groupLabel: 'General' };
+}
+
+function _referenceQualityMetrics(data = {}) {
+  const description = String(data.description || '').trim();
+  const headings = Array.isArray(data.headings) ? data.headings.length : 0;
+  const paragraphs = Array.isArray(data.paragraphs) ? data.paragraphs.length : 0;
+  const images = Array.isArray(data.images) ? data.images.length : 0;
+  const navLinks = Array.isArray(data.nav_links)
+    ? data.nav_links.filter(n => (typeof n === 'object' ? !!n.text : !!n)).length
+    : 0;
+  const title = String(data.title || '').trim();
+
+  return {
+    title,
+    description_len: description.length,
+    headings,
+    paragraphs,
+    nav_links: navLinks,
+    images,
+  };
+}
+
+function _referenceIsUsable(metrics) {
+  const hasTextStructure = metrics.headings >= 2 || metrics.paragraphs >= 2 || metrics.description_len >= 80;
+  const hasStructureOrMedia = metrics.images >= 1 || metrics.nav_links >= 1;
+  return hasTextStructure && hasStructureOrMedia;
+}
+
+function renderReferenceQualityIndicator(items = [], failed = 0, total = 0) {
+  const box = document.getElementById('referenceQualityIndicator');
+  const summary = document.getElementById('referenceQualitySummary');
+  const details = document.getElementById('referenceQualityDetails');
+  if (!box || !summary || !details) return;
+
+  if (!items.length && !failed) {
+    box.style.display = 'none';
+    summary.textContent = '';
+    details.innerHTML = '';
+    lastReferenceQuality = null;
+    return;
+  }
+
+  const usable = items.filter(i => _referenceIsUsable(i.metrics));
+  const agg = items.reduce((a, i) => ({
+    headings: a.headings + i.metrics.headings,
+    paragraphs: a.paragraphs + i.metrics.paragraphs,
+    nav_links: a.nav_links + i.metrics.nav_links,
+    images: a.images + i.metrics.images,
+  }), { headings: 0, paragraphs: 0, nav_links: 0, images: 0 });
+
+  const status = usable.length === items.length && failed === 0
+    ? 'good'
+    : usable.length > 0
+      ? 'warn'
+      : 'bad';
+
+  const badge = status === 'good' ? '✅ GOOD' : (status === 'warn' ? '⚠️ PARTIAL' : '❌ SPARSE');
+  const color = status === 'good' ? '#16a34a' : (status === 'warn' ? '#f59e0b' : '#ef4444');
+
+  summary.style.color = color;
+  summary.textContent = `${badge} · usable refs: ${usable.length}/${items.length} · failed fetches: ${failed}/${total}`;
+
+  details.innerHTML = [
+    `Aggregate: headings=${agg.headings}, paragraphs=${agg.paragraphs}, nav_links=${agg.nav_links}, images=${agg.images}`,
+    ...items.map((i, idx) => {
+      const m = i.metrics;
+      const ok = _referenceIsUsable(m) ? '✅' : '⚠️';
+      return `${ok} Ref ${idx + 1}: ${i.url} — title=${m.title ? 'yes' : 'no'}, desc_len=${m.description_len}, headings=${m.headings}, paras=${m.paragraphs}, nav=${m.nav_links}, images=${m.images}`;
+    }),
+    status !== 'good'
+      ? 'Tip: add a richer reference URL (with visible headings/content/images) or provide explicit product categories in requirements.'
+      : '',
+  ].filter(Boolean).join('<br>');
+
+  box.style.display = 'block';
+  lastReferenceQuality = {
+    status,
+    usable: usable.length,
+    total: items.length,
+    failed,
+    aggregate: agg,
+    perRef: items,
+  };
+}
+
+function _cleanCategoryCandidate(raw) {
+  const s = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  const low = s.toLowerCase();
+  const lowNormalized = low.replace(/[’]/g, "'");
+
+  // Remove clearly generic/navigation phrases.
+  const blockedExact = new Set([
+    'home', 'about', 'about us', 'contact', 'contact us', 'services', 'service',
+    'welcome', 'welcome!', 'welcome to drg', 'blog', 'news', 'careers', 'login',
+    'register', 'resources', 'resource center', 'case studies', 'testimonial', 'testimonials',
+    'privacy policy', 'terms', 'terms of service', 'faq', 'faqs', 'our team',
+    'our mission', 'our vision', 'products', 'our solutions', "what's new", 'whats new',
+    'latest news', 'latest updates', 'intent', 'plus1'
+  ]);
+  if (blockedExact.has(lowNormalized)) return '';
+  if (/^product\s*\d+\b/i.test(lowNormalized)) return '';
+  if (/^c\d{2,}\s+[a-z]{3,}$/i.test(lowNormalized)) return '';
+  if (/^(welcome|discover|learn more|read more|request|book|explore)\b/i.test(s)) return '';
+  if (/^(view|shop|browse|get|start|order|buy)\s+(all|now|more|products?|services?)\b/i.test(s)) return '';
+  if (/^(menu|search|cart|wishlist|checkout|track order|account|sign in|sign up|register|login)\b/i.test(s)) return '';
+  if (/^(next|previous|prev|back|top|more|all)$/.test(lowNormalized)) return '';
+  if (/^(home|about|contact|blog|careers|news|faq|resources?)\b/i.test(s) && s.length < 35) return '';
+  if (/^(dr|mr|mrs|ms|miss|prof)\.?\s+[a-z]/i.test(s)) return '';
+  if (/\b(testimonial|testimonials|review|reviews)\b/i.test(s) && s.length < 50) return '';
+  if (/\b(private limited|pvt\.?\s*ltd\.?|ltd\.?|inc\.?|llc|corp\.?|company)\b/i.test(s)) return '';
+  if (/^(our|latest)\s+(solutions|news|updates)\b/i.test(s)) return '';
+
+  // Strip punctuation noise and bullet chars.
+  const cleaned = s.replace(/^[•\-–—\s]+/, '').replace(/[|:]+$/, '').trim();
+  if (!cleaned) return '';
+
+  // Keep category-sized labels only.
+  if (cleaned.length < 3 || cleaned.length > 55) return '';
+  return cleaned;
+}
+
+function _cleanImportedProductCandidate(raw) {
+  const s = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  const cleaned = s.replace(/^[•\-–—#>\s]+/, '').replace(/[|:]+$/, '').trim();
+  if (!cleaned) return '';
+  const low = cleaned.toLowerCase().replace(/[’]/g, "'");
+  const blockedExact = new Set([
+    'home', 'about', 'contact', 'services', 'products', 'blog', 'news', 'menu',
+    'shop', 'shop now', 'view all', 'learn more', 'read more', 'more', 'all',
+    'search', 'cart', 'checkout', 'wishlist', 'login', 'register', 'account'
+  ]);
+  if (blockedExact.has(low)) return '';
+  if (/^(home|about|contact|services?|products?|blog|news|menu|search|cart|checkout|wishlist)\b/i.test(cleaned)) return '';
+  if (/^(learn more|read more|view all|shop now|buy now|book now|request|explore)\b/i.test(cleaned)) return '';
+  if (/^(next|previous|prev|back|top)$/i.test(cleaned)) return '';
+  if (/^\d+\s*(items?|products?)$/i.test(cleaned)) return '';
+  if (cleaned.length < 2 || cleaned.length > 80) return '';
+  return cleaned;
+}
+
+function _extractImportedWebsiteName(rawTitle = '') {
+  const title = String(rawTitle || '').replace(/\s+/g, ' ').trim();
+  if (!title) return '';
+
+  const blocked = new Set([
+    'home', 'welcome', 'about', 'contact', 'services', 'products', 'blog', 'news'
+  ]);
+  const industryWords = /\b(diagnostics?|diagnostic|laboratory|lab|medical|clinic|hospital|health|equipment|supplier|distributor|manufacturer|salon|hotel|mall|store|law|legal|bakery|restaurant|school|academy|teacher|doctor)\b/i;
+  const locationWords = /\b(mumbai|kolkata|delhi|chennai|bangalore|hyderabad|pune|coimbatore|madurai|trichy|india|usa|uk|uae|singapore)\b/i;
+
+  const parts = title.split(/[|\-–—]+/).map(p => p.trim()).filter(Boolean);
+  const filtered = parts.filter(part => !blocked.has(part.toLowerCase()));
+  const businessLike = filtered.filter(part => industryWords.test(part) && !locationWords.test(part));
+  if (businessLike.length) return businessLike[0];
+
+  const nonLocation = filtered.filter(part => !locationWords.test(part));
+  if (nonLocation.length) return nonLocation[0];
+
+  return filtered[0] || title;
+}
+
+function _extractIndustryPhrase(raw = '') {
+  const text = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+
+  const phrases = text.split(/[.!?\n|]+/).map(p => p.trim()).filter(Boolean);
+  const industryPatterns = [
+    /\b([a-z][a-z&/\-\s]{2,70}?(?:medical equipment supplier|laboratory equipment supplier|diagnostic equipment supplier|medical laboratory equipment supplier|equipment supplier|equipment distributor|supplier|distributor|manufacturer|provider|dealer|exporter))\b/i,
+    /\b([a-z][a-z&/\-\s]{2,70}?(?:medical equipment|diagnostic centre|diagnostic center|healthcare provider|law firm))\b/i,
+    /\b([a-z][a-z&/\-\s]{2,70}?(?:diagnostics?|laboratory|healthcare|clinic|hospital|salon|hotel|bakery|restaurant|academy|school|store|mall))\b/i,
+  ];
+  for (const phrase of phrases) {
+    const candidates = [
+      phrase.replace(/^.*?\b(?:is|are|offers|provides|specializes in|specialises in)\b\s*(?:a|an|the)?\s*/i, '').trim(),
+      phrase.split(/\b(?:for|with|serving|serves|specializing in|specialises in)\b/i)[0].trim(),
+      phrase,
+    ];
+    for (const candidate of candidates) {
+      for (const industryPattern of industryPatterns) {
+        const match = candidate.match(industryPattern);
+        if (!match) continue;
+        const cleaned = _cleanCategoryCandidate(match[1]);
+        if (cleaned) return cleaned;
+      }
+    }
+  }
+  return '';
+}
+
+function _dedupeImportCandidates(candidates, cleaner, limit) {
+  const deduped = [];
+  const seen = new Set();
+  for (const candidate of candidates) {
+    const cleaned = cleaner(candidate);
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(cleaned);
+    if (deduped.length >= limit) break;
+  }
+  return deduped;
+}
+
+function _extractImportNavSections(successes) {
+  // Primary source: actual navigation links from the scraped site.
+  // These directly map to page sections. Product names, keywords,
+  // carousels and headings are intentionally excluded here.
+  const candidates = [];
+
+  for (const s of successes) {
+    const d = s?.data || {};
+    const navTexts = Array.isArray(d.nav_links)
+      ? d.nav_links.map(n => (typeof n === 'object' ? n.text : n)).filter(Boolean)
+      : [];
+    const subpageNames = Array.isArray(d.subpages)
+      ? d.subpages.map(p => p?.page).filter(Boolean)
+      : [];
+
+    // Fallback: use headings and scraped subpage names when nav is sparse.
+    const headings = navTexts.length < 2 && Array.isArray(d.headings)
+      ? d.headings.slice(0, 10)
+      : [];
+
+    candidates.push(...navTexts, ...subpageNames, ...headings);
+  }
+
+  return _dedupeImportCandidates(candidates, _cleanCategoryCandidate, 12);
+}
+
+function _extractNicheHint(successes, categoryHints = []) {
+  for (const s of successes) {
+    const d = s?.data || {};
+    const industryFromDescription = _extractIndustryPhrase(d.description || '');
+    if (industryFromDescription) return industryFromDescription;
+    const industryFromHeadings = Array.isArray(d.headings)
+      ? d.headings.map(h => _extractIndustryPhrase(h)).find(Boolean)
+      : '';
+    if (industryFromHeadings) return industryFromHeadings;
+    const industryFromTitle = _extractIndustryPhrase(d.title || '');
+    if (industryFromTitle) return industryFromTitle;
+  }
+
+  const kw = [];
+  for (const s of successes) {
+    const d = s?.data || {};
+    const raw = String(d.keywords || '').trim();
+    if (!raw) continue;
+    raw.split(/[,|/;]+/).map(x => x.trim()).filter(Boolean).forEach(x => kw.push(x));
+  }
+
+  const cleanedKw = [];
+  const seen = new Set();
+  for (const k of kw) {
+    const c = _cleanCategoryCandidate(k);
+    if (!c) continue;
+    const low = c.toLowerCase();
+    if (seen.has(low)) continue;
+    seen.add(low);
+    cleanedKw.push(c);
+  }
+
+  const keywordIndustry = cleanedKw.find(k => _extractIndustryPhrase(k) || /\b(diagnostics?|laboratory|medical|equipment|supplier|distributor|manufacturer|clinic|hospital|healthcare|salon|hotel|bakery|restaurant|academy|school|law|store|mall)\b/i.test(k));
+  if (keywordIndustry) return keywordIndustry;
+  if (cleanedKw.length) return cleanedKw.slice(0, 3).join(', ');
+
+  const firstTitle = String(successes?.[0]?.data?.title || '').trim();
+  if (firstTitle) {
+    const maybeIndustry = _extractIndustryPhrase(firstTitle);
+    if (maybeIndustry) return maybeIndustry;
+    const maybe = _cleanCategoryCandidate(_extractImportedWebsiteName(firstTitle));
+    if (maybe) return maybe;
+  }
+
+  if (categoryHints.length) return categoryHints.slice(0, 3).join(', ');
+
+  const firstDescription = String(successes?.[0]?.data?.description || '').trim();
+  if (firstDescription) {
+    const sentence = firstDescription.split(/[.!?\n]/).map(s => s.trim()).find(Boolean);
+    const maybeDescription = _cleanCategoryCandidate(sentence || firstDescription);
+    if (maybeDescription) return maybeDescription;
+  }
+  return '';
+}
+
+function _extractImportProducts(successes) {
+  const candidates = [];
+  for (const s of successes) {
+    const d = s?.data || {};
+    const fromCarousel = Array.isArray(d.carousel_products)
+      ? d.carousel_products.map(p => (typeof p === 'object' ? (p.name || p.title || '') : p)).filter(Boolean)
+      : [];
+    const fromProducts = Array.isArray(d.products)
+      ? d.products.map(p => (typeof p === 'object' ? (p.name || p.title || '') : p)).filter(Boolean)
+      : [];
+    // Prefer explicit product lists. Heading/subpage text can be mostly navigation noise.
+    const hasExplicitProducts = fromCarousel.length > 0 || fromProducts.length > 0;
+    const fromHeadings = !hasExplicitProducts && Array.isArray(d.headings)
+      ? d.headings.slice(0, 12)
+      : [];
+    const fromSubpages = !hasExplicitProducts && Array.isArray(d.subpages)
+      ? d.subpages.map(p => p?.page).filter(Boolean)
+      : [];
+    candidates.push(...fromCarousel, ...fromProducts, ...fromHeadings, ...fromSubpages);
+  }
+  return _dedupeImportCandidates(candidates, _cleanImportedProductCandidate, 30);
 }
 
 async function fetchWebsiteInfo() {
-  const url = document.getElementById('existingUrl').value.trim();
-  if (!url) { toast('Please enter a URL', false); return; }
+  importFlowBuildStarted = false;
+  _updateImportFlowStepper();
+  const primaryRaw = document.getElementById('existingUrl')?.value.trim() || '';
+  const isOwnUrl = !!document.getElementById('importIsOwnUrl')?.checked;
+  const additionalRaw = document.getElementById('existingUrls')?.value || '';
+
+  const parseUrlForFetch = (raw = '') => {
+    const line = String(raw || '').trim();
+    if (!line) return '';
+    const left = (line.split(/\s+-\s+/)[0] || '').trim();
+    const candidate = left || line;
+    const urlMatch = candidate.match(/https?:\/\/[^\s,]+/i) || line.match(/https?:\/\/[^\s,]+/i);
+    if (urlMatch?.[0]) return urlMatch[0].trim();
+    if (/^[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?$/i.test(candidate)) return candidate;
+    return '';
+  };
+
+  const primaryUrl = parseUrlForFetch(primaryRaw);
+  const additionalUrls = [];
+  const malformedLines = [];
+  const lines = String(additionalRaw)
+    .split(/\n+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const parsed = parseUrlForFetch(line);
+    if (parsed) {
+      additionalUrls.push(parsed);
+      continue;
+    }
+    malformedLines.push({ line: i + 1, text: line });
+  }
+
+  const urls = [
+    ...(primaryUrl ? [primaryUrl] : []),
+    ...additionalUrls,
+  ].filter((url, idx, arr) => arr.indexOf(url) === idx);
+
+  const detailEl = document.getElementById('fetchUrlDetails');
+
+  if (!primaryUrl && primaryRaw) {
+    if (detailEl) {
+      detailEl.style.display = 'block';
+      detailEl.style.color = '#f59e0b';
+      detailEl.innerHTML = `⚠️ Primary URL looks invalid and was ignored: ${_escHtml(primaryRaw)}`;
+    }
+    toast('Primary URL is invalid. Please use a valid URL.', false);
+  }
+
+  if (!urls.length) {
+    if (detailEl && malformedLines.length) {
+      detailEl.style.display = 'block';
+      detailEl.style.color = '#f59e0b';
+      detailEl.innerHTML = [
+        `⚠️ Could not parse ${malformedLines.length} reference line(s).`,
+        ...malformedLines.slice(0, 8).map(item => `Line ${item.line}: ${_escHtml(item.text)}`),
+        malformedLines.length > 8 ? '...and more. Use format: URL - usage note' : 'Use format: URL - usage note',
+      ].join('<br>');
+    }
+    toast('Please enter at least one valid URL', false);
+    return;
+  }
+
+  if (!primaryUrl && document.getElementById('existingUrl')) {
+    document.getElementById('existingUrl').value = urls[0];
+  }
 
   const btn = document.getElementById('fetchUrlBtn');
   const statusEl = document.getElementById('fetchUrlStatus');
+  renderReferenceQualityIndicator([], 0, urls.length);
   btn.disabled = true;
   btn.textContent = '⏳ Fetching…';
   statusEl.style.display = 'block';
   statusEl.style.color = 'var(--muted)';
-  statusEl.textContent = 'Scraping website…';
+  statusEl.textContent = `Scraping ${urls.length} website(s)…`;
+  if (detailEl) {
+    detailEl.style.display = 'none';
+    detailEl.innerHTML = '';
+  }
+
+  const malformedHintHtml = malformedLines.length
+    ? [
+        `⚠️ Ignored ${malformedLines.length} malformed reference line(s).`,
+        ...malformedLines.slice(0, 5).map(item => `Line ${item.line}: ${_escHtml(item.text)}`),
+        malformedLines.length > 5 ? '...and more.' : '',
+      ].filter(Boolean).join('<br>')
+    : '';
+  if (malformedLines.length) {
+    toast(`Ignored ${malformedLines.length} malformed line(s). Fetching valid URLs only.`, false);
+  }
 
   try {
-    const data = await apiFetch('/websites/scrape-url', {
-      method: 'POST',
-      body: JSON.stringify({ url }),
-    });
+    const successes = [];
+    const failures = [];
+    const perUrlResults = [];
+    const qualityItems = [];
 
-    if (!data) throw new Error('Empty response');
+    for (let i = 0; i < urls.length; i++) {
+      const thisUrl = urls[i];
+      statusEl.textContent = `Scraping ${i + 1}/${urls.length}: ${thisUrl}`;
+      const data = await apiFetch('/websites/scrape-url', {
+        method: 'POST',
+        body: JSON.stringify({ url: thisUrl }),
+      });
 
-    // Pre-fill form fields with scraped data
-    if (data.title && !document.getElementById('buildName').value)
-      document.getElementById('buildName').value = data.title;
+      if (!data) {
+        failures.push(thisUrl);
+        perUrlResults.push({ url: thisUrl, ok: false, reason: apiFetch._lastError || 'No data returned' });
+        continue;
+      }
+      successes.push({ url: thisUrl, data });
+      perUrlResults.push({ url: thisUrl, ok: true, title: data.title || '' });
+      qualityItems.push({ url: thisUrl, metrics: _referenceQualityMetrics(data) });
+    }
 
-    if (data.description && !document.getElementById('buildReq').value)
-      document.getElementById('buildReq').value = data.description;
+    if (!successes.length) {
+      throw new Error('Failed to fetch data from all provided URLs.');
+    }
 
-    if (data.emails?.length && !document.getElementById('buildEmail').value)
-      document.getElementById('buildEmail').value = data.emails[0];
+    const ownPick = successes.find(s => s.url === primaryUrl) || successes[0];
+    const first = ownPick.data;
 
-    if (data.phones?.length && !document.getElementById('buildPhone').value)
-      document.getElementById('buildPhone').value = data.phones[0];
+    // Only import the website name when the user confirms this is their own site.
+    if (isOwnUrl && first.title)
+      document.getElementById('buildName').value = _extractImportedWebsiteName(first.title);
 
-    if (data.headings?.length && !document.getElementById('buildCategories').value) {
-      // Use headings as category hints (max 5, short ones)
-      const hints = data.headings.filter(h => h.length < 40).slice(0, 5);
-      if (hints.length) document.getElementById('buildCategories').value = hints.join(', ');
+    // Keep Context user-owned by default. Put imported text into separate summary box.
+    const importedSummaryEl = document.getElementById('importedSummary');
+    if (importedSummaryEl) {
+      const mergedSummary = successes
+        .map(s => String(s?.data?.description || '').trim())
+        .filter(Boolean)
+        .filter((v, i, arr) => arr.indexOf(v) === i)
+        .slice(0, 3)
+        .join('\n\n');
+      importedSummaryEl.value = mergedSummary;
+    }
+
+    // Prefill contact fields only when user explicitly marks the imported URL
+    // as their own site. Reference URLs should not overwrite contact identity.
+    if (isOwnUrl) {
+      if (first.emails?.length && !document.getElementById('buildEmail').value)
+        document.getElementById('buildEmail').value = first.emails[0];
+
+      if (first.phones?.length && !document.getElementById('buildPhone').value)
+        document.getElementById('buildPhone').value = first.phones[0];
+    }
+
+    // Populate Page Sections & Nav Groups from scraped nav links.
+    // Respect manual edits: only auto-replace when user has not customized chips.
+    let navImportSkippedDueToManualEdits = false;
+    const hints = _extractImportNavSections(successes);
+    if (hints.length) {
+      const canReplaceNav = !_navEditedByUser || !_navTags.length;
+      if (canReplaceNav) {
+        _navTags = [...hints];
+        _navEditedByUser = false;
+        _renderNavChips();
+      } else {
+        navImportSkippedDueToManualEdits = true;
+      }
+    }
+
+    // Populate Product / Model Names tag chips from scraped products/carousels.
+    // Respect manual edits: only auto-replace when user has not customized chips.
+    let catalogImportSkippedDueToManualEdits = false;
+    const uniqueProducts = _extractImportProducts(successes);
+    if (uniqueProducts.length) {
+      const canReplaceCatalog = !_catalogEditedByUser || !_catalogTags.length;
+      if (canReplaceCatalog) {
+        _catalogTags = uniqueProducts.slice(0, 30);
+        _catalogEditedByUser = false;
+        _renderCatalogChips();
+      } else {
+        catalogImportSkippedDueToManualEdits = true;
+      }
+    }
+
+    // Prefill niche/category field from merged import signals if user hasn't set it.
+    const nicheEl = document.getElementById('buildNiche');
+    if (nicheEl && !String(nicheEl.value || '').trim()) {
+      const niche = _extractNicheHint(successes, hints);
+      if (niche) nicheEl.value = niche;
     }
 
     const summary = [
-      data.title ? `✅ Title: ${data.title}` : null,
-      data.emails?.length ? `📧 Email: ${data.emails[0]}` : null,
-      data.phones?.length ? `📞 Phone: ${data.phones[0]}` : null,
-      data.colors?.length ? `🎨 ${data.colors.length} brand colour(s) detected` : null,
+      `✅ Imported ${successes.length}/${urls.length} URL(s)`,
+      failures.length ? `⚠️ Failed ${failures.length}` : null,
+      first.title ? `Title: ${first.title}` : null,
+      isOwnUrl && first.emails?.length ? `📧 ${first.emails[0]}` : null,
+      isOwnUrl && first.phones?.length ? `📞 ${first.phones[0]}` : null,
     ].filter(Boolean).join(' · ');
 
-    statusEl.style.color = '#22c55e';
-    statusEl.textContent = summary || '✅ Info extracted. Form pre-filled.';
-    toast('Website info imported! Switching to Agentic Build tab…');
+    statusEl.style.color = failures.length ? '#f59e0b' : '#22c55e';
+    statusEl.textContent = summary;
+    if (detailEl) {
+      detailEl.style.display = 'block';
+      const details = perUrlResults
+        .map(r => r.ok
+          ? `✅ ${r.url}${r.title ? ` — ${r.title}` : ''}`
+          : `❌ ${r.url} — ${r.reason}`)
+        .join('<br>');
+      const importHints = [
+        navImportSkippedDueToManualEdits ? 'ℹ️ Kept your Page Sections & Nav Groups chips (manual edits were preserved).' : null,
+        catalogImportSkippedDueToManualEdits ? 'ℹ️ Kept your Product / Model Names chips (manual edits were preserved).' : null,
+      ].filter(Boolean).join('<br>');
+      detailEl.innerHTML = [malformedHintHtml, details, importHints].filter(Boolean).join('<br>');
+    }
+    renderReferenceQualityIndicator(qualityItems, failures.length, urls.length);
+
+    const modeSel = document.getElementById('buildMode');
+    if (modeSel) modeSel.value = 'combined';
+    selectedBuildMode = 'combined';
+
+    const preservedHints = [];
+    if (navImportSkippedDueToManualEdits) preservedHints.push('kept your manual nav chips');
+    if (catalogImportSkippedDueToManualEdits) preservedHints.push('kept your manual product chips');
+    const preservedText = preservedHints.length ? ` (${preservedHints.join('; ')})` : '';
+    toast(`Reference URLs imported. Switching to Agentic Build (Combined mode)…${preservedText}`);
     setTimeout(() => switchBuildTab('agent'), 800);
   } catch (err) {
     statusEl.style.color = '#ef4444';
     statusEl.textContent = `❌ ${err.message || 'Failed to fetch website info.'}`;
+    if (detailEl) {
+      detailEl.style.display = 'none';
+      detailEl.innerHTML = '';
+    }
+    renderReferenceQualityIndicator([], urls.length, urls.length);
     toast('Failed to fetch website info', false);
   } finally {
     btn.disabled = false;
@@ -981,13 +1951,19 @@ async function fetchWebsiteInfo() {
 async function buildWebsite() {
   const name = document.getElementById('buildName').value.trim();
   const requirements = document.getElementById('buildReq').value.trim();
+  const niche = document.getElementById('buildNiche')?.value.trim() || undefined;
+  const content_depth = document.getElementById('buildDepth')?.value || 'standard';
   if (!name || !requirements) { toast('Name and requirements are required', false); return; }
 
-  const rawCategories = document.getElementById('buildCategories')?.value.trim();
-  const categories = rawCategories ? rawCategories.split(',').map(c => c.trim()).filter(Boolean) : undefined;
+  const categories = _navTags.length ? [..._navTags] : undefined;
+  const catalog_items = _catalogTags.length ? [..._catalogTags] : undefined;
   const location = document.getElementById('buildLocation')?.value.trim() || undefined;
   const email = document.getElementById('buildEmail')?.value.trim() || undefined;
   const phone = document.getElementById('buildPhone')?.value.trim() || undefined;
+  const booking_prefix = document.getElementById('buildBookingPrefix')?.value.trim() || undefined;
+  selectedBuildMode = document.getElementById('buildMode')?.value || 'agentic_only';
+  selectedOutputTarget = document.getElementById('buildOutputTarget')?.value || 'legacy';
+  const classMeta = selectedClassificationMeta();
 
   const parseSocial = id => {
     const raw = document.getElementById(id)?.value.trim();
@@ -1002,7 +1978,36 @@ async function buildWebsite() {
     ? { ...(instagram && { instagram }), ...(facebook && { facebook }), ...(linkedin && { linkedin }) }
     : undefined;
   const use_social_search = document.getElementById('buildSocialSearch')?.checked ?? false;
-  const existing_website_url = document.getElementById('existingUrl')?.value.trim() || undefined;
+  const existingUrlSingle = document.getElementById('existingUrl')?.value.trim() || '';
+  const existingUrlsRaw = document.getElementById('existingUrls')?.value || '';
+  const referenceEntries = _parseReferenceUrlEntries(existingUrlsRaw);
+  const existing_website_urls = [
+    ...(existingUrlSingle ? [existingUrlSingle] : []),
+    ...referenceEntries.map(e => e.url),
+  ].filter((url, idx, arr) => arr.indexOf(url) === idx);
+  const existing_website_url = existing_website_urls[0] || undefined;
+  const reference_usage_by_url = referenceEntries
+    .filter(e => e.url && e.usage)
+    .map(e => ({ url: e.url, usage: e.usage }));
+
+  if (selectedBuildMode === 'combined' && existing_website_urls.length === 0) {
+    toast('Combined mode requires at least one reference URL in Import tab', false);
+    return;
+  }
+
+  if (selectedBuildMode === 'combined') {
+    if (!lastReferenceQuality) {
+      toast('Please click Fetch Info first to evaluate reference quality before Combined build.', false);
+      return;
+    }
+    if (lastReferenceQuality.status === 'bad') {
+      toast('Reference quality is too sparse for Combined mode. Add a richer URL or stronger product/category details.', false);
+      return;
+    }
+  }
+
+  importFlowBuildStarted = true;
+  _updateImportFlowStepper();
 
   document.getElementById('buildProgress').style.display = 'block';
   document.getElementById('buildProgressMsg').textContent = '🔄 Generating your website — this may take 30–90 seconds…';
@@ -1027,13 +2032,17 @@ async function buildWebsite() {
     description: requirements.slice(0, 300),
     theme: selectedTheme,
     classification: selectedClassification,
+    classification_label: classMeta.label,
+    classification_group: classMeta.group,
+    build_mode: selectedBuildMode,
+    output_target: selectedOutputTarget,
     hosting_env: 's3',
     include_shopping_cart: cartEnabled,
     cart_features: cartEnabled ? getSelectedCartFeatures() : [],
     enable_chatbot: document.getElementById('buildChatbot').checked,
     enable_blog: document.getElementById('buildBlog').checked,
     enable_livestream: document.getElementById('buildLivestream').checked,
-    num_pages: parseInt(document.getElementById('buildPages').value),
+    content_depth,
   };
 
   const created = await apiFetch('/websites', { method: 'POST', body: JSON.stringify(createPayload) });
@@ -1050,12 +2059,23 @@ async function buildWebsite() {
     requirements,
     use_web_search: document.getElementById('buildWebSearch').checked,
     use_social_search,
+    build_mode: selectedBuildMode,
+    output_target: selectedOutputTarget,
+    classification_label: classMeta.label,
+    classification_group: classMeta.group,
+    content_depth,
+    include_shopping_cart: cartEnabled,
+    ...(niche && { niche }),
     ...(categories?.length && { categories }),
+    ...(catalog_items?.length && { catalog_items }),
     ...(location && { location }),
     ...(email && { email }),
     ...(phone && { phone }),
+    ...(booking_prefix && { booking_prefix }),
     ...(social_links && { social_links }),
     ...(existing_website_url && { existing_website_url }),
+    ...(existing_website_urls.length && { existing_website_urls }),
+    ...(reference_usage_by_url.length && { reference_usage_by_url }),
   };
 
   // Step 2: trigger build (returns immediately with job_id)
@@ -1082,23 +2102,6 @@ async function buildWebsite() {
     timeout: { msg: '⚠️ Build is taking longer than expected. Check My Websites for status.', pct: 100 },
   };
 
-
-  // added for debugging - log the SSE URL and connection status
-const esUrl = `${API}/websites/${created.website_id}/build-stream?token=${encodeURIComponent(token)}`;
-console.log('[SSE] Connecting to:', esUrl);
-const es = new EventSource(esUrl);
-es.onopen = () => {
-  console.log('[SSE] Connection opened');
-};
-es.onmessage = async (e) => {
-  console.log('[SSE] Message received:', e.data);
-  // ...existing code...
-};
-es.onerror = (err) => {
-  console.error('[SSE] Connection error:', err);
-  es.close();
-  resolve();
-};
 
   const setStage = (status, errorMsg) => {
     const s = stageLabels[status] || stageLabels.queued;
@@ -1134,6 +2137,34 @@ es.onerror = (err) => {
             }, 1500);
           } else if (status === 'error') {
             toast(data.error || 'Build failed. Please try again.', false);
+          } else if (status === 'timeout') {
+            document.getElementById('buildSpinner').style.display = 'inline-block';
+            document.getElementById('buildProgressMsg').textContent = '⏳ Still running in background. Continuing to check status…';
+            toast('Build is still running. Continuing to check automatically…');
+
+            const finalState = await _pollBuildStatusUntilTerminal(created.website_id, {
+              onUpdate: (s, err) => setStage(s, err),
+              maxAttempts: 180,
+              intervalMs: 5000,
+            });
+
+            document.getElementById('buildSpinner').style.display = 'none';
+
+            if (finalState.status === 'built') {
+              toast('Website built! Opening Staging Area…');
+              setTimeout(async () => {
+                resetBuildForm();
+                await loadAllSites();
+                await loadStagingWebsites();
+                showPage('staging');
+                loadStagedSite(created.website_id);
+              }, 1500);
+            } else if (finalState.status === 'error') {
+              toast(finalState.error || 'Build failed. Please try again.', false);
+            } else {
+              setStage('timeout');
+              toast('Build is still running. You can continue from My Websites or Staging.', false);
+            }
           }
           resolve();
         }
@@ -2043,12 +3074,141 @@ function switchBuildTab(tab) {
   aBtn.style.color             = isImport ? 'var(--muted)' : 'var(--accent)';
   aBtn.style.borderBottomColor = isImport ? 'transparent' : 'var(--accent)';
 
+  const modeSel = document.getElementById('buildMode');
+  if (modeSel) {
+    if (isImport && modeSel.value !== 'combined') modeSel.value = 'combined';
+    if (!isImport && modeSel.value !== 'combined' && modeSel.value !== 'agentic_only') modeSel.value = 'agentic_only';
+    selectedBuildMode = modeSel.value;
+  }
+
   if (!isImport) applyBuildPlanRestrictions();
+
+  _updateImportFlowStepper();
 }
 
 // ── Staging Area ───────────────────────────────────────────────────────────
 let stagedWebsiteId = null;
 let currentStagingUrl = null;
+
+async function loadBuildNarrative(websiteId) {
+  const card = document.getElementById('stagingNarrativeCard');
+  const meta = document.getElementById('stagingNarrativeMeta');
+  const body = document.getElementById('stagingNarrativeBody');
+  const badge = document.getElementById('stagingNarrativeBadge');
+  const badgeText = document.getElementById('stagingNarrativeBadgeText');
+  const classifBox = document.getElementById('stagingNarrativeClassification');
+  const classifKey = document.getElementById('stagingNarrativeClassKey');
+  const classifLabel = document.getElementById('stagingNarrativeClassLabel');
+  const classifGroup = document.getElementById('stagingNarrativeClassGroup');
+  if (!card || !meta || !body || !badge || !badgeText) return;
+
+  if (!websiteId) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = '';
+  meta.textContent = 'Loading narrative…';
+  body.textContent = 'Fetching post-build diagnostics…';
+  badge.textContent = '⌛ Evaluating';
+  badge.style.color = 'var(--muted)';
+  badge.style.borderColor = 'var(--border)';
+  badge.style.background = 'rgba(99,102,241,.08)';
+  badgeText.textContent = '';
+
+  const res = await apiFetch(`/websites/${websiteId}/build-narrative`);
+  if (!res || !res.narrative) {
+    meta.textContent = 'Narrative unavailable';
+    body.textContent = apiFetch._lastError || 'No narrative details available yet.';
+    badge.textContent = '⚠️ Unavailable';
+    badge.style.color = '#f59e0b';
+    badge.style.borderColor = '#f59e0b';
+    badge.style.background = 'rgba(245,158,11,.12)';
+    badgeText.textContent = 'Could not compute quality summary for this build.';
+    if (classifBox) classifBox.style.display = 'none';
+    return;
+  }
+
+  const n = res.narrative || {};
+  const checks = Array.isArray(n.checks) ? n.checks : [];
+  const canDo = Array.isArray(n.can_do) ? n.can_do : [];
+  const cannotDo = Array.isArray(n.cannot_do) ? n.cannot_do : [];
+  const expected = Array.isArray(n.user_expected_inputs) ? n.user_expected_inputs : [];
+  const inputs = n.inputs_used || {};
+
+  const checkByName = (name) => checks.find(c => String(c.name || '').toLowerCase() === name.toLowerCase());
+  const refCheck = checkByName('Reference Data Richness');
+  const warnCount = checks.filter(c => String(c.status || '').toLowerCase() === 'warning').length;
+  const errCount = checks.filter(c => ['error', 'fail', 'failed'].includes(String(c.status || '').toLowerCase())).length;
+
+  if (errCount > 0 || (refCheck && String(refCheck.status || '').toLowerCase() === 'warning' && warnCount >= 2)) {
+    badge.textContent = '❌ Sparse Inputs';
+    badge.style.color = '#ef4444';
+    badge.style.borderColor = '#ef4444';
+    badge.style.background = 'rgba(239,68,68,.12)';
+    badgeText.textContent = 'High drift risk. Add richer references and explicit product/category details.';
+  } else if (warnCount > 0 || (refCheck && String(refCheck.status || '').toLowerCase() === 'warning')) {
+    badge.textContent = '⚠️ Partial Quality';
+    badge.style.color = '#f59e0b';
+    badge.style.borderColor = '#f59e0b';
+    badge.style.background = 'rgba(245,158,11,.12)';
+    badgeText.textContent = 'Usable with caution. Improve references for stronger domain relevance.';
+  } else {
+    badge.textContent = '✅ Good Quality';
+    badge.style.color = '#16a34a';
+    badge.style.borderColor = '#16a34a';
+    badge.style.background = 'rgba(22,163,74,.12)';
+    badgeText.textContent = 'Inputs and extracted context look healthy for generation.';
+  }
+
+  // Populate classification display
+  if (classifBox && inputs.classification) {
+    classifBox.style.display = '';
+    classifKey.textContent = inputs.classification || '—';
+    classifLabel.textContent = inputs.classification_label || '—';
+    classifGroup.textContent = inputs.classification_group || '—';
+  } else if (classifBox) {
+    classifBox.style.display = 'none';
+  }
+
+  const lines = [];
+  lines.push('Summary');
+  lines.push(`- ${n.summary || 'No summary provided.'}`);
+  lines.push('');
+  lines.push('Inputs Used');
+  lines.push(`- Build mode: ${inputs.build_mode || '-'}`);
+  lines.push(`- Classification: ${inputs.classification || '-'} (${inputs.classification_label || '-'})`);
+  lines.push(`- Classification Group: ${inputs.classification_group || '-'}`);
+  lines.push(`- Requirements: ${inputs.requirements || '-'}`);
+  lines.push(`- Reference URLs: ${Array.isArray(inputs.reference_urls) ? inputs.reference_urls.join(', ') : '-'}`);
+  lines.push(`- Web search: ${inputs.use_web_search ? 'enabled' : 'disabled'}`);
+  lines.push(`- Social search: ${inputs.use_social_search ? 'enabled' : 'disabled'}`);
+  lines.push('');
+  lines.push('Checks');
+  checks.forEach(c => {
+    lines.push(`- [${String(c.status || 'info').toUpperCase()}] ${c.name || 'Check'}`);
+    lines.push(`  ${c.details || ''}`);
+  });
+  if (!checks.length) lines.push('- No checks recorded.');
+
+  lines.push('');
+  lines.push('What Agentic AI Can Do');
+  canDo.forEach(v => lines.push(`- ${v}`));
+  if (!canDo.length) lines.push('- No explicit capabilities listed.');
+
+  lines.push('');
+  lines.push('What It Cannot Reliably Do');
+  cannotDo.forEach(v => lines.push(`- ${v}`));
+  if (!cannotDo.length) lines.push('- No explicit limitations listed.');
+
+  lines.push('');
+  lines.push('Expected From User For Better Output');
+  expected.forEach(v => lines.push(`- ${v}`));
+  if (!expected.length) lines.push('- No explicit user expectations listed.');
+
+  meta.textContent = `Generated: ${n.generated_at || 'unknown'}`;
+  body.textContent = lines.join('\n');
+}
 
 function _normStatus(v) {
   return String(v || '').trim().toLowerCase();
@@ -2106,6 +3266,7 @@ async function loadStagedSite(preselect) {
   }
   if (!id) return;
   stagedWebsiteId = id;
+  loadBuildNarrative(id);
 
   // Show loading overlay
   const loading = document.getElementById('stagingLoading');
@@ -2131,7 +3292,7 @@ async function loadStagedSite(preselect) {
 
   // Update status badge
   const badge = document.getElementById('stagingStatusBadge');
-  if (badge) badge.innerHTML = w ? statusBadge(w.status) : '';
+  if (badge) badge.innerHTML = w ? statusBadge(w.status, w.build_status) : '';
 
   // Load iframe
   const frame = document.getElementById('stagingIframe');
@@ -4445,6 +5606,35 @@ async function rebuildWebsite() {
             setTimeout(() => { showPage('staging'); loadStagedSite(id); }, 1500);
           } else if (status === 'error') {
             toast(data.error || 'Rebuild failed. Please try again.', false);
+          } else if (status === 'timeout') {
+            spinnerEl.style.display = 'inline-block';
+            msgEl.textContent = '⏳ Rebuild is still running in background. Continuing to check…';
+            toast('Rebuild is still running. Continuing to check automatically…');
+
+            const finalState = await _pollBuildStatusUntilTerminal(id, {
+              onUpdate: (s2, err2) => {
+                const st = stageLabels[s2] || stageLabels.queued;
+                msgEl.textContent = err2 ? `❌ ${err2}` : st.msg;
+                barEl.style.width = st.pct + '%';
+              },
+              maxAttempts: 180,
+              intervalMs: 5000,
+            });
+
+            spinnerEl.style.display = 'none';
+
+            if (finalState.status === 'built') {
+              toast('Rebuild complete! Opening Staging Area…');
+              await loadAllSites();
+              await loadStagingWebsites();
+              setTimeout(() => { showPage('staging'); loadStagedSite(id); }, 1500);
+            } else if (finalState.status === 'error') {
+              toast(finalState.error || 'Rebuild failed. Please try again.', false);
+            } else {
+              msgEl.textContent = stageLabels.timeout.msg;
+              barEl.style.width = '100%';
+              toast('Rebuild is still running. Check My Websites for final status.', false);
+            }
           }
           resolve();
         }

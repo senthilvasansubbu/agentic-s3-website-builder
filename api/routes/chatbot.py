@@ -69,7 +69,7 @@ def _llm_reply(prompt: str) -> str:
     if "plan" in msg or "price" in msg or "cost" in msg:
         return "We offer three plans:\n• **Free** — up to 10 pages, basic features\n• **Pro** — unlimited pages, shopping cart, custom domain\n• **Enterprise** — all Pro features + analytics, team access"
     if "theme" in msg:
-        return "Available themes: modern, classic, minimal, dark, nature, ecommerce. You can select a theme when creating or editing a website."
+        return "Available themes: modern, classic, minimal, dark, nature, ecommerce, ocean, sunrise, serene, terra, slate, blossom, aurora, summit, clarity, pulse, spark, keystone, nova. You can select a theme when creating or editing a website."
     if "payment" in msg or "stripe" in msg:
         return "Payments are handled via Stripe. Configure your Stripe API keys in Settings → Payment Config to enable checkout on your websites."
     if "user" in msg and "create" in msg:

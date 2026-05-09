@@ -155,7 +155,7 @@ class WorkspaceCreate(BaseModel):
     domain: Optional[str] = None
     hosting_env: str = "local"
     include_shopping_cart: bool = False
-    num_pages: int = 1
+    content_depth: str = 'standard'
 
 
 @router.post("/create-workspace/{user_id}")
@@ -171,10 +171,10 @@ async def create_workspace(
     website_id = str(uuid.uuid4())
     now = datetime.datetime.utcnow().isoformat()
     db.execute(
-        "INSERT INTO websites (website_id, user_id, name, title, theme, domain, status, hosting_env, num_pages, created_at, updated_at) "
+        "INSERT INTO websites (website_id, user_id, name, title, theme, domain, status, hosting_env, content_depth, created_at, updated_at) "
         "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         [website_id, user_id, body.name, body.title or body.name, body.theme,
-         body.domain, "draft", body.hosting_env, body.num_pages, now, now],
+         body.domain, "draft", body.hosting_env, body.content_depth, now, now],
     )
     return {"website_id": website_id, "message": "Workspace created"}
 

@@ -368,6 +368,11 @@
             <select id="s-theme">
               <option>modern</option><option>classic</option><option>minimal</option>
               <option>dark</option><option>nature</option><option>ecommerce</option>
+              <option>ocean</option><option>sunrise</option><option>serene</option>
+              <option>terra</option><option>slate</option><option>blossom</option>
+              <option value="photography">Aurora</option><option value="school">Summit</option><option value="hospital">Clarity</option>
+              <option value="student">Pulse</option><option value="comic">Spark</option><option value="professional">Keystone</option>
+              <option value="trendy">Nova</option>
             </select>
           </div>
           <div class="field"><label>Free Plan Page Limit</label><input id="s-free-pages" value="10" type="number"></div>
@@ -454,6 +459,11 @@
         <select id="ws-theme">
           <option>modern</option><option>ecommerce</option><option>classic</option>
           <option>minimal</option><option>dark</option><option>nature</option>
+          <option>ocean</option><option>sunrise</option><option>serene</option>
+          <option>terra</option><option>slate</option><option>blossom</option>
+          <option value="photography">Aurora</option><option value="school">Summit</option><option value="hospital">Clarity</option>
+          <option value="student">Pulse</option><option value="comic">Spark</option><option value="professional">Keystone</option>
+          <option value="trendy">Nova</option>
         </select>
       </div>
     </div>
@@ -738,7 +748,7 @@ async function setupWorkspace() {
     domain: document.getElementById('ws-domain').value,
     hosting_env: document.getElementById('ws-hosting').value,
     include_shopping_cart: document.getElementById('ws-cart').value === 'true',
-    num_pages: 1,
+    content_depth: 'standard',
   };
 
   // Create website on behalf of user (admin route)
