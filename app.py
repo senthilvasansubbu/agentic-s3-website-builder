@@ -24,6 +24,8 @@ from config.settings import settings
 load_dotenv()
 
 # ── Logging setup ──────────────────────────────────────────────────────────────
+os.makedirs("logs", exist_ok=True)
+
 logging.config.dictConfig({
     "version": 1,
     "disable_existing_loggers": False,
@@ -53,8 +55,6 @@ logging.config.dictConfig({
     },
     "root": {"level": "INFO", "handlers": ["console"]},
 })
-
-os.makedirs("logs", exist_ok=True)
 
 from api.routes.auth import router as auth_router
 from api.routes.website_builder import router as website_router
