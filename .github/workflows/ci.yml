@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt --force-reinstall
+          pip install -r requirements.txt
 
       - name: Verify pytest plugins
         run: pytest --co -q 2>&1 | head -20 && python -c "import allure_pytest; print('✓ allure-pytest installed')"
