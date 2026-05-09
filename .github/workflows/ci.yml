@@ -1,0 +1,106 @@
+name: CI — Test & Coverage
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: pytest + coverage + allure
+    runs-on: ubuntu-latest
+
+    env:
+      # Minimum required env vars so app imports succeed without real credentials
+      JWT_SECRET: "github-actions-test-secret-do-not-use-in-prod"
+      OPENAI_API_KEY: ""
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+      STORAGE_SECRETS_KEY: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_REGION: "us-east-1"
+      S3_BUCKET_NAME: ""
+      SQLITE_DB_PATH: ":memory:"
+      VERBOSE_MODE: "false"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=. \
+            --cov-config=pyproject.toml \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:coverage-html \
+            --alluredir=allure-results \
+            -v \
+            --tb=short \
+            --ignore=tests/run_automated_tests.py \
+            --ignore=tests/verify_deployment.py \
+            --ignore=tests/verify_features.py
+        continue-on-error: false
+
+      - name: Upload coverage XML to GitHub
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 30
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-html
+          path: coverage-html/
+          retention-days: 30
+
+      - name: Upload Allure results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results
+          path: allure-results/
+          retention-days: 30
+
+      - name: Generate Allure HTML report
+        uses: simple-elf/allure-report-action@master
+        if: always()
+        with:
+          allure_results: allure-results
+          allure_history: allure-history
+          keep_reports: 30
+
+      - name: Publish Allure report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main' && always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
+
+      - name: Coverage summary comment on PR
+        uses: MishaKav/pytest-coverage-comment@main
+        if: github.event_name == 'pull_request'
+        with:
+          pytest-xml-coverage-path: coverage.xml
+          title: "Test Coverage Report"
+          badge-title: "Coverage"
+          hide-badge: false
+          hide-report: false
+          report-only-changed-files: false

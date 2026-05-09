@@ -1,0 +1,54 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--ignore=tests/run_automated_tests.py",
+    "--ignore=tests/verify_deployment.py",
+    "--ignore=tests/verify_features.py",
+]
+markers = [
+    "auth: Authentication tests",
+    "payment: Payment and billing tests",
+    "website: Website CRUD tests",
+    "editor: Editor feature tests",
+    "slow: Tests that are slow to run",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "scripts/*",
+    "docs/*",
+    ".github/*",
+    "output/*",
+    "logs/*",
+    "data/*",
+    "*/migrations.py",
+    "main.py",
+    "venv/*",
+    "*.egg-info/*",
+]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 18
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "pass",
+    "\\.\\.\\.",
+]
+
+[tool.coverage.html]
+directory = "coverage-html"
+title = "Agentic AI Website Builder — Coverage Report"
