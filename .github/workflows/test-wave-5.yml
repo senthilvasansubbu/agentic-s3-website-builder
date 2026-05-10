@@ -1,0 +1,87 @@
+# Naming standard: <Category> | <Scope> | <Purpose>
+name: Test | Wave 5 | Medium Data and API Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "app.py"
+      - "api/**"
+      - "services/**"
+      - "database/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/test-wave-5.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app.py"
+      - "api/**"
+      - "services/**"
+      - "database/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/test-wave-5.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-5-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wave5-medium-data-api-tests:
+    name: wave5-medium-data-api-tests
+    runs-on: ubuntu-latest
+
+    env:
+      JWT_SECRET: "github-actions-test-secret-do-not-use-in-prod"
+      OPENAI_API_KEY: ""
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+      STORAGE_SECRETS_KEY: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_REGION: "us-east-1"
+      S3_BUCKET_NAME: ""
+      SQLITE_DB_PATH: ":memory:"
+      VERBOSE_MODE: "false"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Wave 5 test suite
+        run: |
+          pytest \
+            tests/test_auth.py \
+            tests/test_website_crud.py \
+            tests/test_payment_webhook.py \
+            --cov=services \
+            --cov=api \
+            --cov=database \
+            --cov-report=xml:coverage-wave5.xml \
+            -v \
+            --tb=short \
+            --maxfail=1
+
+      - name: Upload Wave 5 coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-wave5-xml
+          path: coverage-wave5.xml
+          retention-days: 30
