@@ -93,7 +93,10 @@ async function apiFetch(path, opts = {}) {
     try {
       const err = await r.json();
       apiFetch._lastError = err?.detail || `HTTP ${r.status}`;
-    } catch { apiFetch._lastError = `HTTP ${r.status}`; }
+    } catch (err) {
+      console.debug('[apiFetch] Failed to parse error response JSON:', err);
+      apiFetch._lastError = `HTTP ${r.status}`;
+    }
     return null;
   }
   apiFetch._lastError = null;
@@ -395,7 +398,9 @@ function featureBadges(w) {
   try {
     const cf = typeof w.cart_features === 'string' ? JSON.parse(w.cart_features) : (w.cart_features || []);
     if (cf.length) badges.push(`<span class="tag published" style="font-size:.72rem;padding:2px 8px">🛒 Cart</span>`);
-  } catch(e) {}
+  } catch (err) {
+    console.debug('[featureBadges] Invalid cart_features payload:', err);
+  }
   if (w.enable_livestream) badges.push(`<span class="tag" style="font-size:.72rem;padding:2px 8px;background:#fff0f0;color:#dc2626">🟥 Live</span>`);
   if (w.enable_blog) badges.push(`<span class="tag" style="font-size:.72rem;padding:2px 8px;background:#f0fdf4;color:#15803d">📝 Blog</span>`);
   if (w.enable_chatbot) badges.push(`<span class="tag" style="font-size:.72rem;padding:2px 8px;background:#e8f4fd;color:#1a73e8">💬 Bot</span>`);
