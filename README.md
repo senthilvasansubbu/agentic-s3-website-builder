@@ -4,10 +4,10 @@ AI-powered website generation platform built on FastAPI, with a multi-agent cont
 
 ## Quick Links
 
-- [Projects and Actions Handbook](docs/PROJECTS_ACTIONS_HANDBOOK.md)
-- [Codebase Audit](docs/CODEBASE_AUDIT.md)
-- [Deployment Verification](docs/DEPLOYMENT_VERIFICATION.md)
-- [Manual Test Guide](docs/MANUAL_TEST_GUIDE.md)
+- [Projects and Actions Handbook](docs/009_PROJECTS_ACTIONS_HANDBOOK.md)
+- [Codebase Audit](docs/007_CODEBASE_AUDIT.md)
+- [Deployment Verification](docs/010_DEPLOYMENT_VERIFICATION.md)
+- [Manual Test Guide](docs/004_MANUAL_TEST_GUIDE.md)
 
 ## What This Repository Includes
 
@@ -147,4 +147,4 @@ agentic-s3-website-builder/
 - Monitoring and payment reminder schedulers start during app startup.
 - CORS defaults to localhost origins unless CORS_ORIGINS is set.
 
-For operational processes (issue taxonomy, waves, automation, backlog and project hygiene), see [Projects and Actions Handbook](docs/PROJECTS_ACTIONS_HANDBOOK.md).
+For operational processes (issue taxonomy, waves, automation, backlog and project hygiene), see [Projects and Actions Handbook](docs/009_PROJECTS_ACTIONS_HANDBOOK.md).
