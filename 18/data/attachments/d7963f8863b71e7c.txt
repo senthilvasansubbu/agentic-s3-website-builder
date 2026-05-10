@@ -1,0 +1,7 @@
+2026-05-10 04:36:30  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-10 04:36:30  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-10 04:36:30  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
+2026-05-10 04:36:30  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
+2026-05-10 04:36:30  INFO      apscheduler.scheduler  Scheduler started
+✅ Scheduler started — monitoring every 5min | reminders daily
+2026-05-10 04:36:31  INFO      httpx  HTTP Request: GET http://testserver/api/v1/websites/5c5dcb90-7252-427b-bafb-b5558b71cc25/build-status "HTTP/1.1 404 Not Found"
