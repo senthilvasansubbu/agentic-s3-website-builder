@@ -4,6 +4,7 @@ AI-powered website generation platform built on FastAPI, with a multi-agent cont
 
 ## Quick Links
 
+- [Documentation Index](docs/000_DOC_INDEX.md)
 - [Projects and Actions Handbook](docs/009_PROJECTS_ACTIONS_HANDBOOK.md)
 - [Codebase Audit](docs/007_CODEBASE_AUDIT.md)
 - [Deployment Verification](docs/010_DEPLOYMENT_VERIFICATION.md)
