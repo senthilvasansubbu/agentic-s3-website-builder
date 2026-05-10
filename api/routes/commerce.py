@@ -3,6 +3,7 @@ Coupons, advertisements, and notification campaigns API.
 """
 import uuid
 import json
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, Literal
@@ -12,6 +13,7 @@ from database.snowflake_client import db
 from services.notification_service import send_email, send_sms, send_whatsapp
 
 router = APIRouter(prefix="/commerce", tags=["commerce"])
+logger = logging.getLogger("website_builder.commerce")
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -241,8 +243,13 @@ async def send_campaign(campaign_id: str, current: dict = Depends(get_current_us
             elif camp["channel"] == "whatsapp":
                 send_whatsapp(dest, camp["body"], current["sub"])
             sent += 1
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "Campaign send failed for campaign_id=%s recipient=%s: %s",
+                campaign_id,
+                dest,
+                exc,
+            )
 
     import datetime
     db.execute(

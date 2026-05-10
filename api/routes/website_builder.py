@@ -70,7 +70,8 @@ def _safe_json_loads(raw: Optional[str], default):
         return default
     try:
         return json.loads(raw)
-    except Exception:
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        logger.debug("Failed to decode JSON payload in website_builder helper: %s", exc)
         return default
 
 
@@ -83,7 +84,8 @@ def _read_index_html(local_path: str) -> str:
             return ""
         with open(p, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
-    except Exception:
+    except OSError as exc:
+        logger.debug("Failed to read index.html from %s: %s", local_path, exc)
         return ""
 
 
@@ -407,7 +409,8 @@ def _bundle_local_upload_assets(published_dir: str) -> dict:
             updated = _rewrite_html(html_path, content)
             if updated != content:
                 html_path.write_text(updated, encoding="utf-8")
-        except Exception:
+        except OSError as exc:
+            logger.debug("Skipping unreadable HTML file %s: %s", html_path, exc)
             continue
 
     return {"rewritten_refs": rewritten_refs, "copied_files": len(copied)}
@@ -459,7 +462,8 @@ def _bundle_all_local_assets(published_dir: str, staging_dir: str) -> dict:
                         rewritten_refs += 1
             if changed:
                 html_path.write_text(content, encoding='utf-8')
-        except Exception:
+        except OSError as exc:
+            logger.debug("Skipping unreadable HTML file %s: %s", html_path, exc)
             continue
     return {"rewritten_refs": rewritten_refs, "copied_files": len(rels_copied)}
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -1201,6 +1205,7 @@ async def deploy_website(website_id: str, request: Request,
                     oauth_token=oauth_token,
                 )
             except Exception as exc:
+                logger.exception("Google Drive deploy failed for website_id=%s", website_id)
                 raise HTTPException(status_code=500, detail=str(exc))
             if gdrive_result and gdrive_result.get("url"):
                 gdrive_url = gdrive_result.get("url")

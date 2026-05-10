@@ -10,6 +10,7 @@ Each client is linked to exactly one website (client_website_id) and can:
 Clients CANNOT build new websites, manage billing, or see other clients.
 """
 import json as _json
+import logging
 import uuid
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, EmailStr
@@ -20,6 +21,7 @@ from database.snowflake_client import db
 from services.auth_service import hash_password
 
 router = APIRouter(prefix="/clients", tags=["clients"])
+logger = logging.getLogger("website_builder.clients")
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
@@ -72,7 +74,8 @@ async def list_clients(
     for r in items:
         try:
             r["permissions"] = _json.loads(r.get("permissions") or "[]")
-        except Exception:
+        except (_json.JSONDecodeError, TypeError, ValueError) as exc:
+            logger.debug("Invalid permissions JSON for client row %s: %s", r.get("user_id"), exc)
             r["permissions"] = []
     return {
         "items": items,
@@ -131,7 +134,8 @@ async def get_client(
         raise HTTPException(status_code=404, detail="Client not found")
     try:
         row["permissions"] = _json.loads(row.get("permissions") or "[]")
-    except Exception:
+    except (_json.JSONDecodeError, TypeError, ValueError) as exc:
+        logger.debug("Invalid permissions JSON for client %s: %s", client_id, exc)
         row["permissions"] = []
     return row
 
@@ -189,7 +193,8 @@ async def get_client_services(
         raise HTTPException(status_code=404, detail="Client not found")
     try:
         perms = _json.loads(row.get("permissions") or "[]")
-    except Exception:
+    except (_json.JSONDecodeError, TypeError, ValueError) as exc:
+        logger.debug("Invalid permissions JSON for client %s: %s", client_id, exc)
         perms = []
     return {
         "client_id": client_id,
@@ -218,7 +223,8 @@ async def update_client_service(
 
     try:
         perms: list = _json.loads(row.get("permissions") or "[]")
-    except Exception:
+    except (_json.JSONDecodeError, TypeError, ValueError) as exc:
+        logger.debug("Invalid permissions JSON for client service update %s: %s", client_id, exc)
         perms = []
 
     if body.enabled and body.service not in perms:
