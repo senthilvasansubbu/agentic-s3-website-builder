@@ -30,13 +30,14 @@ jobs:
     name: qa-health
     uses: ./.github/workflows/health-gate.yml
     with:
-      base_url: ${{ secrets.QA_HEALTH_URL }}
       start_local_server: false
       require_auth_negative_401: false
       expected_health_status: "200"
       max_attempts: "3"
       retry_delay_seconds: "10"
       skip_if_empty_base_url: true
+    secrets:
+      base_url_secret: ${{ secrets.QA_HEALTH_URL }}
 
   prod-health:
     if: >
@@ -44,10 +45,11 @@ jobs:
     name: prod-health
     uses: ./.github/workflows/health-gate.yml
     with:
-      base_url: ${{ secrets.PROD_HEALTH_URL }}
       start_local_server: false
       require_auth_negative_401: false
       expected_health_status: "200"
       max_attempts: "3"
       retry_delay_seconds: "10"
       skip_if_empty_base_url: true
+    secrets:
+      base_url_secret: ${{ secrets.PROD_HEALTH_URL }}

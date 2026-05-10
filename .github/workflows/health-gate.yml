@@ -7,7 +7,7 @@ on:
       base_url:
         description: Base URL to probe (no trailing slash required)
         required: false
-        default: http://127.0.0.1:8000
+        default: ""
         type: string
       start_local_server:
         description: Start local app server before checks (for wave workflow gating)
@@ -39,6 +39,10 @@ on:
         required: false
         default: false
         type: boolean
+    secrets:
+      base_url_secret:
+        description: Optional secret-provided base URL for environment health checks
+        required: false
   workflow_dispatch:
     inputs:
       base_url:
@@ -63,7 +67,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      BASE_URL: ${{ inputs.base_url || 'http://127.0.0.1:8000' }}
+      BASE_URL: ${{ inputs.base_url }}
+      BASE_URL_SECRET: ${{ secrets.base_url_secret }}
       START_LOCAL_SERVER: ${{ inputs.start_local_server }}
       REQUIRE_AUTH_NEGATIVE_401: ${{ inputs.require_auth_negative_401 }}
       EXPECTED_HEALTH_STATUS: ${{ inputs.expected_health_status || '200' }}
@@ -89,6 +94,9 @@ jobs:
         id: skipcheck
         run: |
           base="${BASE_URL// /}"
+          if [[ -z "$base" ]]; then
+            base="${BASE_URL_SECRET// /}"
+          fi
           if [[ "$START_LOCAL_SERVER" != "true" && "$SKIP_IF_EMPTY_BASE_URL" == "true" && -z "$base" ]]; then
             echo "No base_url configured. Skipping health gate (ready-mode)."
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -123,6 +131,9 @@ jobs:
         run: |
           set -e
           base="${BASE_URL%/}"
+          if [[ -z "$base" ]]; then
+            base="${BASE_URL_SECRET%/}"
+          fi
           for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
             code=$(curl -s -o /dev/null -w "%{http_code}" "$base/health" || true)
             echo "attempt=$attempt health_status=$code"
@@ -144,7 +155,11 @@ jobs:
       - name: Verify unauthenticated access is denied
         if: steps.skipcheck.outputs.skip != 'true' && env.REQUIRE_AUTH_NEGATIVE_401 == 'true'
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL%/}/api/v1/auth/me" || true)
+          base="${BASE_URL%/}"
+          if [[ -z "$base" ]]; then
+            base="${BASE_URL_SECRET%/}"
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$base/api/v1/auth/me" || true)
           echo "auth_negative_status=$code"
           if [[ "$code" != "401" ]]; then
             echo "Expected 401 for unauthenticated /api/v1/auth/me"
