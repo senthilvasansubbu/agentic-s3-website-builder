@@ -142,7 +142,7 @@ def verify_deployed_features():
         print("   1. Clear browser cache (Ctrl+Shift+Delete)")
         print("   2. Hard refresh (Ctrl+F5)")
         print("   3. Login with sayeesaran")
-        print("   4. Follow MANUAL_TEST_GUIDE.md for manual verification")
+        print("   4. Follow docs/MANUAL_TEST_GUIDE.md for manual verification")
     else:
         print(f"⚠️  {total_checks - passed_checks} feature(s) not verified")
     

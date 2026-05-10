@@ -1,100 +1,150 @@
-# 🚀 Agentic AI Website Builder
+# Agentic S3 Website Builder
 
-An intelligent, conversational AI system that creates beautiful, responsive websites using a multi-agent architecture powered by **CrewAI** and **OpenAI GPT-4**.
+AI-powered website generation platform built on FastAPI, with a multi-agent content and design pipeline, publishing support, and operational tooling.
 
-## ✨ Features
+## Quick Links
 
-- **🤖 Multi-Agent System**: UI/UX Designer Agent + Web Developer Agent
-- **💬 Conversational Interface**: Describe what you want in natural language
-- **🎨 Automatic Design Generation**: AI creates design specifications
-- **💻 Complete Code Generation**: Full HTML/CSS/JavaScript output
-- **📁 Local Storage**: Save websites to the `output/` folder
-- **☁️ S3 Integration**: Optionally upload to AWS S3 (when configured)
-- **🎯 Production-Ready**: Clean, semantic, responsive code
+- [Projects and Actions Handbook](docs/PROJECTS_ACTIONS_HANDBOOK.md)
+- [Codebase Audit](docs/CODEBASE_AUDIT.md)
+- [Deployment Verification](docs/DEPLOYMENT_VERIFICATION.md)
+- [Manual Test Guide](docs/MANUAL_TEST_GUIDE.md)
 
-## 📋 Prerequisites
+## What This Repository Includes
 
-- Python 3.8+
-- OpenAI API Key (for GPT-4)
-- (Optional) AWS credentials for S3 uploads
+- FastAPI application with auth, website builder, commerce, payment, monitoring, and admin APIs.
+- Frontend pages served by FastAPI (login, dashboard, monitoring, console).
+- Scheduled background jobs for monitoring checks and payment reminders.
+- Optional integrations: S3, Stripe, Twilio, Snowflake, Tavily, Google APIs.
 
-## 🛠️ Installation
+## Prerequisites
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/senthilvasansubbu/agentic-ai-website-builder.git
-   cd agentic-ai-website-builder   ```
+- Python 3.9 or later
+- pip
+- OpenAI API key for AI generation features
+- Optional provider credentials depending on enabled features (AWS, Stripe, Twilio, Snowflake, etc.)
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Installation
 
-3. **Configure environment variables** — create a `.env` file in the project root:
-   ```env
-   OPENAI_API_KEY=your_openai_api_key_here
-   OPENAI_MODEL=gpt-4                  # optional, defaults to gpt-4
+1. Clone the repository.
 
-   # Optional — only needed for S3 uploads
-   AWS_ACCESS_KEY_ID=your_aws_key
-   AWS_SECRET_ACCESS_KEY=your_aws_secret
-   AWS_REGION=us-east-1
-   S3_BUCKET_NAME=your_bucket_name
-   ```
+```bash
+git clone https://github.com/senthilvasansubbu/agentic-s3-website-builder.git
+cd agentic-s3-website-builder
+```
 
-## 🚀 Usage
+2. Install dependencies.
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Configure the environment.
+
+```bash
+cp .env.example .env
+```
+
+Then edit .env and provide required values.
+
+Minimum recommended values for local development:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+JWT_SECRET=replace-with-a-long-random-secret
+ADMIN_EMAIL=admin@websitebuilder.ai
+ADMIN_PASSWORD=replace-with-strong-password
+STORAGE_SECRETS_KEY=generate-this-value
+```
+
+## Run the Application
+
+Primary entry point:
+
+```bash
+python app.py
+```
+
+Alternative (development mode with auto-reload):
+
+```bash
+uvicorn app:app --reload --port 8000
+```
+
+## Local URLs
+
+- App root: http://localhost:8000
+- Login page: http://localhost:8000/login
+- Dashboard: http://localhost:8000/dashboard
+- Health endpoint: http://localhost:8000/health
+- OpenAPI docs: http://localhost:8000/docs
+
+## Optional CLI Generator
+
+The legacy interactive CLI is still available:
 
 ```bash
 python main.py
 ```
 
-Describe the website you want in plain English when prompted. Examples:
+Use this mode only when you want terminal-driven website generation instead of the web/API workflow.
 
-- `"Create a modern portfolio website for a photographer with a gallery, about page, and contact form"`
-- `"Build a landing page for a tech startup with dark theme, pricing table, and feature highlights"`
-- `"Design a restaurant website with menu display, reservation form, and location information"`
+## Production Run
 
-Generated HTML files are saved to the `output/` folder. If AWS credentials are configured, the file is also uploaded to S3.
+Recommended baseline command:
 
-Type `exit` or `quit` to stop the application.
-
-## 🗂️ Project Structure
-
-```
-agentic-ai-website-builder/
-├── main.py                  # Application entry point
-├── requirements.txt         # Python dependencies
-├── agents/
-│   ├── crew.py              # CrewAI crew orchestration
-│   ├── designer_agent.py    # UI/UX Designer agent (design specification)
-│   └── developer_agent.py   # Web Developer agent (HTML/CSS/JS generation)
-├── config/
-│   └── settings.py          # Environment configuration
-├── tools/
-│   ├── html_generator.py    # Saves generated HTML to disk
-│   └── s3_uploader.py       # Optional AWS S3 upload helper
-└── output/                  # Generated website files
+```bash
+uvicorn app:app --host 0.0.0.0 --port 8000 --workers 2
 ```
 
-## 📦 Dependencies
+Suggested process-manager pattern (systemd-style):
 
-| Package | Version | Purpose |
-|---|---|---|
-| `crewai` | 1.14.1 | Multi-agent orchestration framework |
-| `openai` | 2.32.0 | OpenAI API client (GPT-4) |
-| `python-dotenv` | 1.1.1 | Load environment variables from `.env` |
-| `boto3` | 1.42.90 | AWS SDK for S3 uploads |
-| `requests` | 2.32.5 | HTTP requests |
+```ini
+[Unit]
+Description=Agentic S3 Website Builder API
+After=network.target
 
-## 🏗️ How It Works
+[Service]
+WorkingDirectory=/opt/agentic-s3-website-builder
+EnvironmentFile=/opt/agentic-s3-website-builder/.env
+ExecStart=/usr/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 2
+Restart=always
+RestartSec=3
 
-1. **Designer Agent** — receives your description and produces a detailed design specification (layout, colour scheme, typography, components).
-2. **Developer Agent** — takes the design spec and generates a complete, production-ready HTML/CSS/JavaScript file.
-3. **HTML Generator** — writes the output file to the `output/` folder with a timestamped filename.
-4. **S3 Uploader** — optionally publishes the file to an S3 bucket and returns a public URL.
+[Install]
+WantedBy=multi-user.target
+```
 
-## 📋 Prerequisites
+Deployment notes:
 
-- Python 3.9+
-- OpenAI API Key
-- (Optional) AWS credentials for S3 uploads
+- Put Nginx (or another reverse proxy) in front of port 8000.
+- Terminate TLS at the proxy and forward traffic to the API.
+- Restrict CORS_ORIGINS to your real frontend domains.
+- Set strong production values for JWT_SECRET, ADMIN_PASSWORD, and STORAGE_SECRETS_KEY.
+- Ensure OUTPUT_DIR, data, and logs locations are writable by the service user.
+- Use external monitoring checks against /health.
+
+## Project Structure
+
+```text
+agentic-s3-website-builder/
+├── app.py                    # FastAPI application entrypoint
+├── main.py                   # Legacy interactive CLI entrypoint
+├── api/                      # API routes
+├── services/                 # Business logic/services
+├── agents/                   # Multi-agent generation pipeline
+├── config/                   # Settings and configuration
+├── database/                 # Migrations and persistence helpers
+├── frontend/                 # HTML/CSS/JS assets/pages
+├── tests/                    # Automated tests
+├── docs/                     # Project documentation
+├── output/                   # Generated/published site artifacts
+└── logs/                     # Runtime logs
+```
+
+## Notes
+
+- The app runs database migrations at startup.
+- Monitoring and payment reminder schedulers start during app startup.
+- CORS defaults to localhost origins unless CORS_ORIGINS is set.
+
+For operational processes (issue taxonomy, waves, automation, backlog and project hygiene), see [Projects and Actions Handbook](docs/PROJECTS_ACTIONS_HANDBOOK.md).

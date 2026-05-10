@@ -1,0 +1,116 @@
+name: Wave Labeling
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  assign-wave:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign wave label for critical/high/medium/low issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (!issue) {
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = issue.number;
+
+            const labels = (issue.labels || []).map((l) => typeof l === 'string' ? l : l.name);
+            const hasCritical = labels.includes('critical');
+            const hasHigh = labels.includes('high');
+
+            if (labels.includes('no-auto-wave')) {
+              return;
+            }
+
+            const hasMedium = labels.includes('medium');
+            const hasLow = labels.includes('low');
+
+            if (!hasCritical && !hasHigh && !hasMedium && !hasLow) {
+              return;
+            }
+
+            const waveLabels = [
+              'wave-1-security-auth',
+              'wave-2-reliability-handling',
+              'wave-3-stability-quality',
+              'wave-4-medium-security-config',
+              'wave-5-medium-data-api',
+              'wave-6-medium-ux-performance',
+              'wave-low-opportunistic',
+              'wave-low-maintenance'
+            ];
+
+            let targetWave = null;
+
+            if (hasCritical || hasHigh) {
+              if (labels.includes('security') || labels.includes('api') || labels.includes('auth') || labels.includes('config')) {
+                targetWave = 'wave-1-security-auth';
+              } else if (labels.includes('error-handling')) {
+                targetWave = 'wave-2-reliability-handling';
+              } else if (labels.includes('frontend') || labels.includes('database') || labels.includes('performance') || labels.includes('test')) {
+                targetWave = 'wave-3-stability-quality';
+              } else if (hasCritical) {
+                targetWave = 'wave-1-security-auth';
+              } else {
+                targetWave = 'wave-2-reliability-handling';
+              }
+            } else if (hasMedium) {
+              if (labels.includes('security') || labels.includes('auth') || labels.includes('config')) {
+                targetWave = 'wave-4-medium-security-config';
+              } else if (labels.includes('api') || labels.includes('database')) {
+                targetWave = 'wave-5-medium-data-api';
+              } else {
+                targetWave = 'wave-6-medium-ux-performance';
+              }
+            } else if (hasLow) {
+              if (labels.includes('security') || labels.includes('auth') || labels.includes('config') || labels.includes('database') || labels.includes('api') || labels.includes('error-handling')) {
+                targetWave = 'wave-low-maintenance';
+              } else {
+                targetWave = 'wave-low-opportunistic';
+              }
+            }
+
+            if (!targetWave) {
+              return;
+            }
+
+            const existingWaves = labels.filter((l) => waveLabels.includes(l));
+
+            const toRemove = waveLabels.filter((w) => labels.includes(w) && w !== targetWave);
+            for (const label of toRemove) {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number, name: label });
+            }
+
+            if (!labels.includes(targetWave)) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [targetWave] });
+            }
+
+            const hadTargetWave = existingWaves.includes(targetWave);
+            const waveChanged = toRemove.length > 0 || !hadTargetWave;
+            if (waveChanged) {
+              const previous = existingWaves.length ? existingWaves.join(', ') : 'none';
+              const body = [
+                '[Wave Bot] Wave assignment updated by automation.',
+                '',
+                `- Previous wave: ${previous}`,
+                `- New wave: ${targetWave}`,
+                '- Override: add the `no-auto-wave` label to keep manual wave control.'
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body
+              });
+            }

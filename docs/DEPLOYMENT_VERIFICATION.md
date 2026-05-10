@@ -100,7 +100,7 @@ Password: [Your password]
 ```
 
 ### Step 3: Follow Manual Testing Guide
-See `MANUAL_TEST_GUIDE.md` for step-by-step tests:
+See `docs/MANUAL_TEST_GUIDE.md` for step-by-step tests:
 
 - **Test Suite 1:** Styled Dialogs (Reset button)
 - **Test Suite 2:** Background Carousel
@@ -120,7 +120,7 @@ See `MANUAL_TEST_GUIDE.md` for step-by-step tests:
    - 8 organized test groups
    - Selenium fixtures included
 
-2. **`MANUAL_TEST_GUIDE.md`**
+2. **`docs/MANUAL_TEST_GUIDE.md`**
    - Step-by-step manual verification
    - Troubleshooting section
    - Sign-off checklist
@@ -190,7 +190,7 @@ See `MANUAL_TEST_GUIDE.md` for step-by-step tests:
 ## 📞 SUPPORT
 
 All test cases documented in:
-- Manual: `MANUAL_TEST_GUIDE.md`
+- Manual: `docs/MANUAL_TEST_GUIDE.md`
 - Automated: `tests/test_editor_features.py`
 - Verification: `tests/verify_features.py`
 
