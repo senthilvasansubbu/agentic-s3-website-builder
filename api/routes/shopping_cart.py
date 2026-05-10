@@ -13,7 +13,7 @@ from api.routes.auth import get_current_user, require_app_user_or_above, require
 from database.snowflake_client import db
 from services.analytics_service import log_event
 from services.currency_service import currency_from_ip
-from services.image_service import process_image, ALLOWED_MIME
+from services.image_service import process_image, finalize_image, ALLOWED_MIME
 from services.secret_store import decrypt_json
 from tools.catalog_scraper import scrape_catalog, parse_file_catalog
 
@@ -55,6 +55,12 @@ ProductCreate = CartItemCreate
 class CartSessionItem(BaseModel):
     product_id: str
     qty: int
+
+
+class FinalizeImageRequest(BaseModel):
+    website_id: str
+    site_slug: str
+    filename: str
 
 
 class CatalogImportRequest(BaseModel):
@@ -158,6 +164,32 @@ async def upload_cart_item_image(
         "original_size_kb": round(result.original_size / 1024, 1),
         "compression_pct": compression,
     }
+
+
+@router.post("/finalize-image")
+async def finalize_cart_item_image(
+    body: FinalizeImageRequest,
+    current_user: dict = Depends(require_client_or_above),
+):
+    _assert_website_access(body.website_id, current_user)
+
+    filename = (body.filename or "").strip()
+    site_slug = (body.site_slug or "").strip()
+    if not filename or not site_slug:
+        raise HTTPException(status_code=400, detail="site_slug and filename are required")
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    try:
+        image_url = finalize_image(site_slug, filename)
+        return {"image_url": image_url}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Image not found in uploads")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to finalize image for site_slug=%s: %s", site_slug, exc)
+        raise HTTPException(status_code=400, detail="Failed to finalize image")
 
 
 # ── Categories ───────────────────────────────────────────────────────────────

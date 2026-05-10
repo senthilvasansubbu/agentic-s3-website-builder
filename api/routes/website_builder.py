@@ -1,22 +1,3 @@
-from services.image_service import finalize_image
-# Finalize image: move from uploads to images and return new path
-from fastapi import APIRouter, Body, Depends, HTTPException
-from api.routes.auth import require_app_user_or_above
-
-router = APIRouter()
-
-@router.post("/shop/finalize-image")
-async def api_finalize_image(
-    site_slug: str = Body(...),
-    filename: str = Body(...),
-    current_user: dict = Depends(require_app_user_or_above),
-):
-    # Optionally: check user owns the site (omitted for brevity)
-    try:
-        image_url = finalize_image(site_slug, filename)
-        return {"image_url": image_url}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
 """
 Website builder API routes — create, list, build, deploy, customise websites.
 """

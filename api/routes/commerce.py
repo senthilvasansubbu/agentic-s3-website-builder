@@ -87,13 +87,34 @@ async def update_coupon(coupon_id: str, body: CouponUpdate,
     if not row:
         raise HTTPException(404, "Coupon not found")
     _own_site(row["website_id"], current["sub"])
-    updates = {k: v for k, v in body.dict().items() if v is not None}
-    if not updates:
+    if all(
+        value is None
+        for value in (
+            body.discount_value,
+            body.min_order,
+            body.max_uses,
+            body.valid_until,
+            body.is_active,
+        )
+    ):
         return {"message": "Nothing to update"}
-    set_clause = ", ".join(f"{k} = ?" for k in updates)
+
     db.execute(
-        f"UPDATE coupons SET {set_clause} WHERE coupon_id = ?",
-        (*updates.values(), coupon_id),
+        """UPDATE coupons
+           SET discount_value = COALESCE(?, discount_value),
+               min_order = COALESCE(?, min_order),
+               max_uses = COALESCE(?, max_uses),
+               valid_until = COALESCE(?, valid_until),
+               is_active = COALESCE(?, is_active)
+           WHERE coupon_id = ?""",
+        (
+            body.discount_value,
+            body.min_order,
+            body.max_uses,
+            body.valid_until,
+            body.is_active,
+            coupon_id,
+        ),
     )
     return {"message": "Coupon updated"}
 

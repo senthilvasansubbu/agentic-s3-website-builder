@@ -226,6 +226,29 @@ from services.monitoring_service import run_all_checks
 from services.payment_reminder_service import run_payment_reminders
 from database.migrations import run_migrations
 
+
+def _is_truthy(value: str) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _validate_startup_configuration() -> None:
+    jwt_secret = (os.getenv("JWT_SECRET") or "").strip()
+    if not jwt_secret or jwt_secret.lower() in {"change-me-in-production", "changeme", "default", "secret"}:
+        raise RuntimeError(
+            "JWT_SECRET is missing or insecure. Set a strong JWT_SECRET before startup."
+        )
+
+    openai_api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    allow_missing_openai = (
+        _is_truthy(os.getenv("ALLOW_MISSING_OPENAI_API_KEY", ""))
+        or _is_truthy(os.getenv("TESTING", ""))
+    )
+    if not openai_api_key and not allow_missing_openai:
+        raise RuntimeError(
+            "OPENAI_API_KEY is required at startup. "
+            "Set ALLOW_MISSING_OPENAI_API_KEY=true only for non-AI local/test runs."
+        )
+
 def _start_scheduler():
     scheduler = BackgroundScheduler(daemon=True)
     check_interval = int(os.getenv("MONITOR_INTERVAL_MINUTES", "5"))
@@ -247,6 +270,7 @@ def _start_scheduler():
 
 @app.on_event("startup")
 async def startup():
+    _validate_startup_configuration()
     run_migrations()
     _start_scheduler()
 

@@ -5064,7 +5064,7 @@ async function finalizeSectionImage(siteSlug, filename, fid) {
   const r = await fetch(`${API}/shop/finalize-image`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ site_slug: siteSlug, filename }),
+    body: JSON.stringify({ website_id: stagedWebsiteId, site_slug: siteSlug, filename }),
   });
   if (r.ok) {
     const data = await r.json();

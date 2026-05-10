@@ -11,9 +11,19 @@ import bcrypt
 import jwt
 from database.snowflake_client import db
 
-SECRET_KEY = os.getenv("JWT_SECRET", "change-me-in-production")
 ALGORITHM  = "HS256"
 TOKEN_TTL  = int(os.getenv("JWT_TTL_MINUTES", "1440"))  # 24 h
+
+
+def _get_jwt_secret() -> str:
+    secret = (os.getenv("JWT_SECRET") or "").strip()
+    # Reject empty/default values to prevent token forgery with known secrets.
+    if not secret or secret.lower() in {"change-me-in-production", "changeme", "default", "secret"}:
+        raise RuntimeError(
+            "JWT_SECRET is not configured securely. "
+            "Set a strong, unique JWT_SECRET before starting the app."
+        )
+    return secret
 
 
 # ── Password helpers ──────────────────────────────────────────────────────────
@@ -36,15 +46,17 @@ def create_access_token(user_id: str, email: str, role: str = "app_user") -> str
         "exp":   datetime.now(timezone.utc) + timedelta(minutes=TOKEN_TTL),
         "iat":   datetime.now(timezone.utc),
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, _get_jwt_secret(), algorithm=ALGORITHM)
 
 
 def decode_access_token(token: str) -> Optional[dict]:
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return jwt.decode(token, _get_jwt_secret(), algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
         return None
     except jwt.PyJWTError:
+        return None
+    except RuntimeError:
         return None
 
 

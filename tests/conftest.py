@@ -15,6 +15,7 @@ os.environ.setdefault("JWT_SECRET", "test-secret-key-for-pytest-only")
 os.environ.setdefault("STRIPE_SECRET_KEY", "")
 os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "")
 os.environ.setdefault("OPENAI_API_KEY", "")
+os.environ.setdefault("ALLOW_MISSING_OPENAI_API_KEY", "true")
 
 # Stub out Snowflake so the import chain works without real credentials
 snowflake_stub = types.ModuleType("snowflake")
