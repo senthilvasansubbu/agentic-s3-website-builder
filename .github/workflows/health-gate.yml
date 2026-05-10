@@ -1,0 +1,141 @@
+# Naming standard: <Category> | <Scope> | <Purpose>
+name: Monitor | Shared | Health Gate
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: Base URL to probe (no trailing slash required)
+        required: false
+        default: http://127.0.0.1:8000
+        type: string
+      start_local_server:
+        description: Start local app server before checks (for wave workflow gating)
+        required: false
+        default: false
+        type: boolean
+      require_auth_negative_401:
+        description: Verify protected endpoint denies unauthenticated access
+        required: false
+        default: true
+        type: boolean
+      expected_health_status:
+        description: Expected HTTP status code for /health
+        required: false
+        default: "200"
+        type: string
+      max_attempts:
+        description: Maximum retries for /health probe
+        required: false
+        default: "12"
+        type: string
+      retry_delay_seconds:
+        description: Delay between retries
+        required: false
+        default: "5"
+        type: string
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL to probe (no trailing slash required)
+        required: false
+        default: http://127.0.0.1:8000
+      start_local_server:
+        description: Start local app server before checks
+        required: false
+        default: "false"
+      require_auth_negative_401:
+        description: Verify protected endpoint denies unauthenticated access
+        required: false
+        default: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  health-gate:
+    name: health-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: ${{ inputs.base_url || 'http://127.0.0.1:8000' }}
+      START_LOCAL_SERVER: ${{ inputs.start_local_server }}
+      REQUIRE_AUTH_NEGATIVE_401: ${{ inputs.require_auth_negative_401 }}
+      EXPECTED_HEALTH_STATUS: ${{ inputs.expected_health_status || '200' }}
+      MAX_ATTEMPTS: ${{ inputs.max_attempts || '12' }}
+      RETRY_DELAY_SECONDS: ${{ inputs.retry_delay_seconds || '5' }}
+
+      # Runtime defaults when starting local app in CI
+      JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
+      OPENAI_API_KEY: dummy-openai-key-for-health-gate
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+      STORAGE_SECRETS_KEY: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_REGION: us-east-1
+      S3_BUCKET_NAME: ""
+      SQLITE_DB_PATH: ":memory:"
+      VERBOSE_MODE: "false"
+
+    steps:
+      - name: Checkout code
+        if: env.START_LOCAL_SERVER == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        if: env.START_LOCAL_SERVER == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: env.START_LOCAL_SERVER == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start local app server
+        if: env.START_LOCAL_SERVER == 'true'
+        run: |
+          python -m uvicorn app:app --host 127.0.0.1 --port 8000 > /tmp/health-gate-app.log 2>&1 &
+          echo "APP_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Health endpoint probe with retries
+        run: |
+          set -e
+          base="${BASE_URL%/}"
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$base/health" || true)
+            echo "attempt=$attempt health_status=$code"
+            if [[ "$code" == "$EXPECTED_HEALTH_STATUS" ]]; then
+              echo "Health check passed"
+              exit 0
+            fi
+            if [[ "$attempt" -lt "$MAX_ATTEMPTS" ]]; then
+              sleep "$RETRY_DELAY_SECONDS"
+            fi
+          done
+          echo "Health check failed after $MAX_ATTEMPTS attempts"
+          if [[ -f /tmp/health-gate-app.log ]]; then
+            echo "--- app log tail ---"
+            tail -n 120 /tmp/health-gate-app.log || true
+          fi
+          exit 1
+
+      - name: Verify unauthenticated access is denied
+        if: env.REQUIRE_AUTH_NEGATIVE_401 == 'true'
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL%/}/api/v1/auth/me" || true)
+          echo "auth_negative_status=$code"
+          if [[ "$code" != "401" ]]; then
+            echo "Expected 401 for unauthenticated /api/v1/auth/me"
+            exit 1
+          fi
+
+      - name: Stop local app server
+        if: always() && env.START_LOCAL_SERVER == 'true'
+        run: |
+          if [[ -n "${APP_PID:-}" ]]; then
+            kill "$APP_PID" || true
+          fi

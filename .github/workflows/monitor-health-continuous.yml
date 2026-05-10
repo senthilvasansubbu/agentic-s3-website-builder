@@ -1,0 +1,53 @@
+# Naming standard: <Category> | <Scope> | <Purpose>
+name: Monitor | QA/Prod | Continuous Health
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Target environment(s)
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - qa
+          - prod
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitor-health-continuous-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qa-health:
+    if: >
+      (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'qa')
+      && secrets.QA_HEALTH_URL != ''
+    name: qa-health
+    uses: ./.github/workflows/health-gate.yml
+    with:
+      base_url: ${{ secrets.QA_HEALTH_URL }}
+      start_local_server: false
+      require_auth_negative_401: false
+      expected_health_status: "200"
+      max_attempts: "3"
+      retry_delay_seconds: "10"
+
+  prod-health:
+    if: >
+      (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'prod')
+      && secrets.PROD_HEALTH_URL != ''
+    name: prod-health
+    uses: ./.github/workflows/health-gate.yml
+    with:
+      base_url: ${{ secrets.PROD_HEALTH_URL }}
+      start_local_server: false
+      require_auth_negative_401: false
+      expected_health_status: "200"
+      max_attempts: "3"
+      retry_delay_seconds: "10"

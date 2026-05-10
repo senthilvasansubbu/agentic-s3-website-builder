@@ -87,3 +87,13 @@ jobs:
           name: coverage-wave2-xml
           path: coverage-wave2.xml
           retention-days: 30
+
+  wave2-health-gate:
+    name: wave2-health-gate
+    needs: [wave2-error-handling-tests]
+    uses: ./.github/workflows/health-gate.yml
+    with:
+      start_local_server: true
+      base_url: http://127.0.0.1:8000
+      require_auth_negative_401: true
+      expected_health_status: "200"

@@ -85,3 +85,13 @@ jobs:
           name: coverage-wave5-xml
           path: coverage-wave5.xml
           retention-days: 30
+
+  wave5-health-gate:
+    name: wave5-health-gate
+    needs: [wave5-medium-data-api-tests]
+    uses: ./.github/workflows/health-gate.yml
+    with:
+      start_local_server: true
+      base_url: http://127.0.0.1:8000
+      require_auth_negative_401: true
+      expected_health_status: "200"
