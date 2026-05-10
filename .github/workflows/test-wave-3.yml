@@ -97,3 +97,64 @@ jobs:
       base_url: http://127.0.0.1:8000
       require_auth_negative_401: true
       expected_health_status: "200"
+
+  wave3-coverage-metrics-gate:
+    name: wave3-coverage-metrics-gate
+    runs-on: ubuntu-latest
+
+    env:
+      JWT_SECRET: "github-actions-test-secret-do-not-use-in-prod"
+      OPENAI_API_KEY: ""
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+      STORAGE_SECRETS_KEY: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_REGION: "us-east-1"
+      S3_BUCKET_NAME: ""
+      SQLITE_DB_PATH: ":memory:"
+      VERBOSE_MODE: "false"
+      COVERAGE_FAIL_UNDER: "80"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run coverage gate for DB client
+        run: |
+          pytest \
+            tests/test_sqlite_pooling.py \
+            --cov=database.snowflake_client \
+            --cov-config=pyproject.toml \
+            --cov-fail-under=80 \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage-wave3-db.xml \
+            --cov-report=html:coverage-wave3-db-html \
+            -v \
+            --tb=short
+
+      - name: Upload Wave 3 DB coverage XML
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-wave3-db-xml
+          path: coverage-wave3-db.xml
+          retention-days: 30
+
+      - name: Upload Wave 3 DB coverage HTML
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-wave3-db-html
+          path: coverage-wave3-db-html/
+          retention-days: 30
