@@ -124,6 +124,26 @@ Deployment notes:
 - Ensure OUTPUT_DIR, data, and logs locations are writable by the service user.
 - Use external monitoring checks against /health.
 
+## QA/Prod Health Monitoring (Ready Mode)
+
+- End-of-wave health gate is already wired into Wave 1-6 workflows.
+- Continuous QA/Prod monitor is configured in `.github/workflows/monitor-health-continuous.yml`.
+- The scheduled monitor remains idle until environment URLs are set as repository secrets.
+
+Set secrets when environments are available:
+
+```bash
+bash scripts/configure_health_monitoring_secrets.sh --qa-url https://qa.example.com --prod-url https://app.example.com
+```
+
+Manual run examples:
+
+```bash
+gh workflow run "Monitor | QA/Prod | Continuous Health" -f target=all
+gh workflow run "Monitor | QA/Prod | Continuous Health" -f target=qa
+gh workflow run "Monitor | QA/Prod | Continuous Health" -f target=prod
+```
+
 ## Project Structure
 
 ```text
