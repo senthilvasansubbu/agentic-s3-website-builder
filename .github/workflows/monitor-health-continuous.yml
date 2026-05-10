@@ -26,8 +26,7 @@ concurrency:
 jobs:
   qa-health:
     if: >
-      (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'qa')
-      && secrets.QA_HEALTH_URL != ''
+      github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'qa'
     name: qa-health
     uses: ./.github/workflows/health-gate.yml
     with:
@@ -37,11 +36,11 @@ jobs:
       expected_health_status: "200"
       max_attempts: "3"
       retry_delay_seconds: "10"
+      skip_if_empty_base_url: true
 
   prod-health:
     if: >
-      (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'prod')
-      && secrets.PROD_HEALTH_URL != ''
+      github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'prod'
     name: prod-health
     uses: ./.github/workflows/health-gate.yml
     with:
@@ -51,3 +50,4 @@ jobs:
       expected_health_status: "200"
       max_attempts: "3"
       retry_delay_seconds: "10"
+      skip_if_empty_base_url: true

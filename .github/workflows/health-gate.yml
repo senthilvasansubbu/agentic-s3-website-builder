@@ -34,6 +34,11 @@ on:
         required: false
         default: "5"
         type: string
+      skip_if_empty_base_url:
+        description: Skip checks successfully when base_url is empty (used for dormant envs)
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       base_url:
@@ -64,6 +69,7 @@ jobs:
       EXPECTED_HEALTH_STATUS: ${{ inputs.expected_health_status || '200' }}
       MAX_ATTEMPTS: ${{ inputs.max_attempts || '12' }}
       RETRY_DELAY_SECONDS: ${{ inputs.retry_delay_seconds || '5' }}
+      SKIP_IF_EMPTY_BASE_URL: ${{ inputs.skip_if_empty_base_url }}
 
       # Runtime defaults when starting local app in CI
       JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
@@ -79,29 +85,41 @@ jobs:
       VERBOSE_MODE: "false"
 
     steps:
+      - name: Skip when base URL secret is empty
+        id: skipcheck
+        run: |
+          base="${BASE_URL// /}"
+          if [[ "$START_LOCAL_SERVER" != "true" && "$SKIP_IF_EMPTY_BASE_URL" == "true" && -z "$base" ]]; then
+            echo "No base_url configured. Skipping health gate (ready-mode)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
-        if: env.START_LOCAL_SERVER == 'true'
+        if: steps.skipcheck.outputs.skip != 'true' && env.START_LOCAL_SERVER == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        if: env.START_LOCAL_SERVER == 'true'
+        if: steps.skipcheck.outputs.skip != 'true' && env.START_LOCAL_SERVER == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        if: env.START_LOCAL_SERVER == 'true'
+        if: steps.skipcheck.outputs.skip != 'true' && env.START_LOCAL_SERVER == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Start local app server
-        if: env.START_LOCAL_SERVER == 'true'
+        if: steps.skipcheck.outputs.skip != 'true' && env.START_LOCAL_SERVER == 'true'
         run: |
           python -m uvicorn app:app --host 127.0.0.1 --port 8000 > /tmp/health-gate-app.log 2>&1 &
           echo "APP_PID=$!" >> "$GITHUB_ENV"
 
       - name: Health endpoint probe with retries
+        if: steps.skipcheck.outputs.skip != 'true'
         run: |
           set -e
           base="${BASE_URL%/}"
@@ -124,7 +142,7 @@ jobs:
           exit 1
 
       - name: Verify unauthenticated access is denied
-        if: env.REQUIRE_AUTH_NEGATIVE_401 == 'true'
+        if: steps.skipcheck.outputs.skip != 'true' && env.REQUIRE_AUTH_NEGATIVE_401 == 'true'
         run: |
           code=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL%/}/api/v1/auth/me" || true)
           echo "auth_negative_status=$code"
@@ -134,7 +152,7 @@ jobs:
           fi
 
       - name: Stop local app server
-        if: always() && env.START_LOCAL_SERVER == 'true'
+        if: always() && steps.skipcheck.outputs.skip != 'true' && env.START_LOCAL_SERVER == 'true'
         run: |
           if [[ -n "${APP_PID:-}" ]]; then
             kill "$APP_PID" || true
