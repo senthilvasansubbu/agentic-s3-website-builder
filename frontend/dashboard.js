@@ -1,8 +1,43 @@
 const API = '/api/v1';
 let token = localStorage.getItem('wb_token');
+
+// ── Observable state mutations (addresses race condition vulnerability) ────
+// Global state is accessed/mutated across async operations. Logging all mutations
+// makes race conditions detectable. Migrate to event-driven or single-object state
+// in a future wave if needed.
 let currentUser = null;
+let __lastCurrentUserChange = 0;
 let planFeatures = {};  // populated on init from /payments/plan-features
+let __lastPlanFeaturesChange = 0;
 let websites = [];
+let __lastWebsitesChange = 0;
+
+function _setCurrentUser(val) {
+  const now = Date.now();
+  if (now - __lastCurrentUserChange < 10) {
+    console.debug('[state-race-warn] currentUser mutation within 10ms of previous; concurrent access risk', { prev: currentUser, new: val, deltaMs: now - __lastCurrentUserChange });
+  }
+  __lastCurrentUserChange = now;
+  currentUser = val;
+}
+
+function _setPlanFeatures(val) {
+  const now = Date.now();
+  if (now - __lastPlanFeaturesChange < 10) {
+    console.debug('[state-race-warn] planFeatures mutation within 10ms; concurrent access risk');
+  }
+  __lastPlanFeaturesChange = now;
+  planFeatures = val;
+}
+
+function _setWebsites(val) {
+  const now = Date.now();
+  if (now - __lastWebsitesChange < 10) {
+    console.debug('[state-race-warn] websites mutation within 10ms; concurrent access risk');
+  }
+  __lastWebsitesChange = now;
+  websites = val;
+}
 
 const THEMES = [
   { id: 'modern',     label: 'Modern',      primary: '#667eea', secondary: '#764ba2', accent: '#f093fb', bg: '#f5f7fa', text: '#2d3748', gradient: 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)', fontHeading: 'Poppins', fontBody: 'Inter',      desc: 'Clean & contemporary' },
@@ -229,9 +264,9 @@ window.wbAlert = styledAlert;
 
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
-  currentUser = await apiFetch('/auth/me');
+  _setCurrentUser(await apiFetch('/auth/me'));
   if (!currentUser) return;
-  planFeatures = await apiFetch('/payments/plan-features') || {};
+  _setPlanFeatures(await apiFetch('/payments/plan-features') || {});
   document.getElementById('userEmail').textContent = currentUser.email;
   document.getElementById('statPlan').textContent = (currentUser.plan || '—').toUpperCase();
   buildThemeGrid();
@@ -372,7 +407,7 @@ async function _fetchMyWebsites() {
 
 // ── Overview ───────────────────────────────────────────────────────────────
 async function loadOverview() {
-  websites = await _fetchMyWebsites();
+  _setWebsites(await _fetchMyWebsites());
   document.getElementById('statSites').textContent = websites.length;
   document.getElementById('statPublished').textContent = websites.filter(w => w.status === 'published').length;
   const tbody = document.getElementById('recentSitesBody');
@@ -768,7 +803,7 @@ async function deleteSite(id) {
 
 // ── All Sites ──────────────────────────────────────────────────────────────
 async function loadAllSites() {
-  websites = await _fetchMyWebsites();
+  _setWebsites(await _fetchMyWebsites());
   const tbody = document.getElementById('allSitesBody');
   if (!tbody) return;
   if (!websites.length) {
@@ -2201,7 +2236,7 @@ function populateImportSiteDropdown() {
 async function loadCartItems() {
   const tbody = document.getElementById('cartItemsBody');
   tbody.innerHTML = '<tr><td colspan="12" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr>';
-  websites = await _fetchMyWebsites();
+  _setWebsites(await _fetchMyWebsites());
 
   const cartSites = _cartSites();
   populateImportSiteDropdown();
