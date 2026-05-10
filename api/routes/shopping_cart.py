@@ -125,7 +125,12 @@ async def upload_cart_item_image(
             elif isinstance(cfg_raw, str) and cfg_raw.strip():
                 try:
                     cfg = json.loads(cfg_raw)
-                except Exception:
+                except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                    logger.debug(
+                        "Invalid image_storage_config JSON for website_id=%s: %s",
+                        website_id,
+                        exc,
+                    )
                     cfg = {}
             secrets = decrypt_json(site.get("image_storage_secrets_enc"))
             storage_override = {
@@ -674,7 +679,8 @@ def _assert_cart_access(website_id: str, user: dict):
 
     try:
         cart_features = json.loads(site.get("cart_features") or "[]")
-    except Exception:
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        logger.debug("Invalid cart_features JSON for website_id=%s: %s", website_id, exc)
         cart_features = []
     if not cart_features:
         raise HTTPException(
