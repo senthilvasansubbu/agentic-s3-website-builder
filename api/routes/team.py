@@ -5,6 +5,7 @@ Sub-users share the owner's website data but can only see permitted pages.
 """
 import uuid
 import json
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
@@ -14,6 +15,7 @@ from database.snowflake_client import db
 from services.auth_service import hash_password
 
 router = APIRouter(prefix="/team", tags=["team"])
+logger = logging.getLogger("website_builder.team")
 
 ALLOWED_PAGES = {
     "overview", "websites", "build", "cart-items", "billing",
@@ -54,7 +56,8 @@ async def list_sub_users(current: dict = Depends(require_app_user_or_above)):
     for r in (rows or []):
         try:
             r["permissions"] = json.loads(r.get("permissions") or "[]")
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            logger.debug("Invalid team permissions JSON for user_id=%s: %s", r.get("user_id"), exc)
             r["permissions"] = []
     return rows or []
 
