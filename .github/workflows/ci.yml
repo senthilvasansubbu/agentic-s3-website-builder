@@ -1,4 +1,5 @@
-name: CI — Test & Coverage
+# Naming standard: <Category> | <Scope> | <Purpose>
+name: CI | Global | Full Test and Coverage
 
 on:
   push:

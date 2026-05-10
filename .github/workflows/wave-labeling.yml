@@ -1,4 +1,5 @@
-name: Wave Labeling
+# Naming standard: <Category> | <Scope> | <Purpose>
+name: Automation | Issues | Wave Labeling
 
 on:
   issues:
