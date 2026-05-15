@@ -1076,7 +1076,10 @@ async def build_status_stream(
     Server-Sent Events stream for real-time build progress.
 
     Auth: pass JWT as ?token=<bearer> (EventSource can't set headers).
-    Emits JSON events every 2 seconds until build_status is 'built' or 'error'.
+        Emits JSON events every 2 seconds until build_status is 'built' or 'error'.
+        Connection guardrails:
+            - Max stream duration: 5 minutes
+            - Cleanup on client disconnect via generator finalizer
     """
     from services.auth_service import decode_access_token
     payload = decode_access_token(token)
@@ -1089,29 +1092,38 @@ async def build_status_stream(
     user_id = payload.get("sub")
 
     async def _event_generator():
-        max_ticks = 150          # 5 min (150 × 2s)
+        poll_interval_sec = 2
+        max_duration_sec = 300
+        max_ticks = max_duration_sec // poll_interval_sec
         ticks = 0
-        while ticks < max_ticks:
-            site = db.fetchone(
-                """SELECT build_status, build_error FROM websites
-                   WHERE website_id = %s AND user_id = %s""",
-                (website_id, user_id),
-            )
-            if not site:
-                yield f"data: {json.dumps({'build_status': 'not_found'})}\n\n"
-                return
+        try:
+            while ticks < max_ticks:
+                if await request.is_disconnected():
+                    logger.info("SSE build-stream client disconnected: website_id=%s user_id=%s", website_id, user_id)
+                    return
 
-            status = site.get("build_status") or "idle"
-            payload_data = json.dumps({"build_status": status, "error": site.get("build_error")})
-            yield f"data: {payload_data}\n\n"
+                site = db.fetchone(
+                    """SELECT build_status, build_error FROM websites
+                       WHERE website_id = %s AND user_id = %s""",
+                    (website_id, user_id),
+                )
+                if not site:
+                    yield f"data: {json.dumps({'build_status': 'not_found'})}\n\n"
+                    return
 
-            if status in ("built", "error"):
-                return
+                status = site.get("build_status") or "idle"
+                payload_data = json.dumps({"build_status": status, "error": site.get("build_error")})
+                yield f"data: {payload_data}\n\n"
 
-            await asyncio.sleep(2)
-            ticks += 1
+                if status in ("built", "error"):
+                    return
 
-        yield f"data: {json.dumps({'build_status': 'timeout'})}\n\n"
+                await asyncio.sleep(poll_interval_sec)
+                ticks += 1
+
+            yield f"data: {json.dumps({'build_status': 'timeout'})}\n\n"
+        finally:
+            logger.debug("SSE build-stream cleanup complete for website_id=%s user_id=%s", website_id, user_id)
 
     return StreamingResponse(
         _event_generator(),

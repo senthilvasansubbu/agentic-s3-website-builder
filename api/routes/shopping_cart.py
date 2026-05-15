@@ -20,6 +20,20 @@ from tools.catalog_scraper import scrape_catalog, parse_file_catalog
 router = APIRouter(prefix="/shop", tags=["shop"])
 logger = logging.getLogger("website_builder.shop")
 
+# carts.items_json canonical schema (stored as JSON text in SQLite / VARIANT in Snowflake)
+CART_ITEMS_JSON_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "required": ["product_id", "qty"],
+        "properties": {
+            "product_id": {"type": "string", "format": "uuid"},
+            "qty": {"type": "integer", "minimum": 1},
+        },
+        "additionalProperties": False,
+    },
+}
+
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
@@ -244,13 +258,13 @@ async def create_cart_item(body: CartItemCreate, current_user: dict = Depends(re
     db.execute(
         """INSERT INTO cart_items
            (product_id, website_id, category_id, name, slug, description,
-            price, compare_price, discount_pct, currency, stock, stock_quantity,
+                price, compare_price, discount_pct, currency, stock_quantity,
             image_url, images_json, is_flash_offer, flash_offer_ends)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (pid, body.website_id, body.category_id, body.name, slug,
          body.description or "", body.price,
          body.compare_price or 0, body.discount_pct or 0,
-         body.currency, stock_qty, stock_qty, img_url,
+            body.currency, stock_qty, img_url,
          json.dumps(body.images or []),
          1 if body.is_flash_offer else 0,
          body.flash_offer_ends or ""),
@@ -366,8 +380,6 @@ async def update_cart_item(product_id: str, body: CartItemUpdate,
         params.append(body.currency.upper()[:3])
     if body.stock_quantity is not None:
         fields.append("stock_quantity = ?")
-        params.append(body.stock_quantity)
-        fields.append("stock = ?")
         params.append(body.stock_quantity)
     if body.category_id is not None:
         fields.append("category_id = ?")
@@ -559,6 +571,7 @@ async def upsert_cart(website_id: str, items: List[CartSessionItem],
         (user_id, website_id),
     )
     items_data = [{"product_id": i.product_id, "qty": i.qty} for i in items]
+    _validate_cart_items_payload(items_data)
     if existing:
         db.execute(
             "UPDATE carts SET items_json = PARSE_JSON(%s), updated_at = CURRENT_TIMESTAMP() WHERE cart_id = %s",
@@ -587,7 +600,8 @@ async def get_cart(website_id: str, request: Request,
     ip = request.client.host if request.client else "unknown"
     code, symbol = currency_from_ip(ip)
 
-    session_items = cart.get("items_json") or []
+    session_items = _coerce_cart_items_json(cart.get("items_json"))
+    _validate_cart_items_payload(session_items)
     enriched = []
     total = 0.0
     for item in session_items:
@@ -604,6 +618,46 @@ async def get_cart(website_id: str, request: Request,
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _coerce_cart_items_json(raw_items):
+    """Normalize carts.items_json from DB into a Python list."""
+    if raw_items is None:
+        return []
+    if isinstance(raw_items, list):
+        return raw_items
+    if isinstance(raw_items, str):
+        txt = raw_items.strip()
+        if not txt:
+            return []
+        try:
+            parsed = json.loads(txt)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid carts.items_json format: {exc}")
+        return parsed if isinstance(parsed, list) else []
+    return []
+
+
+def _validate_cart_items_payload(items_data: list) -> None:
+    """Validate carts.items_json payload against the canonical schema."""
+    if not isinstance(items_data, list):
+        raise HTTPException(status_code=422, detail="Cart payload must be a list of items.")
+
+    for idx, item in enumerate(items_data):
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=422, detail=f"Cart item at index {idx} must be an object.")
+        if set(item.keys()) != {"product_id", "qty"}:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Cart item at index {idx} must contain only product_id and qty.",
+            )
+        pid = str(item.get("product_id") or "").strip()
+        qty = item.get("qty")
+        try:
+            uuid.UUID(pid)
+        except Exception:
+            raise HTTPException(status_code=422, detail=f"Cart item at index {idx} has invalid product_id.")
+        if not isinstance(qty, int) or qty < 1:
+            raise HTTPException(status_code=422, detail=f"Cart item at index {idx} has invalid qty.")
 
 def _bulk_insert_items(items: list, website_id: str, default_currency: str) -> tuple[int, int]:
     """Insert a list of catalog dicts into cart_items. Returns (imported, skipped)."""
@@ -648,12 +702,12 @@ def _bulk_insert_items(items: list, website_id: str, default_currency: str) -> t
             db.execute(
                 """INSERT INTO cart_items
                    (product_id, website_id, category_id, name, slug, description,
-                    price, compare_price, discount_pct, currency, stock, stock_quantity,
+                          price, compare_price, discount_pct, currency, stock_quantity,
                     image_url, images_json, is_flash_offer, flash_offer_ends)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,'')""",
+                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,'')""",
                 (pid, website_id, category_id, name, slug, description,
                  price, compare_price, discount_pct, currency,
-                 stock, stock, image_url, json.dumps([image_url] if image_url else [])),
+                      stock, image_url, json.dumps([image_url] if image_url else [])),
             )
             imported += 1
         except Exception as exc:

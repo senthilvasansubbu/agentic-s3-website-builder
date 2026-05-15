@@ -104,8 +104,11 @@ class SQLiteClient:
         sql = _adapt_sql_for_sqlite(sql)
         try:
             conn = self._get_connection()
+            pre_in_tx = conn.in_transaction
+            sql_upper = sql.lstrip().upper()
             cur = conn.execute(sql, params or ())
-            conn.commit()
+            if (not pre_in_tx) and (not sql_upper.startswith(("BEGIN", "COMMIT", "ROLLBACK"))):
+                conn.commit()
             try:
                 rows = cur.fetchall()
                 return [dict(r) for r in rows]
@@ -116,8 +119,11 @@ class SQLiteClient:
             print(f"[sqlite] stale connection detected, refreshing pool entry: {exc}")
             try:
                 conn = self._refresh_connection()
+                pre_in_tx = conn.in_transaction
+                sql_upper = sql.lstrip().upper()
                 cur = conn.execute(sql, params or ())
-                conn.commit()
+                if (not pre_in_tx) and (not sql_upper.startswith(("BEGIN", "COMMIT", "ROLLBACK"))):
+                    conn.commit()
                 try:
                     rows = cur.fetchall()
                     return [dict(r) for r in rows]
@@ -134,12 +140,31 @@ class SQLiteClient:
         sql = _adapt_sql_for_sqlite(sql)
         conn = self._get_connection()
         try:
+            pre_in_tx = conn.in_transaction
             conn.executemany(sql, rows)
-            conn.commit()
+            if not pre_in_tx:
+                conn.commit()
         except sqlite3.ProgrammingError:
             conn = self._refresh_connection()
+            pre_in_tx = conn.in_transaction
             conn.executemany(sql, rows)
+            if not pre_in_tx:
+                conn.commit()
+
+    def execute_strict(self, sql: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
+        """Execute SQL and raise errors instead of swallowing them."""
+        sql = _adapt_sql_for_sqlite(sql)
+        conn = self._get_connection()
+        pre_in_tx = conn.in_transaction
+        sql_upper = sql.lstrip().upper()
+        cur = conn.execute(sql, params or ())
+        if (not pre_in_tx) and (not sql_upper.startswith(("BEGIN", "COMMIT", "ROLLBACK"))):
             conn.commit()
+        try:
+            rows = cur.fetchall()
+            return [dict(r) for r in rows]
+        except Exception:
+            return []
 
     def fetchone(self, sql: str, params: Optional[tuple] = None) -> Optional[Dict[str, Any]]:
         results = self.execute(sql, params)
@@ -178,6 +203,16 @@ class SnowflakeClient:
             conn.close()
 
     def execute(self, sql: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            with conn.cursor(self._DictCursor) as cur:
+                cur.execute(sql, params or ())
+                try:
+                    return cur.fetchall()
+                except Exception:
+                    return []
+
+    def execute_strict(self, sql: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
+        """Execute SQL and propagate connector errors to caller."""
         with self.get_connection() as conn:
             with conn.cursor(self._DictCursor) as cur:
                 cur.execute(sql, params or ())

@@ -126,6 +126,8 @@ def test_sqlite_client_execute_many_refresh_path(tmp_path, monkeypatch):
     client = SQLiteClient(str(tmp_path / "retry_many.db"))
 
     class FirstConn:
+        in_transaction = False
+
         def executemany(self, *args, **kwargs):
             raise sqlite3.ProgrammingError("closed")
 
@@ -135,6 +137,7 @@ def test_sqlite_client_execute_many_refresh_path(tmp_path, monkeypatch):
     class GoodConn:
         def __init__(self):
             self.called = False
+            self.in_transaction = False
 
         def executemany(self, *args, **kwargs):
             self.called = True
@@ -148,6 +151,30 @@ def test_sqlite_client_execute_many_refresh_path(tmp_path, monkeypatch):
 
     client.execute_many("INSERT INTO t(name) VALUES (?)", [("x",)])
     assert good.called is True
+
+
+def test_sqlite_client_execute_strict_raises_on_error(tmp_path):
+    client = SQLiteClient(str(tmp_path / "strict.db"))
+    client.execute("CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY, name TEXT)")
+
+    # Missing table should raise with strict API.
+    try:
+        client.execute_strict("INSERT INTO missing_table(name) VALUES (?)", ("x",))
+        assert False, "execute_strict should raise on SQL errors"
+    except sqlite3.Error:
+        assert True
+
+
+def test_sqlite_client_transaction_begin_rollback(tmp_path):
+    client = SQLiteClient(str(tmp_path / "tx.db"))
+    client.execute("CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY, name TEXT)")
+
+    client.execute_strict("BEGIN")
+    client.execute_strict("INSERT INTO t (name) VALUES (?)", ("inside-tx",))
+    client.execute_strict("ROLLBACK")
+
+    rows = client.fetchall("SELECT name FROM t WHERE name = ?", ("inside-tx",))
+    assert rows == []
 
 
 def test_close_all_ignores_connection_close_errors(tmp_path):
@@ -203,7 +230,7 @@ def test_snowflake_client_execute_and_execute_many(monkeypatch):
 
     conn_ok = DummyConn(rows=[{"k": 1}])
     conn_empty = DummyConn(rows=[], fail_fetch=True)
-    queue = [conn_ok, conn_empty, conn_ok, conn_ok, conn_ok]
+    queue = [conn_ok, conn_empty, conn_ok, conn_ok, conn_ok, conn_ok]
 
     sf_mod = types.SimpleNamespace(connect=lambda **kwargs: queue.pop(0))
     monkeypatch.setitem(__import__("sys").modules, "snowflake", types.SimpleNamespace(connector=sf_mod))
@@ -212,6 +239,7 @@ def test_snowflake_client_execute_and_execute_many(monkeypatch):
     client = SnowflakeClient()
     assert client.execute("SELECT 1") == [{"k": 1}]
     assert client.execute("SELECT 1") == []
+    assert client.execute_strict("SELECT 1") == [{"k": 1}]
     client.execute_many("INSERT INTO t VALUES (%s)", [(1,), (2,)])
     assert conn_ok.committed is True
     assert client.fetchone("SELECT 1") == {"k": 1}

@@ -40,10 +40,10 @@ TABLES = [
         website_id    VARCHAR(36)  PRIMARY KEY DEFAULT UUID_STRING(),
         user_id       VARCHAR(36)  NOT NULL REFERENCES users(user_id),
         name          VARCHAR(200) NOT NULL,
-        title         VARCHAR(300),
-        description   VARCHAR(2000),
+        title         VARCHAR(300) DEFAULT '',
+        description   VARCHAR(2000) DEFAULT '',
         logo_url      VARCHAR(500),
-        domain        VARCHAR(300),
+        domain        VARCHAR(300) DEFAULT '',
         hosting_env   VARCHAR(20)  DEFAULT 's3',  -- s3 | custom
         theme         VARCHAR(50)  DEFAULT 'modern',
         custom_css    TEXT,
@@ -58,7 +58,7 @@ TABLES = [
         classification_group VARCHAR(120),
         input_snapshot_json VARIANT,
         source_context_json VARIANT,
-        s3_url        VARCHAR(500),
+        s3_url        VARCHAR(500) DEFAULT '',
         status        VARCHAR(20)  DEFAULT 'draft',
         plan_required VARCHAR(20)  DEFAULT 'free',
         created_at    TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
@@ -94,7 +94,6 @@ TABLES = [
         compare_price   NUMBER(12,2) DEFAULT 0,
         discount_pct    NUMBER(5,2)  DEFAULT 0,
         currency        VARCHAR(3)   DEFAULT 'USD',
-        stock           INTEGER      DEFAULT 0,
         stock_quantity  INTEGER      DEFAULT 0,
         image_url       VARCHAR(500),
         images_json     VARIANT,
@@ -114,7 +113,7 @@ TABLES = [
         user_id    VARCHAR(36)  REFERENCES users(user_id),
         website_id VARCHAR(36)  NOT NULL REFERENCES websites(website_id),
         session_id VARCHAR(100),
-        items_json VARIANT,
+        items_json VARIANT DEFAULT '[]',
         currency   VARCHAR(3)   DEFAULT 'USD',
         created_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
         updated_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
@@ -350,6 +349,33 @@ def run_migrations():
         except Exception:
             pass  # already recorded
 
+    def _exec_strict(sql: str, params=None):
+        fn = getattr(db, "execute_strict", None)
+        if callable(fn):
+            return fn(sql, tuple(params or ()))
+        return db.execute(sql, tuple(params or ()))
+
+    def _run_migration(version: int, description: str, up_fn, rollback_fn=None):
+        """Apply a migration in a transaction and rollback on failure."""
+        if _applied(version):
+            return
+        try:
+            _exec_strict("BEGIN")
+            up_fn()
+            _mark(version, description)
+            _exec_strict("COMMIT")
+        except Exception as exc:
+            try:
+                _exec_strict("ROLLBACK")
+            except Exception:
+                pass
+            if rollback_fn is not None:
+                try:
+                    rollback_fn()
+                except Exception:
+                    pass
+            raise RuntimeError(f"Migration v{version} failed: {description}: {exc}")
+
     # ── Base tables (always idempotent via CREATE IF NOT EXISTS) ─────────────
     for ddl in TABLES:
         db.execute(ddl.strip())
@@ -479,6 +505,115 @@ def run_migrations():
         except Exception as _exc:
             print(f"⚠️  Orphan cleanup warning (non-fatal): {_exc}")
         _mark(11, "foreign-key enforcement enabled + orphan row cleanup")
+
+    # ── Version 12: consolidate cart stock fields (stock_quantity canonical) ─
+    def _up_v12():
+        # Ensure canonical column exists first for older databases.
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0")
+        # Backfill canonical stock_quantity from legacy stock where available.
+        _exec_strict(
+            "UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, stock, 0)"
+        )
+        # Remove redundant legacy stock column.
+        _safe_alter("ALTER TABLE cart_items DROP COLUMN stock")
+
+    def _down_v12():
+        _safe_alter("ALTER TABLE cart_items ADD COLUMN stock INTEGER DEFAULT 0")
+        _exec_strict("UPDATE cart_items SET stock = COALESCE(stock_quantity, 0)")
+
+    _run_migration(
+        12,
+        "cart_items uses stock_quantity as the sole stock field",
+        _up_v12,
+        _down_v12,
+    )
+
+    # ── Version 13: carts.items_json contract + validation metadata ───────────
+    def _up_v13():
+        _safe_alter("ALTER TABLE carts ADD COLUMN items_json TEXT DEFAULT '[]'")
+        _exec_strict("UPDATE carts SET items_json = '[]' WHERE items_json IS NULL OR TRIM(items_json) = ''")
+        _exec_strict(
+            """
+            CREATE TABLE IF NOT EXISTS schema_contracts (
+                contract_id TEXT PRIMARY KEY,
+                schema_json TEXT NOT NULL,
+                notes TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        _exec_strict(
+            """
+            INSERT OR REPLACE INTO schema_contracts (contract_id, schema_json, notes)
+            VALUES (
+                'carts.items_json',
+                '{"type":"array","items":{"type":"object","required":["product_id","qty"],"properties":{"product_id":{"type":"string","format":"uuid"},"qty":{"type":"integer","minimum":1}},"additionalProperties":false}}',
+                'Validated in api/routes/shopping_cart.py::_validate_cart_items_payload'
+            )
+            """
+        )
+
+    def _down_v13():
+        _exec_strict("DELETE FROM schema_contracts WHERE contract_id = 'carts.items_json'")
+
+    _run_migration(
+        13,
+        "define carts.items_json schema contract and normalize null cart payloads",
+        _up_v13,
+        _down_v13,
+    )
+
+    # ── Version 14: normalize nullable website fields to empty-string defaults ─
+    def _up_v14():
+        _exec_strict("UPDATE websites SET title = '' WHERE title IS NULL")
+        _exec_strict("UPDATE websites SET description = '' WHERE description IS NULL")
+        _exec_strict("UPDATE websites SET domain = '' WHERE domain IS NULL")
+        _exec_strict("UPDATE websites SET s3_url = '' WHERE s3_url IS NULL")
+
+    def _down_v14():
+        # Irreversible data normalization (empty string may be intentional), keep no-op.
+        return
+
+    _run_migration(
+        14,
+        "normalize website nullable text fields (title/description/domain/s3_url)",
+        _up_v14,
+        _down_v14,
+    )
+
+    # ── Version 15: migration rollback registry metadata ──────────────────────
+    def _up_v15():
+        _exec_strict(
+            """
+            CREATE TABLE IF NOT EXISTS migration_rollback_registry (
+                version INTEGER PRIMARY KEY,
+                rollback_notes TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        _exec_strict(
+            "INSERT OR REPLACE INTO migration_rollback_registry (version, rollback_notes) VALUES (12, 'Re-add cart_items.stock and copy from stock_quantity')"
+        )
+        _exec_strict(
+            "INSERT OR REPLACE INTO migration_rollback_registry (version, rollback_notes) VALUES (13, 'Delete schema_contracts row for carts.items_json')"
+        )
+        _exec_strict(
+            "INSERT OR REPLACE INTO migration_rollback_registry (version, rollback_notes) VALUES (14, 'No-op: data normalization is irreversible by design')"
+        )
+        _exec_strict(
+            "INSERT OR REPLACE INTO migration_rollback_registry (version, rollback_notes) VALUES (15, 'Drop migration_rollback_registry table')"
+        )
+
+    def _down_v15():
+        _exec_strict("DROP TABLE IF EXISTS migration_rollback_registry")
+
+    _run_migration(
+        15,
+        "register rollback notes and transactional migration framework metadata",
+        _up_v15,
+        _down_v15,
+    )
 
     # ── Always re-seed plan_features (INSERT OR IGNORE = idempotent) ─────────
     _seed_plan_features()
