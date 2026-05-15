@@ -446,6 +446,40 @@ def run_migrations():
             pass
         _mark(10, "content_depth column replacing num_pages")
 
+    # ── Version 11: enable foreign-key enforcement + orphan cleanup ───────────
+    if not _applied(11):
+        # Remove orphaned child rows before PRAGMA foreign_keys=ON is enforced.
+        # This runs once; subsequent connections already have FK enforcement on.
+        try:
+            # websites whose owner user no longer exists
+            db.execute(
+                "DELETE FROM websites WHERE user_id NOT IN (SELECT user_id FROM users)"
+            )
+            # carts whose website no longer exists
+            db.execute(
+                "DELETE FROM carts WHERE website_id NOT IN (SELECT website_id FROM websites)"
+            )
+            # cart_items whose website no longer exists
+            db.execute(
+                "DELETE FROM cart_items WHERE website_id NOT IN (SELECT website_id FROM websites)"
+            )
+            # orders whose website no longer exists
+            db.execute(
+                "DELETE FROM orders WHERE website_id NOT IN (SELECT website_id FROM websites)"
+            )
+            # subscriptions whose user no longer exists
+            db.execute(
+                "DELETE FROM subscriptions WHERE user_id NOT IN (SELECT user_id FROM users)"
+            )
+            # client users whose owner_id no longer exists
+            db.execute(
+                "DELETE FROM users WHERE role='client' AND owner_id IS NOT NULL "
+                "AND owner_id NOT IN (SELECT user_id FROM users)"
+            )
+        except Exception as _exc:
+            print(f"⚠️  Orphan cleanup warning (non-fatal): {_exc}")
+        _mark(11, "foreign-key enforcement enabled + orphan row cleanup")
+
     # ── Always re-seed plan_features (INSERT OR IGNORE = idempotent) ─────────
     _seed_plan_features()
 

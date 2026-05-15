@@ -4,6 +4,7 @@ Website builder API routes — create, list, build, deploy, customise websites.
 import uuid
 import json
 import os
+import ipaddress
 import logging
 import time
 import asyncio
@@ -11,11 +12,15 @@ import re
 import shutil
 import datetime
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 from api.routes.auth import get_current_user, require_app_user_or_above, require_client_or_above
 from database.snowflake_client import db
@@ -466,10 +471,55 @@ def _bundle_all_local_assets(published_dir: str, staging_dir: str) -> dict:
             logger.debug("Skipping unreadable HTML file %s: %s", html_path, exc)
             continue
     return {"rewritten_refs": rewritten_refs, "copied_files": len(rels_copied)}
+# ── SSRF protection ───────────────────────────────────────────────────────────
+
+_PRIVATE_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local / AWS metadata
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+]
+
+
+def _validate_scrape_url(url: str) -> None:
+    """Raise HTTPException if the URL is disallowed (bad scheme or private IP)."""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Invalid URL.")
+
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=422,
+            detail="Only http and https URLs are supported.",
+        )
+
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise HTTPException(status_code=422, detail="URL must include a hostname.")
+
+    # Block raw IP addresses that resolve to private/loopback ranges
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for net in _PRIVATE_NETWORKS:
+            if addr in net:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Requests to private or loopback addresses are not allowed.",
+                )
+    except ValueError:
+        pass  # hostname is a domain name, not a raw IP — allow through
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.post("/scrape-url")
+@limiter.limit("10/minute")
 async def scrape_existing_website(
+    request: Request,
     body: ScrapeUrlRequest,
     current_user: dict = Depends(require_client_or_above),
 ):
@@ -478,6 +528,7 @@ async def scrape_existing_website(
     (title, description, contact details, colours, headings, etc.)  that can
     be used to pre-fill the build form or seed the AI prompt.
     """
+    _validate_scrape_url(body.url)
     try:
         data = scrape_website(body.url)
     except ValueError as exc:

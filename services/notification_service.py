@@ -18,6 +18,8 @@ from typing import Optional
 
 from database.snowflake_client import db
 
+import logging as _logging
+_notify_logger = _logging.getLogger("website_builder.notify")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 SMTP_HOST     = os.getenv("SMTP_HOST",     "smtp.sendgrid.net")
@@ -46,7 +48,11 @@ def _log(user_id, channel, destination, subject, body, status, error=None):
 def send_email(to: str, subject: str, html_body: str, user_id: str = None) -> bool:
     """Send HTML email via SMTP. Returns True on success."""
     if not SMTP_PASSWORD:
-        print(f"[notify] SMTP not configured — skipping email to {to}")
+        _notify_logger.warning(
+            "SMTP_PASSWORD is not configured — email to %s skipped. "
+            "Set SMTP_PASSWORD in your .env to enable email delivery.",
+            to,
+        )
         _log(user_id, "email", to, subject, html_body, "skipped")
         return False
     try:
@@ -65,7 +71,7 @@ def send_email(to: str, subject: str, html_body: str, user_id: str = None) -> bo
         _log(user_id, "email", to, subject, html_body, "sent")
         return True
     except Exception as e:
-        print(f"[notify] Email error → {e}")
+        _notify_logger.error("Email delivery failed to %s: %s", to, e)
         _log(user_id, "email", to, subject, html_body, "failed", str(e))
         return False
 

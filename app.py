@@ -249,6 +249,18 @@ def _validate_startup_configuration() -> None:
             "Set ALLOW_MISSING_OPENAI_API_KEY=true only for non-AI local/test runs."
         )
 
+    storage_secrets_key = (os.getenv("STORAGE_SECRETS_KEY") or "").strip()
+    if storage_secrets_key:
+        try:
+            from cryptography.fernet import Fernet
+            Fernet(storage_secrets_key.encode("utf-8"))
+        except Exception:
+            raise RuntimeError(
+                "STORAGE_SECRETS_KEY is set but is not a valid Fernet key. "
+                "Generate a valid key with: "
+                "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            )
+
 def _start_scheduler():
     scheduler = BackgroundScheduler(daemon=True)
     check_interval = int(os.getenv("MONITOR_INTERVAL_MINUTES", "5"))
