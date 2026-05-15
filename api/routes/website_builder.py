@@ -7,6 +7,7 @@ import os
 import ipaddress
 import logging
 import time
+import threading
 import asyncio
 import re
 import shutil
@@ -339,12 +340,56 @@ class StagedHtmlRequest(BaseModel):
 ALLOWED_BUILD_MODES = {"combined", "agentic_only"}
 ALLOWED_OUTPUT_TARGETS = {"legacy", "react", "vue", "php"}
 
+# Short-lived in-process cache for plan limit checks.
+# Keeps DB load down for bursty create requests from the same user.
+_PLAN_LIMIT_CACHE_TTL_SEC = 15
+_plan_limit_cache_lock = threading.Lock()
+_plan_limit_cache: dict[str, dict] = {}
+
+
+def _plan_limit_cache_get(user_id: str):
+    now = time.time()
+    with _plan_limit_cache_lock:
+        entry = _plan_limit_cache.get(user_id)
+        if not entry:
+            return None
+        if entry.get("expires_at", 0) <= now:
+            _plan_limit_cache.pop(user_id, None)
+            return None
+        return entry
+
+
+def _plan_limit_cache_set(user_id: str, plan: str, count: int):
+    with _plan_limit_cache_lock:
+        _plan_limit_cache[user_id] = {
+            "plan": plan,
+            "count": int(count),
+            "expires_at": time.time() + _PLAN_LIMIT_CACHE_TTL_SEC,
+        }
+
+
+def _plan_limit_cache_bump(user_id: str, delta: int = 1):
+    with _plan_limit_cache_lock:
+        entry = _plan_limit_cache.get(user_id)
+        if not entry:
+            return
+        if entry.get("expires_at", 0) <= time.time():
+            _plan_limit_cache.pop(user_id, None)
+            return
+        entry["count"] = max(0, int(entry.get("count", 0)) + int(delta))
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _check_plan_limits(user_id: str, needs_cart: bool):
-    user = db.fetchone("SELECT plan FROM users WHERE user_id = %s", (user_id,))
-    plan = user["plan"] if user else "free"
+    cached = _plan_limit_cache_get(user_id)
+    if cached:
+        plan = cached.get("plan") or "free"
+        cached_count = int(cached.get("count", 0))
+    else:
+        user = db.fetchone("SELECT plan FROM users WHERE user_id = %s", (user_id,))
+        plan = user["plan"] if user else "free"
+        cached_count = -1
     plan_info = PLANS.get(plan, PLANS["free"])
 
     if needs_cart and not plan_info["shopping_cart"]:
@@ -355,11 +400,15 @@ def _check_plan_limits(user_id: str, needs_cart: bool):
 
     max_websites = plan_info.get("max_websites", 1)
     if max_websites < 9999:
-        existing = db.fetchone(
-            "SELECT COUNT(*) AS cnt FROM websites WHERE user_id = %s AND status != 'deleted'",
-            (user_id,),
-        )
-        count = existing["cnt"] if existing else 0
+        if cached_count >= 0:
+            count = cached_count
+        else:
+            existing = db.fetchone(
+                "SELECT COUNT(*) AS cnt FROM websites WHERE user_id = %s AND status != 'deleted'",
+                (user_id,),
+            )
+            count = existing["cnt"] if existing else 0
+            _plan_limit_cache_set(user_id, plan, count)
         if count >= max_websites:
             raise HTTPException(
                 status_code=402,
@@ -580,6 +629,7 @@ async def create_website(body: CreateWebsiteRequest, request: Request,
     )
     log_event("website_created", user_id=user_id, website_id=website_id,
               ip_address=request.client.host)
+    _plan_limit_cache_bump(user_id, 1)
     return {"website_id": website_id, "message": "Website record created. Use /build to generate pages."}
 
 
@@ -1380,6 +1430,7 @@ async def delete_website(website_id: str, current_user: dict = Depends(require_a
     if not site:
         raise HTTPException(status_code=404, detail="Website not found")
     db.execute("DELETE FROM websites WHERE website_id = %s", (website_id,))
+    _plan_limit_cache_bump(user_id, -1)
     return {"message": "Website deleted"}
 
 

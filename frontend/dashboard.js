@@ -122,20 +122,42 @@ if (!token) { window.location.href = '/login'; }
 function headers() { return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }; }
 
 async function apiFetch(path, opts = {}) {
-  const r = await fetch(API + path, { headers: headers(), cache: 'no-store', ...opts });
-  if (r.status === 401) { logout(); return null; }
-  if (!r.ok) {
-    try {
-      const err = await r.json();
-      apiFetch._lastError = err?.detail || `HTTP ${r.status}`;
-    } catch (err) {
-      console.debug('[apiFetch] Failed to parse error response JSON:', err);
-      apiFetch._lastError = `HTTP ${r.status}`;
+  const timeoutMs = Number(opts.timeoutMs || 15000);
+  const ctrl = new AbortController();
+  const timeoutId = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const { timeoutMs: _ignoreTimeout, ...restOpts } = opts;
+    const r = await fetch(API + path, {
+      headers: headers(),
+      cache: 'no-store',
+      signal: ctrl.signal,
+      ...restOpts,
+    });
+    if (r.status === 401) { logout(); return null; }
+    if (!r.ok) {
+      try {
+        const err = await r.json();
+        apiFetch._lastError = err?.detail || `HTTP ${r.status}`;
+      } catch (err) {
+        console.debug('[apiFetch] Failed to parse error response JSON:', err);
+        apiFetch._lastError = `HTTP ${r.status}`;
+      }
+      return null;
     }
+    apiFetch._lastError = null;
+    return r.json();
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      apiFetch._lastError = `Request timed out after ${Math.round(timeoutMs / 1000)}s`;
+      toast('Request timed out. Please try again.', false);
+      return null;
+    }
+    apiFetch._lastError = (err && err.message) ? err.message : 'Network request failed';
+    toast('Network error. Please check your connection and retry.', false);
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  apiFetch._lastError = null;
-  return r.json();
 }
 
 // toast() is provided by /static/frontend/toast.js (loaded before this script)
