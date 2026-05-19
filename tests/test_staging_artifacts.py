@@ -73,7 +73,8 @@ def test_put_staged_html_writes_manifest_and_entry_file(client, verified_user, _
 
 
 def test_output_static_files_are_served(client):
-    output_file = Path("/workspaces/agentic-s3-website-builder/output/staging/static-regression/legacy/assets/css/main.css")
+    repo_root = Path(__file__).resolve().parents[1]
+    output_file = repo_root / "output" / "staging" / "static-regression" / "legacy" / "assets" / "css" / "main.css"
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text("body{background:#fafafa}", encoding="utf-8")
     try:

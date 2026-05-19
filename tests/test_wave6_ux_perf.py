@@ -29,7 +29,8 @@ def test_plan_limit_check_uses_cache_after_first_lookup(monkeypatch):
 
 
 def test_dashboard_apifetch_has_abort_timeout_and_toast_message():
-    js = pathlib.Path("/workspaces/agentic-s3-website-builder/frontend/dashboard.js").read_text(encoding="utf-8")
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    js = (repo_root / "frontend" / "dashboard.js").read_text(encoding="utf-8")
 
     assert "AbortController" in js
     assert "ctrl.abort()" in js
