@@ -1,0 +1,11 @@
+2026-05-19 16:41:33  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-19 16:41:33  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-19 16:41:33  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
+2026-05-19 16:41:33  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
+2026-05-19 16:41:33  INFO      apscheduler.scheduler  Scheduler started
+✅ Scheduler started — monitoring every 5min | reminders daily
+[analytics] log_event failed silently: no such table: activity_log
+2026-05-19 16:41:33  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites "HTTP/1.1 200 OK"
+2026-05-19 16:41:33  INFO      website_builder.api  [44a593f6] ▶ BUILD REQUEST  website_id=57add55f-8c61-4f8d-9a5f-e16cc83eb876  user=63262dcd-76b0-459f-9115-cd7cf1ea66d4  cart=None  web_search=False  social_search=False
+2026-05-19 16:41:33  INFO      website_builder.api  [44a593f6] 🔍 website found: name='wave-build-site'  theme=modern  cart_features=[]  chatbot=0
+2026-05-19 16:41:33  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites/57add55f-8c61-4f8d-9a5f-e16cc83eb876/build "HTTP/1.1 400 Bad Request"
