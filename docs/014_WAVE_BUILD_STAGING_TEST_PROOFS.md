@@ -108,3 +108,40 @@ Workflow files:
 
 1. `.github/workflows/test-wave-build-website.yml`
 2. `.github/workflows/test-wave-staging-area-edits.yml`
+
+## Execution order (must follow)
+
+1. Run workflow: `Test | Wave Build Website | Build Queue and Status Gate`.
+2. Require success: `wave-build-website-tests`.
+3. Verify artifacts exist:
+	- `coverage-wave-build-website-xml`
+	- `test-results-wave-build-website-xml`
+4. Check JUnit report: failures = 0 and errors = 0.
+5. Run workflow: `Test | Wave Staging Area Edits | Staged HTML and Manifest Gate`.
+6. Require success: `wave-staging-area-edits-tests`.
+7. Verify artifacts exist:
+	- `coverage-wave-staging-area-edits-xml`
+	- `test-results-wave-staging-area-edits-xml`
+8. Check JUnit report: failures = 0 and errors = 0.
+
+## Release gate criteria
+
+PASS only if all of the following are true:
+
+1. Both workflows completed successfully.
+2. All required artifacts were generated and downloadable.
+3. JUnit test reports show zero failures and zero errors.
+4. Evidence in this document remains aligned with latest run output.
+
+FAIL if any single condition above fails.
+
+## Failure handling loop
+
+1. Identify the exact failing testcase from JUnit XML artifact.
+2. Reproduce locally using targeted `pytest` command.
+3. Fix code.
+4. Re-run:
+	- `tests/test_wave_build_website.py`
+	- `tests/test_wave_staging_area_edits.py`
+	- `tests/test_staging_artifacts.py`
+5. Push changes and re-run workflows in the same order.
