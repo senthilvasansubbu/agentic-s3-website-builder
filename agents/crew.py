@@ -76,6 +76,28 @@ def _extract_expected_spec(user_requirements: str) -> dict:
   if non_cart_mode:
     enable_shopping_cart = False
 
+  def _extract_numbered_urls(section_title: str) -> list[str]:
+    block = re.search(
+      rf"{re.escape(section_title)}\s*:\s*(.+?)(?:\n\n|\n===|$)",
+      text,
+      re.I | re.S,
+    )
+    urls: list[str] = []
+    if not block:
+      return urls
+    for line in block.group(1).splitlines():
+      m = re.search(r"\b\d+\.\s+(https?://\S+)", line.strip(), re.I)
+      if not m:
+        continue
+      u = (m.group(1) or "").strip().rstrip(",.;)")
+      if u and u not in urls:
+        urls.append(u)
+    return urls
+
+  media_videos = _extract_numbered_urls("Detected Video Assets (re-use these where relevant)")
+  media_audios = _extract_numbered_urls("Detected Audio Assets (re-use these where relevant)")
+  media_embeds = _extract_numbered_urls("Detected Embedded Media URLs (YouTube/Vimeo/SoundCloud)")
+
   return {
     "website_name": website_name,
     "email": email,
@@ -88,6 +110,9 @@ def _extract_expected_spec(user_requirements: str) -> dict:
     "enable_livestream": enable_livestream,
     "enable_chatbot": enable_chatbot,
     "enable_shopping_cart": enable_shopping_cart,
+    "media_videos": media_videos,
+    "media_audios": media_audios,
+    "media_embeds": media_embeds,
   }
 
 
@@ -140,6 +165,9 @@ def _enforce_generated_html_spec(html_code: str, user_requirements: str, website
   enable_blog = bool(spec.get("enable_blog"))
   enable_livestream = bool(spec.get("enable_livestream"))
   enable_shopping_cart = bool(spec.get("enable_shopping_cart"))
+  media_videos = list(spec.get("media_videos") or [])
+  media_audios = list(spec.get("media_audios") or [])
+  media_embeds = list(spec.get("media_embeds") or [])
 
   fixed = html_code
   is_medical_domain = bool(re.search(
@@ -438,6 +466,182 @@ def _enforce_generated_html_spec(html_code: str, user_requirements: str, website
       fixed = fixed.replace("</body>", livestream_section + "\n</body>", 1)
     else:
       fixed += livestream_section
+
+  # Deterministic media fallback: if scraped/reference media URLs are available
+  # in the prompt but the LLM omitted playable media, enrich an existing media
+  # section or inject a reusable section.
+  current_video_count = len(re.findall(r"<video\b", fixed, re.I))
+  current_audio_count = len(re.findall(r"<audio\b", fixed, re.I))
+  current_embed_count = len(re.findall(r"<iframe[^>]+src=[\"\'][^\"\']*(youtube|youtu\.be|vimeo|soundcloud)[^\"\']*[\"\']", fixed, re.I))
+  has_media_section = bool(re.search(r'id=["\'](?:media|multimedia|video|audio)["\']', fixed, re.I))
+  missing_video = len(media_videos) > current_video_count
+  missing_audio = len(media_audios) > current_audio_count
+  missing_embed = len(media_embeds) > current_embed_count
+  missing_any_media = (missing_video or missing_audio or missing_embed)
+  if missing_any_media:
+    def _remaining_unique(urls: list[str], current_count: int) -> list[str]:
+      deduped: list[str] = []
+      seen: set[str] = set()
+      for raw in urls:
+        u = (raw or "").strip()
+        if not u:
+          continue
+        low = u.lower()
+        if low in seen:
+          continue
+        seen.add(low)
+        deduped.append(u)
+      if current_count >= len(deduped):
+        return []
+      return deduped[current_count:]
+
+    inject_embeds = _remaining_unique(media_embeds, current_embed_count) if missing_embed else []
+    inject_videos = _remaining_unique(media_videos, current_video_count) if missing_video else []
+    inject_audios = _remaining_unique(media_audios, current_audio_count) if missing_audio else []
+
+    media_blocks: list[str] = []
+
+    if inject_embeds:
+      media_blocks += [
+        "  <div class=\"media-group media-group-embed\" style=\"margin:16px 0\">",
+        "    <div style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px\">",
+        "      <h3 style=\"margin:0\">Embedded Media</h3>",
+      ]
+      if len(inject_embeds) > 1:
+        media_blocks += [
+          "      <label style=\"display:flex;align-items:center;gap:8px;font-size:0.95rem\">",
+          "        <span>Choose:</span>",
+          "        <select aria-label=\"Choose embedded media\" onchange=\"var t=this.closest('.media-group').querySelector('#'+this.value);if(t){t.scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});}\">",
+        ]
+        for idx in range(len(inject_embeds)):
+          item_id = f"media-embed-{current_embed_count + idx + 1}"
+          media_blocks.append(f"          <option value=\"{item_id}\">Embed {idx + 1}</option>")
+        media_blocks += [
+          "        </select>",
+          "      </label>",
+        ]
+      media_blocks += [
+        "    </div>",
+        "    <div class=\"media-scroll\" style=\"display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px\">",
+      ]
+      for idx, embed_src in enumerate(inject_embeds, start=1):
+        embed_id = f"media-embed-{current_embed_count + idx}"
+        media_blocks += [
+          f"      <article id=\"{embed_id}\" class=\"media-item\" style=\"flex:0 0 min(560px,100%);scroll-snap-align:start\">",
+          f"        <iframe src=\"{embed_src}\" title=\"Embedded media {idx}\" loading=\"lazy\" allowfullscreen style=\"width:100%;min-height:360px;border:0;border-radius:12px\"></iframe>",
+          "      </article>",
+        ]
+      media_blocks += [
+        "    </div>",
+        "  </div>",
+      ]
+
+    if inject_videos:
+      media_blocks += [
+        "  <div class=\"media-group media-group-video\" style=\"margin:16px 0\">",
+        "    <div style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px\">",
+        "      <h3 style=\"margin:0\">Video Playlist</h3>",
+      ]
+      if len(inject_videos) > 1:
+        media_blocks += [
+          "      <label style=\"display:flex;align-items:center;gap:8px;font-size:0.95rem\">",
+          "        <span>Choose:</span>",
+          "        <select aria-label=\"Choose a video\" onchange=\"var t=this.closest('.media-group').querySelector('#'+this.value);if(t){t.scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});}\">",
+        ]
+        for idx in range(len(inject_videos)):
+          item_id = f"media-video-{current_video_count + idx + 1}"
+          media_blocks.append(f"          <option value=\"{item_id}\">Video {idx + 1}</option>")
+        media_blocks += [
+          "        </select>",
+          "      </label>",
+        ]
+      media_blocks += [
+        "    </div>",
+        "    <div class=\"media-scroll\" style=\"display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px\">",
+      ]
+      for idx, video_src in enumerate(inject_videos, start=1):
+        video_id = f"media-video-{current_video_count + idx}"
+        media_blocks += [
+          f"      <article id=\"{video_id}\" class=\"media-item\" style=\"flex:0 0 min(560px,100%);scroll-snap-align:start\">",
+          "        <video controls preload=\"metadata\" style=\"width:100%;border-radius:12px\">",
+          f"          <source src=\"{video_src}\">",
+          "          Your browser does not support the video tag.",
+          "        </video>",
+          "      </article>",
+        ]
+      media_blocks += [
+        "    </div>",
+        "  </div>",
+      ]
+
+    if inject_audios:
+      media_blocks += [
+        "  <div class=\"media-group media-group-audio\" style=\"margin:16px 0\">",
+        "    <div style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px\">",
+        "      <h3 style=\"margin:0\">Audio Playlist</h3>",
+      ]
+      if len(inject_audios) > 1:
+        media_blocks += [
+          "      <label style=\"display:flex;align-items:center;gap:8px;font-size:0.95rem\">",
+          "        <span>Choose:</span>",
+          "        <select aria-label=\"Choose an audio track\" onchange=\"var t=this.closest('.media-group').querySelector('#'+this.value);if(t){t.scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});}\">",
+        ]
+        for idx in range(len(inject_audios)):
+          item_id = f"media-audio-{current_audio_count + idx + 1}"
+          media_blocks.append(f"          <option value=\"{item_id}\">Audio {idx + 1}</option>")
+        media_blocks += [
+          "        </select>",
+          "      </label>",
+        ]
+      media_blocks += [
+        "    </div>",
+        "    <div class=\"media-scroll\" style=\"display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px\">",
+      ]
+      for idx, audio_src in enumerate(inject_audios, start=1):
+        audio_id = f"media-audio-{current_audio_count + idx}"
+        media_blocks += [
+          f"      <article id=\"{audio_id}\" class=\"media-item\" style=\"flex:0 0 min(460px,100%);scroll-snap-align:start;padding:14px;border:1px solid rgba(0,0,0,.08);border-radius:12px\">",
+          f"        <h4 style=\"margin:0 0 10px\">Track {idx}</h4>",
+          "        <audio controls preload=\"metadata\" style=\"width:100%\">",
+          f"          <source src=\"{audio_src}\">",
+          "          Your browser does not support the audio tag.",
+          "        </audio>",
+          "      </article>",
+        ]
+      media_blocks += [
+        "    </div>",
+        "  </div>",
+      ]
+
+    if media_blocks:
+      media_payload = "\n" + "\n".join(media_blocks) + "\n"
+      if has_media_section:
+        media_section_pattern = re.compile(
+          r'(<section[^>]*id=["\'](?:media|multimedia|video|audio)["\'][^>]*>)(.*?)(</section>)',
+          re.I | re.S,
+        )
+        m = media_section_pattern.search(fixed)
+        if m:
+          new_section = m.group(1) + m.group(2) + media_payload + m.group(3)
+          fixed = fixed[:m.start()] + new_section + fixed[m.end():]
+        else:
+          has_media_section = False
+
+      if not has_media_section:
+        parts: list[str] = [
+          "\n<section id=\"media\" aria-labelledby=\"media-heading\" class=\"reveal\">",
+          "  <h2 id=\"media-heading\">Media Highlights</h2>",
+          "  <p class=\"subheading\">Curated media from your reference links.</p>",
+          *media_blocks,
+          "</section>\n",
+        ]
+        media_section = "\n".join(parts)
+        if "</main>" in fixed:
+          fixed = fixed.replace("</main>", media_section + "\n</main>", 1)
+        elif "</body>" in fixed:
+          fixed = fixed.replace("</body>", media_section + "\n</body>", 1)
+        else:
+          fixed += media_section
 
   # Shop/cart is a separate page entry point; remove any inline homepage shop section.
   if enable_shopping_cart:
@@ -801,6 +1005,12 @@ def _write_output_target_scaffold(site_dir: str, output_target: str, html_code: 
     artifacts_dir = os.path.join(site_dir, "artifacts", target)
     os.makedirs(artifacts_dir, exist_ok=True)
 
+    staging_note = (
+        "The generated site is organized under the staging folder alongside "
+        "separate assets/css, assets/js, assets/images, assets/audio, and "
+        "assets/video directories."
+    )
+
     if target == "php":
         php_index = os.path.join(artifacts_dir, "index.php")
         with open(php_index, "w", encoding="utf-8") as f:
@@ -852,7 +1062,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   return (
     <main style={{padding: '24px', fontFamily: 'Arial, sans-serif'}}>
       <h1>Agentic Build Output (React)</h1>
-      <p>The generated HTML site is available at ../index.html for staging customization.</p>
+      <p>""" + staging_note + """ Edit the staged index.html for page-level customization.</p>
     </main>
   );
 }
@@ -905,7 +1115,7 @@ createApp(App).mount('#app');
             "src/App.vue": """<template>
   <main style=\"padding:24px;font-family:Arial,sans-serif\">
     <h1>Agentic Build Output (Vue)</h1>
-    <p>The generated HTML site is available at ../index.html for staging customization.</p>
+    <p>""" + staging_note + """ Edit the staged index.html for page-level customization.</p>
   </main>
 </template>
 """,
@@ -913,7 +1123,10 @@ createApp(App).mount('#app');
     else:
         readme = os.path.join(artifacts_dir, "README.txt")
         with open(readme, "w", encoding="utf-8") as f:
-            f.write("Target scaffold is not defined yet. Use index.html in this staging folder as the generated output.\n")
+            f.write(
+                "Target scaffold is not defined yet. Use index.html in this staging folder as the generated output, "
+                "with linked assets kept under the organized assets subfolders.\n"
+            )
         return
 
     for rel, content in files.items():

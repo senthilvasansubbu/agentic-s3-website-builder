@@ -114,24 +114,27 @@ app.include_router(clients_router,    prefix="/api/v1")
 
 # Serve all assets (uploads, images, css, js) from output folder for staging and published sites
 from fastapi.staticfiles import StaticFiles as _StaticFiles
-_output_dir = Path(__file__).parent / "output"
+_app_root = Path(__file__).resolve().parent
+_output_dir = (_app_root / "output").resolve()
 _output_dir.mkdir(parents=True, exist_ok=True)
+for _subdir in ("staging", "published"):
+    (_output_dir / _subdir).mkdir(parents=True, exist_ok=True)
 app.mount("/output", _StaticFiles(directory=str(_output_dir)), name="output")
 
 
 ## No need to mount /static/uploads anymore; all assets are under /output/staging/<site>/assets/
 
 # Serve docs folder (reports, exported documents)
-_docs_dir = Path(__file__).parent / "docs"
+_docs_dir = (_app_root / "docs").resolve()
 _docs_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/docs-files", _StaticFiles(directory=str(_docs_dir)), name="docs")
 
 # Serve frontend JS/CSS assets (dashboard.js etc.)
-_frontend_dir = Path(__file__).parent / "frontend"
+_frontend_dir = (_app_root / "frontend").resolve()
 app.mount("/static/frontend", _StaticFiles(directory=str(_frontend_dir)), name="frontend-assets")
 
 # Serve logs folder for log viewing
-_logs_dir = Path(__file__).parent / "logs"
+_logs_dir = (_app_root / "logs").resolve()
 _logs_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/logs", StaticFiles(directory=str(_logs_dir)), name="logs")
 

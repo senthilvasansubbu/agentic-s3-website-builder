@@ -1,0 +1,93 @@
+# Naming standard: <Category> | <Scope> | <Purpose>
+name: Test | Wave Build Website | Build Queue and Status Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "app.py"
+      - "api/**"
+      - "agents/**"
+      - "services/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/test-wave-build-website.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app.py"
+      - "api/**"
+      - "agents/**"
+      - "services/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/test-wave-build-website.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-build-website-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wave-build-website-tests:
+    name: wave-build-website-tests
+    runs-on: ubuntu-latest
+
+    env:
+      JWT_SECRET: "github-actions-test-secret-do-not-use-in-prod"
+      OPENAI_API_KEY: ""
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+      STORAGE_SECRETS_KEY: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_REGION: "us-east-1"
+      S3_BUCKET_NAME: ""
+      SQLITE_DB_PATH: ":memory:"
+      VERBOSE_MODE: "false"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Wave Build Website tests
+        run: |
+          pytest \
+            tests/test_wave_build_website.py \
+            --cov=api \
+            --cov=agents \
+            --cov-report=xml:coverage-wave-build-website.xml \
+            --junitxml=test-results-wave-build-website.xml \
+            -v \
+            --tb=short \
+            --maxfail=1
+
+      - name: Upload Wave Build Website coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-wave-build-website-xml
+          path: coverage-wave-build-website.xml
+          retention-days: 30
+
+      - name: Upload Wave Build Website test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-wave-build-website-xml
+          path: test-results-wave-build-website.xml
+          retention-days: 30

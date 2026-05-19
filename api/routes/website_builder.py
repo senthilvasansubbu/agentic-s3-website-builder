@@ -37,6 +37,7 @@ from services.payment_service import PLANS
 from services.secret_store import encrypt_json, can_encrypt
 from services.secret_store import decrypt_json
 from services.hosting_service import deploy_directory_to_gdrive
+from services.staging_artifacts import STAGING_CONTRACT
 from config.settings import settings
 
 router = APIRouter(prefix="/websites", tags=["websites"])
@@ -79,6 +80,67 @@ def _safe_json_loads(raw: Optional[str], default):
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
         logger.debug("Failed to decode JSON payload in website_builder helper: %s", exc)
         return default
+
+
+def _staged_entry_file(local_path: str, entry_path: Optional[str] = None) -> str:
+    entry_name = (entry_path or STAGING_CONTRACT.entry_html or "index.html").strip().lstrip("/\\")
+    return os.path.join(local_path, entry_name or STAGING_CONTRACT.entry_html)
+
+
+def _staged_manifest_file(local_path: str) -> str:
+    return os.path.join(local_path, STAGING_CONTRACT.manifest_file)
+
+
+def _read_staged_manifest(local_path: str) -> dict:
+    manifest_file = _staged_manifest_file(local_path)
+    if not os.path.isfile(manifest_file):
+        return {}
+    try:
+        with open(manifest_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return {}
+
+
+def _staged_artifacts_snapshot(local_path: str, entry_path: str) -> dict:
+    root = Path(local_path)
+    artifacts = []
+    if root.exists():
+        for path in root.rglob("*"):
+            if path.is_file():
+                try:
+                    rel = path.relative_to(root).as_posix()
+                except ValueError:
+                    continue
+                if rel == STAGING_CONTRACT.manifest_file:
+                    continue
+                artifacts.append(rel)
+    artifacts.sort()
+    return {
+        "entry_html": entry_path,
+        "entry_file": os.path.join(local_path, entry_path),
+        "manifest_file": _staged_manifest_file(local_path),
+        "artifact_count": len(artifacts),
+        "artifacts": artifacts,
+        "layout": {
+            "pages_dir": STAGING_CONTRACT.pages_dir,
+            "assets": STAGING_CONTRACT.asset_dirs(),
+        },
+    }
+
+
+def _write_staged_manifest(local_path: str, entry_path: str) -> dict:
+    snapshot = _staged_artifacts_snapshot(local_path, entry_path)
+    snapshot.update({
+        "saved_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "staging_root": local_path,
+    })
+    manifest_file = _staged_manifest_file(local_path)
+    os.makedirs(os.path.dirname(manifest_file), exist_ok=True)
+    with open(manifest_file, "w", encoding="utf-8") as f:
+        json.dump(snapshot, f, indent=2, sort_keys=True)
+    return snapshot
 
 
 def _read_index_html(local_path: str) -> str:
@@ -335,6 +397,7 @@ class ScrapeUrlRequest(BaseModel):
 
 class StagedHtmlRequest(BaseModel):
     html: str
+    entry_path: Optional[str] = None
 
 
 ALLOWED_BUILD_MODES = {"combined", "agentic_only"}
@@ -1190,7 +1253,7 @@ async def get_staged_html(
     website_id: str,
     current_user: dict = Depends(require_app_user_or_above),
 ):
-    """Return the raw HTML of the staged index.html for preview/editing."""
+    """Return the raw HTML of the staged entry page plus artifact metadata."""
     user_id = current_user["sub"]
     site = db.fetchone(
         "SELECT local_path FROM websites WHERE website_id = %s AND user_id = %s",
@@ -1201,12 +1264,17 @@ async def get_staged_html(
     local_path = site.get("local_path") or ""
     if not local_path:
         raise HTTPException(status_code=404, detail="Website has not been built yet")
-    index_file = os.path.join(local_path, "index.html")
+    manifest = _read_staged_manifest(local_path)
+    index_file = _staged_entry_file(local_path, manifest.get("entry_html"))
     if not os.path.isfile(index_file):
-        raise HTTPException(status_code=404, detail="index.html not found in staging area")
+        raise HTTPException(status_code=404, detail=f"{STAGING_CONTRACT.entry_html} not found in staging area")
     with open(index_file, "r", encoding="utf-8") as f:
         html = f.read()
-    return {"html": html, "path": index_file}
+    rel_entry = Path(index_file).relative_to(Path(local_path)).as_posix()
+    snapshot = _staged_artifacts_snapshot(local_path, rel_entry)
+    if manifest:
+        snapshot.update({"manifest": manifest})
+    return {"html": html, "path": index_file, "staging": snapshot}
 
 
 @router.put("/{website_id}/staged-html")
@@ -1215,7 +1283,7 @@ async def put_staged_html(
     body: StagedHtmlRequest,
     current_user: dict = Depends(require_app_user_or_above),
 ):
-    """Overwrite the staged index.html with edited HTML content."""
+    """Overwrite the staged entry page and refresh the artifact manifest."""
     user_id = current_user["sub"]
     site = db.fetchone(
         "SELECT local_path FROM websites WHERE website_id = %s AND user_id = %s",
@@ -1227,14 +1295,17 @@ async def put_staged_html(
     if not local_path:
         raise HTTPException(status_code=404, detail="Website has not been built yet")
     os.makedirs(local_path, exist_ok=True)
-    index_file = os.path.join(local_path, "index.html")
+    entry_path = (body.entry_path or STAGING_CONTRACT.entry_html).strip().lstrip("/\\") or STAGING_CONTRACT.entry_html
+    index_file = _staged_entry_file(local_path, entry_path)
+    os.makedirs(os.path.dirname(index_file), exist_ok=True)
     with open(index_file, "w", encoding="utf-8") as f:
         f.write(body.html)
+    manifest = _write_staged_manifest(local_path, entry_path)
     db.execute(
         "UPDATE websites SET build_status = 'staged', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
         (website_id,),
     )
-    return {"saved": True, "path": index_file}
+    return {"saved": True, "path": index_file, "staging": manifest}
 
 
 @router.post("/{website_id}/deploy")

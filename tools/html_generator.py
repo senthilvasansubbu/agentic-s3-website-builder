@@ -1,5 +1,7 @@
 import os
 import re
+
+from services.staging_artifacts import STAGING_CONTRACT
 from datetime import datetime
 
 
@@ -19,19 +21,21 @@ def _website_dir(project_name: str, output_target: str = "legacy") -> str:
         output/
           staging/
                         <website-slug>/
-                            <output-target>/
-              index.html          ← main page
-              pages/              ← additional pages
-              assets/
-                css/
-                js/
-                images/
+                                <output-target>/
+                                        index.html          ← main page
+                                        pages/              ← additional pages
+                                        assets/
+                                            css/
+                                            js/
+                                            images/
+                                            audio/
+                                            video/
     """
     base = os.getenv("OUTPUT_DIR", "output")
     slug = _slugify(project_name)
     target = _slugify(output_target or "legacy")
     site_dir = os.path.join(base, "staging", slug, target)
-    for sub in ("pages", "assets/css", "assets/js", "assets/images", "assets/audio", "assets/video"):
+    for sub in (STAGING_CONTRACT.pages_dir, *STAGING_CONTRACT.asset_dirs().values()):
         os.makedirs(os.path.join(site_dir, sub), exist_ok=True)
     return site_dir
 
@@ -40,8 +44,8 @@ def generate_html(design_spec: dict, code: str, project_name: str,
                   page_name: str = "index", output_target: str = "legacy") -> str:
     """Write an HTML page into the website's subfolder.
 
-    - page_name='index'  → saved as  output/staging/<slug>/index.html
-    - page_name='about'  → saved as  output/staging/<slug>/pages/about.html
+    - page_name='index'  → saved as  output/staging/<slug>/<target>/index.html
+    - page_name='about'  → saved as  output/staging/<slug>/<target>/pages/about.html
     """
 
     site_dir = _website_dir(project_name, output_target=output_target)

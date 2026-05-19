@@ -3151,6 +3151,9 @@ function switchBuildTab(tab) {
 // ── Staging Area ───────────────────────────────────────────────────────────
 let stagedWebsiteId = null;
 let currentStagingUrl = null;
+let currentStagingEntryPath = 'index.html';
+let currentStagingArtifactCount = 0;
+let currentStagingArtifacts = [];
 
 async function loadBuildNarrative(websiteId) {
   const card = document.getElementById('stagingNarrativeCard');
@@ -3276,7 +3279,7 @@ function _normStatus(v) {
   return String(v || '').trim().toLowerCase();
 }
 
-function _previewUrlFromLocalPath(localPath) {
+function _previewUrlFromLocalPath(localPath, entryPath = 'index.html') {
   const raw = String(localPath || '').trim();
   if (!raw) return null;
 
@@ -3290,7 +3293,26 @@ function _previewUrlFromLocalPath(localPath) {
 
   const clean = rel.replace(/^\/+/, '').replace(/\/+$/, '');
   if (!clean) return null;
-  return `/output/${clean}/index.html`;
+  const entry = String(entryPath || 'index.html').trim().replace(/^\/+/, '');
+  return `/output/${clean}/${entry || 'index.html'}`;
+}
+
+function _renderStagingSummary(w, staging, previewUrl) {
+  const statusBar = document.getElementById('stagingStatusBar');
+  if (!statusBar) return;
+
+  const parts = [];
+  if (previewUrl) parts.push(`Preview: ${previewUrl}`);
+  if (staging && staging.entry_html) parts.push(`Entry: ${staging.entry_html}`);
+  if (Number.isFinite(Number(staging?.artifact_count))) {
+    parts.push(`${Number(staging.artifact_count)} artifact(s)`);
+  } else if (Number.isFinite(Number(currentStagingArtifactCount)) && currentStagingArtifactCount > 0) {
+    parts.push(`${currentStagingArtifactCount} artifact(s)`);
+  }
+  if (w && (w.status || w.build_status)) {
+    parts.push(`State: ${_normStatus(w.status || w.build_status) || 'draft'}`);
+  }
+  statusBar.textContent = parts.join(' • ') || 'Staging ready.';
 }
 
 async function loadStagingWebsites() {
@@ -3342,13 +3364,25 @@ async function loadStagedSite(preselect) {
     w = fresh.find(x => x.website_id === id);
   }
 
+  let staging = null;
+  try {
+    const stagedRes = await apiFetch(`/websites/${id}/staged-html`);
+    staging = stagedRes && stagedRes.staging ? stagedRes.staging : null;
+  } catch (_) {
+    staging = null;
+  }
+
+  currentStagingEntryPath = (staging && staging.entry_html) || 'index.html';
+  currentStagingArtifactCount = Number(staging && staging.artifact_count) || 0;
+  currentStagingArtifacts = Array.isArray(staging && staging.artifacts) ? staging.artifacts : [];
+
   // Derive preview URL from local_path
   let previewUrl = null;
   if (w) {
-    previewUrl = _previewUrlFromLocalPath(w.local_path);
+    previewUrl = _previewUrlFromLocalPath(w.local_path, currentStagingEntryPath);
     if (!previewUrl && w.name) {
       const slug = w.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '');
-      previewUrl = `/output/staging/${slug}/index.html`;
+      previewUrl = `/output/staging/${slug}/${currentStagingEntryPath || 'index.html'}`;
     }
   }
 
@@ -3386,7 +3420,7 @@ async function loadStagedSite(preselect) {
     frame.src = previewUrl;
     frame.style.display = '';
     placeholder.style.display = 'none';
-    document.getElementById('stagingStatusBar').textContent = `Preview: ${previewUrl}`;
+    _renderStagingSummary(w, staging, previewUrl);
   } else {
     loading.style.display = 'none';
     placeholder.style.display = 'flex';
@@ -5484,7 +5518,7 @@ async function saveStaged() {
 
   const r = await apiFetch(`/websites/${stagedWebsiteId}/staged-html`, {
     method: 'PUT',
-    body: JSON.stringify({ html }),
+    body: JSON.stringify({ html, entry_path: currentStagingEntryPath }),
   });
   btn.disabled = false; btn.textContent = '💾 Save Changes';
 
@@ -5495,7 +5529,10 @@ async function saveStaged() {
     const url = currentStagingUrl;
     frame.src = '';
     setTimeout(() => { frame.src = url + '?t=' + Date.now(); }, 100);
-    document.getElementById('stagingStatusBar').textContent = `Saved to: ${r.path}`;
+    currentStagingEntryPath = (r && r.staging && r.staging.entry_html) || currentStagingEntryPath;
+    currentStagingArtifactCount = Number(r && r.staging && r.staging.artifact_count) || currentStagingArtifactCount;
+    currentStagingArtifacts = Array.isArray(r && r.staging && r.staging.artifacts) ? r.staging.artifacts : currentStagingArtifacts;
+    _renderStagingSummary((websites || []).find(x => x.website_id === stagedWebsiteId), r && r.staging ? r.staging : null, url);
     // Update status badge
     const w = (websites || []).find(x => x.website_id === stagedWebsiteId);
     if (w) { w.build_status = 'staged'; }
