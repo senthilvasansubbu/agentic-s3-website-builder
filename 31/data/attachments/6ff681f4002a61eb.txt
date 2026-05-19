@@ -1,0 +1,4 @@
+ℹ️  Snowflake not configured — using SQLite at '/tmp/pytest-of-runner/pytest-0/test_sqlite_client_retry_failu0/retry_fail.db'
+[sqlite] stale connection detected, refreshing pool entry: closed
+[sqlite] execute retry error: retry failed
+SQL: SELECT 1

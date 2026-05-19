@@ -1,0 +1,1 @@
+ℹ️  Snowflake not configured — using SQLite at '/tmp/pytest-of-runner/pytest-0/test_close_all_ignores_connect0/close_err.db'
