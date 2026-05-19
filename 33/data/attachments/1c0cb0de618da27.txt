@@ -1,9 +1,0 @@
-2026-05-19 16:41:35  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-19 16:41:35  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-19 16:41:35  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
-2026-05-19 16:41:35  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
-2026-05-19 16:41:35  INFO      apscheduler.scheduler  Scheduler started
-✅ Scheduler started — monitoring every 5min | reminders daily
-[analytics] log_event failed silently: no such table: activity_log
-2026-05-19 16:41:36  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites "HTTP/1.1 200 OK"
-2026-05-19 16:41:36  INFO      httpx  HTTP Request: DELETE http://testserver/api/v1/websites/7614a1c3-4053-4be9-a5ed-b4fa5969928c "HTTP/1.1 200 OK"

@@ -1,0 +1,18 @@
+2026-05-19 16:56:28  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-19 16:56:28  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-19 16:56:28  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
+2026-05-19 16:56:28  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
+2026-05-19 16:56:28  INFO      apscheduler.scheduler  Scheduler started
+✅ Scheduler started — monitoring every 5min | reminders daily
+[analytics] log_event failed silently: no such table: activity_log
+2026-05-19 16:56:28  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites "HTTP/1.1 200 OK"
+2026-05-19 16:56:28  INFO      website_builder.api  [d035e898] ▶ BUILD REQUEST  website_id=47835629-ab61-499c-ab1d-540858b120aa  user=2d3dc1f5-6b91-4d97-bf63-3a15ef2ea276  cart=None  web_search=False  social_search=False
+2026-05-19 16:56:28  INFO      website_builder.api  [d035e898] 🔍 website found: name='wave-build-site'  theme=modern  cart_features=[]  chatbot=0
+2026-05-19 16:56:28  DEBUG     website_builder.requirements_analyst  build_prompt complete — 3986 chars, 0 cart_features, cats=[], nav_links=[]
+2026-05-19 16:56:28  INFO      website_builder.api  [d035e898] 🏗  Prompt ready (3986 chars, 0 cart features, chatbot=False) — queuing build
+2026-05-19 16:56:28  INFO      website_builder.api  [d035e898] 🏷️  Classification context for CrewAI: key=generic label='generic' group='general'
+2026-05-19 16:56:28  INFO      website_builder.api  [47835629-ab61-499c-ab1d-540858b120aa] 📝 build narrative logged
+[analytics] log_event failed silently: no such table: activity_log
+2026-05-19 16:56:28  INFO      website_builder.api  [d035e898] 🎉 BUILD COMPLETE  website_id=47835629-ab61-499c-ab1d-540858b120aa  total=0.0s
+2026-05-19 16:56:28  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites/47835629-ab61-499c-ab1d-540858b120aa/build "HTTP/1.1 200 OK"
+2026-05-19 16:56:28  INFO      httpx  HTTP Request: GET http://testserver/api/v1/websites/47835629-ab61-499c-ab1d-540858b120aa/build-status "HTTP/1.1 200 OK"
