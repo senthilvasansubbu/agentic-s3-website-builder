@@ -355,6 +355,35 @@ def run_migrations():
             return fn(sql, tuple(params or ()))
         return db.execute(sql, tuple(params or ()))
 
+    def _table_columns(table_name: str) -> set[str]:
+        """Best-effort table column discovery for SQLite/Snowflake backends."""
+        safe_table = "".join(ch for ch in str(table_name or "") if ch.isalnum() or ch == "_")
+        if not safe_table:
+            return set()
+
+        # SQLite path
+        try:
+            rows = db.fetchall(f"PRAGMA table_info({safe_table})")
+            cols = {str(r.get("name") or "").strip().lower() for r in (rows or []) if r.get("name")}
+            if cols:
+                return cols
+        except Exception:
+            pass
+
+        # Snowflake path
+        try:
+            rows = db.fetchall(
+                "SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS "
+                f"WHERE table_name = '{safe_table.upper()}'"
+            )
+            cols = {str(r.get("COLUMN_NAME") or r.get("column_name") or "").strip().lower() for r in (rows or [])}
+            return {c for c in cols if c}
+        except Exception:
+            return set()
+
+    def _has_column(table_name: str, column_name: str) -> bool:
+        return str(column_name or "").strip().lower() in _table_columns(table_name)
+
     def _run_migration(version: int, description: str, up_fn, rollback_fn=None):
         """Apply a migration in a transaction and rollback on failure."""
         if _applied(version):
@@ -510,16 +539,24 @@ def run_migrations():
     def _up_v12():
         # Ensure canonical column exists first for older databases.
         _safe_alter("ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0")
-        # Backfill canonical stock_quantity from legacy stock where available.
-        _exec_strict(
-            "UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, stock, 0)"
-        )
-        # Remove redundant legacy stock column.
-        _safe_alter("ALTER TABLE cart_items DROP COLUMN stock")
+        has_stock_quantity = _has_column("cart_items", "stock_quantity")
+        has_stock = _has_column("cart_items", "stock")
+
+        # Backfill canonical stock_quantity from legacy stock only when that
+        # legacy column actually exists.
+        if has_stock_quantity and has_stock:
+            _exec_strict(
+                "UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, stock, 0)"
+            )
+            # Remove redundant legacy stock column.
+            _safe_alter("ALTER TABLE cart_items DROP COLUMN stock")
+        elif has_stock_quantity:
+            _exec_strict("UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, 0)")
 
     def _down_v12():
         _safe_alter("ALTER TABLE cart_items ADD COLUMN stock INTEGER DEFAULT 0")
-        _exec_strict("UPDATE cart_items SET stock = COALESCE(stock_quantity, 0)")
+        if _has_column("cart_items", "stock") and _has_column("cart_items", "stock_quantity"):
+            _exec_strict("UPDATE cart_items SET stock = COALESCE(stock_quantity, 0)")
 
     _run_migration(
         12,
