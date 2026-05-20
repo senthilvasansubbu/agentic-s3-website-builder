@@ -1,1 +1,0 @@
-ℹ️  Snowflake not configured — using SQLite at '/tmp/pytest-of-runner/pytest-0/test_sqlite_client_execute_man0/many.db'
