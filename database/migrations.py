@@ -321,14 +321,25 @@ def _safe_alter(sql: str):
         db.execute(sql)
     except Exception:
         pass
-
-
-def run_migrations():
-    print("Running migrations…")
-    from database.snowflake_client import db
-
-    # ── Schema version tracking ───────────────────────────────────────────────
-    db.execute("""
+    def _safe_alter(sql: str):
+        # If this is an ADD COLUMN, check if the column exists first
+        import re
+        add_col_match = re.match(r"ALTER TABLE ([^ ]+) ADD COLUMN ([^ ]+)", sql.strip(), re.IGNORECASE)
+        if add_col_match:
+            table = add_col_match.group(1).strip().strip('"')
+            col = add_col_match.group(2).strip().strip('"')
+            # Remove type and default if present
+            col = col.split()[0]
+            if _has_column(table, col):
+                return
+        try:
+            db.execute(sql)
+        except Exception as exc:
+            # Ignore duplicate column errors (idempotent)
+            if "duplicate column name" in str(exc).lower() or "already exists" in str(exc).lower():
+                pass
+            else:
+                raise
         CREATE TABLE IF NOT EXISTS schema_version (
             version     INTEGER PRIMARY KEY,
             description TEXT,
@@ -548,26 +559,25 @@ def run_migrations():
             has_stock_quantity = True
         has_stock = _has_column("cart_items", "stock")
 
-        # Backfill canonical stock_quantity from legacy stock only when that legacy column actually exists.
-        if has_stock_quantity:
-            if has_stock:
-                try:
-                    _exec_strict(
-                        "UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, stock, 0)"
-                    )
-                except Exception:
-                    pass
-                # Remove redundant legacy stock column.
-                try:
-                    if _has_column("cart_items", "stock"):
-                        _safe_alter("ALTER TABLE cart_items DROP COLUMN stock")
-                except Exception:
-                    pass
-            else:
-                try:
-                    _exec_strict("UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, 0)")
-                except Exception:
-                    pass
+        # Only run UPDATE or DROP referencing 'stock' if it exists
+        if has_stock_quantity and has_stock:
+            try:
+                _exec_strict(
+                    "UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, stock, 0)"
+                )
+            except Exception:
+                pass
+            # Remove redundant legacy stock column.
+            try:
+                if _has_column("cart_items", "stock"):
+                    _safe_alter("ALTER TABLE cart_items DROP COLUMN stock")
+            except Exception:
+                pass
+        elif has_stock_quantity:
+            try:
+                _exec_strict("UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, 0)")
+            except Exception:
+                pass
 
     def _down_v12():
         _safe_alter("ALTER TABLE cart_items ADD COLUMN stock INTEGER DEFAULT 0")
@@ -679,6 +689,7 @@ _PLAN_FEATURE_SEED = {
     "free":       {"web_search": 1, "social_search": 0, "shopping_cart": 0, "livestream": 0, "blog": 0, "chatbot": 0},
     "pro":        {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 0, "blog": 0, "chatbot": 1},
     "enterprise": {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
+def _seed_plan_features():
     "superuser":  {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
 }
 
