@@ -315,31 +315,26 @@ TABLES = [
 
 
 def _safe_alter(sql: str):
-    """Run an ALTER TABLE silently — ignore if column already exists."""
+    """Run an ALTER TABLE ADD COLUMN only if the column does not exist; fully suppress duplicate column errors."""
+    from database.snowflake_client import db
+    import re
+    add_col_match = re.match(r"ALTER TABLE ([^ ]+) ADD COLUMN ([^ ]+)", sql.strip(), re.IGNORECASE)
+    if add_col_match:
+        table = add_col_match.group(1).strip().strip('"')
+        col = add_col_match.group(2).strip().strip('"')
+        # Remove type and default if present
+        col = col.split()[0]
+        if _has_column(table, col):
+            # Column already exists, skip ALTER
+            return
     try:
-        from database.snowflake_client import db
         db.execute(sql)
-    except Exception:
-        pass
-    def _safe_alter(sql: str):
-        # If this is an ADD COLUMN, check if the column exists first
-        import re
-        add_col_match = re.match(r"ALTER TABLE ([^ ]+) ADD COLUMN ([^ ]+)", sql.strip(), re.IGNORECASE)
-        if add_col_match:
-            table = add_col_match.group(1).strip().strip('"')
-            col = add_col_match.group(2).strip().strip('"')
-            # Remove type and default if present
-            col = col.split()[0]
-            if _has_column(table, col):
-                return
-        try:
-            db.execute(sql)
-        except Exception as exc:
-            # Ignore duplicate column errors (idempotent)
-            if "duplicate column name" in str(exc).lower() or "already exists" in str(exc).lower():
-                pass
-            else:
-                raise
+    except Exception as exc:
+        # Only ignore duplicate column errors for ADD COLUMN
+        if add_col_match and ("duplicate column name" in str(exc).lower() or "already exists" in str(exc).lower()):
+            pass
+        else:
+            raise
         CREATE TABLE IF NOT EXISTS schema_version (
             version     INTEGER PRIMARY KEY,
             description TEXT,
@@ -684,28 +679,7 @@ def _safe_alter(sql: str):
     print("✅ All tables created / verified.")
 
 
-# Feature matrix: plan → feature → enabled
-_PLAN_FEATURE_SEED = {
-    "free":       {"web_search": 1, "social_search": 0, "shopping_cart": 0, "livestream": 0, "blog": 0, "chatbot": 0},
-    "pro":        {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 0, "blog": 0, "chatbot": 1},
-    "enterprise": {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
-def _seed_plan_features():
-    "superuser":  {"web_search": 1, "social_search": 1, "shopping_cart": 1, "livestream": 1, "blog": 1, "chatbot": 1},
-}
 
-
-def _seed_plan_features():
-    """Insert default plan-feature rows; skip rows that already exist."""
-    from database.snowflake_client import db
-    for plan, features in _PLAN_FEATURE_SEED.items():
-        for feature, enabled in features.items():
-            try:
-                db.execute(
-                    "INSERT OR IGNORE INTO plan_features (plan, feature, enabled) VALUES (?, ?, ?)",
-                    (plan, feature, enabled),
-                )
-            except Exception:
-                pass
 
 
 if __name__ == "__main__":
