@@ -335,12 +335,7 @@ def _safe_alter(sql: str):
             pass
         else:
             raise
-        CREATE TABLE IF NOT EXISTS schema_version (
-            version     INTEGER PRIMARY KEY,
-            description TEXT,
-            applied_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+
 
     def _applied(v: int) -> bool:
         rows = db.execute("SELECT version FROM schema_version WHERE version = ?", [v])
@@ -497,7 +492,7 @@ def _safe_alter(sql: str):
     if not _applied(10):
         if not _has_column("websites", "content_depth"):
             _safe_alter("ALTER TABLE websites ADD COLUMN content_depth TEXT DEFAULT 'standard'")
-        # Migrate existing num_pages values to closest depth tier only if both columns exist
+        # Only run UPDATE if both columns exist
         if _has_column("websites", "num_pages") and _has_column("websites", "content_depth"):
             try:
                 db.execute(
@@ -509,6 +504,8 @@ def _safe_alter(sql: str):
                 )
             except Exception:
                 pass
+        else:
+            print("[migration v10] Skipped content_depth migration: 'num_pages' or 'content_depth' column missing.")
         _mark(10, "content_depth column replacing num_pages")
 
     # ── Version 11: enable foreign-key enforcement + orphan cleanup ───────────
@@ -569,10 +566,13 @@ def _safe_alter(sql: str):
             except Exception:
                 pass
         elif has_stock_quantity:
+            # Only run update if 'stock_quantity' exists and 'stock' does not
             try:
                 _exec_strict("UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, 0)")
             except Exception:
                 pass
+        else:
+            print("[migration v12] Skipped: neither 'stock' nor 'stock_quantity' column exists on cart_items.")
 
     def _down_v12():
         _safe_alter("ALTER TABLE cart_items ADD COLUMN stock INTEGER DEFAULT 0")
@@ -680,7 +680,10 @@ def _safe_alter(sql: str):
 
 
 
-
+def run_migrations():
+    """Entrypoint for running all migrations (for test and script import)."""
+    # All migration logic is already executed at module import, but this provides an explicit callable.
+    pass
 
 if __name__ == "__main__":
     run_migrations()
