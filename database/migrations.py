@@ -428,13 +428,17 @@ def run_migrations():
 
     # ── Version 3: cart item enhancements ────────────────────────────────────
     if not _applied(3):
-        _safe_alter("ALTER TABLE cart_items ADD COLUMN image_url TEXT")
-        _safe_alter("ALTER TABLE cart_items ADD COLUMN compare_price REAL DEFAULT 0")
-        _safe_alter("ALTER TABLE cart_items ADD COLUMN discount_pct REAL DEFAULT 0")
-        _safe_alter("ALTER TABLE cart_items ADD COLUMN is_flash_offer INTEGER DEFAULT 0")
-        _safe_alter("ALTER TABLE cart_items ADD COLUMN flash_offer_ends TEXT")
-        _safe_alter("ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0")
-        _safe_alter("ALTER TABLE cart_items ADD COLUMN updated_at TEXT")
+        for col, ddl in [
+            ("image_url", "ALTER TABLE cart_items ADD COLUMN image_url TEXT"),
+            ("compare_price", "ALTER TABLE cart_items ADD COLUMN compare_price REAL DEFAULT 0"),
+            ("discount_pct", "ALTER TABLE cart_items ADD COLUMN discount_pct REAL DEFAULT 0"),
+            ("is_flash_offer", "ALTER TABLE cart_items ADD COLUMN is_flash_offer INTEGER DEFAULT 0"),
+            ("flash_offer_ends", "ALTER TABLE cart_items ADD COLUMN flash_offer_ends TEXT"),
+            ("stock_quantity", "ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0"),
+            ("updated_at", "ALTER TABLE cart_items ADD COLUMN updated_at TEXT"),
+        ]:
+            if not _has_column("cart_items", col):
+                _safe_alter(ddl)
         _mark(3, "cart item price/stock/flash-offer columns")
 
     # ── Version 4: async build tracking ──────────────────────────────────────
@@ -485,20 +489,20 @@ def run_migrations():
 
     # ── Version 10: content depth (replaces num_pages) ────────────────────
     if not _applied(10):
-        _safe_alter("ALTER TABLE websites ADD COLUMN content_depth TEXT DEFAULT 'standard'")
-        # Migrate existing num_pages values to closest depth tier
-        try:
-            db.execute("""
-                UPDATE websites SET content_depth = CASE
-                    WHEN num_pages <= 1 THEN 'minimal'
-                    WHEN num_pages <= 3 THEN 'standard'
-                    WHEN num_pages <= 5 THEN 'detailed'
-                    ELSE 'enterprise'
-                END
-                WHERE content_depth IS NULL OR content_depth = 'standard'
-            """)
-        except Exception:
-            pass
+        if not _has_column("websites", "content_depth"):
+            _safe_alter("ALTER TABLE websites ADD COLUMN content_depth TEXT DEFAULT 'standard'")
+        # Migrate existing num_pages values to closest depth tier only if both columns exist
+        if _has_column("websites", "num_pages") and _has_column("websites", "content_depth"):
+            try:
+                db.execute(
+                    "UPDATE websites SET content_depth = CASE\n"
+                    "    WHEN num_pages <= 1 THEN 'minimal'\n"
+                    "    WHEN num_pages <= 3 THEN 'standard'\n"
+                    "    WHEN num_pages > 3 THEN 'rich'\n"
+                    "    ELSE 'unknown' END"
+                )
+            except Exception:
+                pass
         _mark(10, "content_depth column replacing num_pages")
 
     # ── Version 11: enable foreign-key enforcement + orphan cleanup ───────────
@@ -537,21 +541,33 @@ def run_migrations():
 
     # ── Version 12: consolidate cart stock fields (stock_quantity canonical) ─
     def _up_v12():
-        # Ensure canonical column exists first for older databases.
-        _safe_alter("ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0")
+        # Only add stock_quantity column if it does not already exist
         has_stock_quantity = _has_column("cart_items", "stock_quantity")
+        if not has_stock_quantity:
+            _safe_alter("ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0")
+            has_stock_quantity = True
         has_stock = _has_column("cart_items", "stock")
 
-        # Backfill canonical stock_quantity from legacy stock only when that
-        # legacy column actually exists.
-        if has_stock_quantity and has_stock:
-            _exec_strict(
-                "UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, stock, 0)"
-            )
-            # Remove redundant legacy stock column.
-            _safe_alter("ALTER TABLE cart_items DROP COLUMN stock")
-        elif has_stock_quantity:
-            _exec_strict("UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, 0)")
+        # Backfill canonical stock_quantity from legacy stock only when that legacy column actually exists.
+        if has_stock_quantity:
+            if has_stock:
+                try:
+                    _exec_strict(
+                        "UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, stock, 0)"
+                    )
+                except Exception:
+                    pass
+                # Remove redundant legacy stock column.
+                try:
+                    if _has_column("cart_items", "stock"):
+                        _safe_alter("ALTER TABLE cart_items DROP COLUMN stock")
+                except Exception:
+                    pass
+            else:
+                try:
+                    _exec_strict("UPDATE cart_items SET stock_quantity = COALESCE(stock_quantity, 0)")
+                except Exception:
+                    pass
 
     def _down_v12():
         _safe_alter("ALTER TABLE cart_items ADD COLUMN stock INTEGER DEFAULT 0")
