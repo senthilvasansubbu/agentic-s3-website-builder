@@ -1,0 +1,1110 @@
+wave3-health-gate / health-gate	UNKNOWN STEP	﻿2026-05-19T16:41:24.1023036Z Current runner version: '2.334.0'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1048831Z ##[group]Runner Image Provisioner
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1049655Z Hosted Compute Agent
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1050200Z Version: 20260213.493
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1050821Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1051537Z Build Date: 2026-02-13T00:28:41Z
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1052191Z Worker ID: {0d4094e1-461c-459d-aab0-0fb2254e2122}
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1052939Z Azure Region: northcentralus
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1053508Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1055287Z ##[group]Operating System
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1055991Z Ubuntu
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1056437Z 24.04.4
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1056936Z LTS
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1057400Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1057914Z ##[group]Runner Image
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1058889Z Image: ubuntu-24.04
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1059465Z Version: 20260513.135.3
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1060660Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260513.135/images/ubuntu/Ubuntu2404-Readme.md
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1062250Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260513.135
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1063131Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1064149Z ##[group]GITHUB_TOKEN Permissions
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1066287Z Contents: read
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1066878Z Metadata: read
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1067732Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1070570Z Secret source: Actions
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1071503Z Prepare workflow directory
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1623381Z Prepare all required actions
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.1661059Z Getting action download info
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.5499454Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.6865939Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8668677Z Uses: senthilvasansubbu/agentic-s3-website-builder/.github/workflows/health-gate.yml@refs/heads/main (5571547b507a97859de1d314df55b4665d32698b)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8673724Z ##[group] Inputs
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8674269Z   base_url: http://127.0.0.1:8000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8675210Z   start_local_server: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8675758Z   require_auth_negative_401: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8676275Z   expected_health_status: 200
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8676766Z   max_attempts: 12
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8677190Z   retry_delay_seconds: 5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8677674Z   skip_if_empty_base_url: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8678520Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.8679013Z Complete job name: wave3-health-gate / health-gate
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9295558Z ##[group]Run base="${BASE_URL// /}"
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9296280Z [36;1mbase="${BASE_URL// /}"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9296828Z [36;1mif [[ -z "$base" ]]; then[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9297377Z [36;1m  base="${BASE_URL_SECRET// /}"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9297917Z [36;1mfi[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9298925Z [36;1mif [[ "$START_LOCAL_SERVER" != "true" && "$SKIP_IF_EMPTY_BASE_URL" == "true" && -z "$base" ]]; then[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9300008Z [36;1m  echo "No base_url configured. Skipping health gate (ready-mode)."[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9300785Z [36;1m  echo "skip=true" >> "$GITHUB_OUTPUT"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9301344Z [36;1melse[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9301801Z [36;1m  echo "skip=false" >> "$GITHUB_OUTPUT"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9302367Z [36;1mfi[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9340332Z shell: /usr/bin/bash -e {0}
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9341196Z env:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9341637Z   BASE_URL: http://127.0.0.1:8000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9342167Z   BASE_URL_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9342667Z   START_LOCAL_SERVER: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9343172Z   REQUIRE_AUTH_NEGATIVE_401: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9343737Z   EXPECTED_HEALTH_STATUS: 200
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9344226Z   MAX_ATTEMPTS: 12
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9344659Z   RETRY_DELAY_SECONDS: 5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9345130Z   SKIP_IF_EMPTY_BASE_URL: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9345777Z   JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9346662Z   OPENAI_API_KEY: dummy-openai-key-for-health-gate
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9347546Z   STRIPE_SECRET_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9348213Z   STRIPE_WEBHOOK_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9348692Z   STORAGE_SECRETS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9349133Z   AWS_ACCESS_KEY_ID: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9349574Z   AWS_SECRET_ACCESS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9350026Z   AWS_REGION: us-east-1
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9350469Z   S3_BUCKET_NAME: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9350891Z   SQLITE_DB_PATH: :memory:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9351365Z   VERBOSE_MODE: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9351797Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9711717Z ##[group]Run actions/checkout@v4
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9712364Z with:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9712899Z   repository: senthilvasansubbu/agentic-s3-website-builder
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9713732Z   token: ***
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9714139Z   ssh-strict: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9714556Z   ssh-user: git
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9714981Z   persist-credentials: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9715460Z   clean: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9715884Z   sparse-checkout-cone-mode: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9716420Z   fetch-depth: 1
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9716836Z   fetch-tags: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9717259Z   show-progress: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9717692Z   lfs: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9718285Z   submodules: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9718736Z   set-safe-directory: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9719209Z env:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9719613Z   BASE_URL: http://127.0.0.1:8000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9720105Z   BASE_URL_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9720545Z   START_LOCAL_SERVER: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9721059Z   REQUIRE_AUTH_NEGATIVE_401: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9721567Z   EXPECTED_HEALTH_STATUS: 200
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9722055Z   MAX_ATTEMPTS: 12
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9722475Z   RETRY_DELAY_SECONDS: 5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9722942Z   SKIP_IF_EMPTY_BASE_URL: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9723586Z   JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9724337Z   OPENAI_API_KEY: dummy-openai-key-for-health-gate
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9724949Z   STRIPE_SECRET_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9725394Z   STRIPE_WEBHOOK_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9725854Z   STORAGE_SECRETS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9726291Z   AWS_ACCESS_KEY_ID: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9726734Z   AWS_SECRET_ACCESS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9727183Z   AWS_REGION: us-east-1
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9727616Z   S3_BUCKET_NAME: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9728176Z   SQLITE_DB_PATH: :memory:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9728648Z   VERBOSE_MODE: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:24.9729079Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0869599Z Syncing repository: senthilvasansubbu/agentic-s3-website-builder
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0871708Z ##[group]Getting Git version info
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0872676Z Working directory is '/home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0873897Z [command]/usr/bin/git version
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0923953Z git version 2.54.0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0951675Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0974410Z Temporarily overriding HOME='/home/runner/work/_temp/32fb5ab4-b2c4-42c1-815e-962eb08d21b9' before making global git config changes
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0975937Z Adding repository directory to the temporary git global config as a safe directory
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.0980351Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1034540Z Deleting the contents of '/home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1037941Z ##[group]Initializing the repository
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1044361Z [command]/usr/bin/git init /home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1155463Z hint: Using 'master' as the name for the initial branch. This default branch name
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1157481Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1159077Z hint: to use in all of your new repositories, which will suppress this warning,
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1160094Z hint: call:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1160685Z hint:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1162234Z hint: 	git config --global init.defaultBranch <name>
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1163738Z hint:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1165175Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1167037Z hint: 'development'. The just-created branch can be renamed via this command:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1168757Z hint:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1169566Z hint: 	git branch -m <name>
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1170488Z hint:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1171941Z hint: Disable this message with "git config set advice.defaultBranchName false"
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1174271Z Initialized empty Git repository in /home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder/.git/
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1179125Z [command]/usr/bin/git remote add origin https://github.com/senthilvasansubbu/agentic-s3-website-builder
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1226331Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1227708Z ##[group]Disabling automatic garbage collection
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1231886Z [command]/usr/bin/git config --local gc.auto 0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1265155Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1266550Z ##[group]Setting up auth
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1273982Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1313017Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1694178Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1731513Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.1963746Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.2010062Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.2245860Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.2283137Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.2283988Z ##[group]Fetching the repository
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.2293053Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5571547b507a97859de1d314df55b4665d32698b:refs/remotes/origin/main
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7006405Z From https://github.com/senthilvasansubbu/agentic-s3-website-builder
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7009141Z  * [new ref]         5571547b507a97859de1d314df55b4665d32698b -> origin/main
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7049606Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7051382Z ##[group]Determining the checkout info
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7053333Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7058693Z [command]/usr/bin/git sparse-checkout disable
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7122707Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7148693Z ##[group]Checking out the ref
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.7152093Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8188307Z Switched to a new branch 'main'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8190026Z branch 'main' set up to track 'origin/main'.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8440071Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8479276Z [command]/usr/bin/git log -1 --format=%H
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8505027Z 5571547b507a97859de1d314df55b4665d32698b
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8777823Z ##[group]Run actions/setup-python@v5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8779403Z with:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8780242Z   python-version: 3.11
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8781226Z   check-latest: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8782447Z   token: ***
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8783317Z   update-environment: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8784373Z   allow-prereleases: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8785414Z   freethreaded: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8786339Z env:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8787198Z   BASE_URL: http://127.0.0.1:8000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8788583Z   BASE_URL_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8789738Z   START_LOCAL_SERVER: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8790795Z   REQUIRE_AUTH_NEGATIVE_401: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8791925Z   EXPECTED_HEALTH_STATUS: 200
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8792982Z   MAX_ATTEMPTS: 12
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8793877Z   RETRY_DELAY_SECONDS: 5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8794896Z   SKIP_IF_EMPTY_BASE_URL: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8796368Z   JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8798412Z   OPENAI_API_KEY: dummy-openai-key-for-health-gate
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8799771Z   STRIPE_SECRET_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8800716Z   STRIPE_WEBHOOK_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8801709Z   STORAGE_SECRETS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8802659Z   AWS_ACCESS_KEY_ID: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8803584Z   AWS_SECRET_ACCESS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8804589Z   AWS_REGION: us-east-1
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8805537Z   S3_BUCKET_NAME: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8806420Z   SQLITE_DB_PATH: :memory:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8807431Z   VERBOSE_MODE: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:25.8808624Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.0662189Z ##[group]Installed versions
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.0692683Z Successfully set up CPython (3.11.15)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.0694598Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.0844723Z ##[group]Run python -m pip install --upgrade pip
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.0846117Z [36;1mpython -m pip install --upgrade pip[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.0847329Z [36;1mpip install -r requirements.txt[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1099670Z shell: /usr/bin/bash -e {0}
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1100587Z env:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1101320Z   BASE_URL: http://127.0.0.1:8000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1102298Z   BASE_URL_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1103086Z   START_LOCAL_SERVER: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1104002Z   REQUIRE_AUTH_NEGATIVE_401: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1104996Z   EXPECTED_HEALTH_STATUS: 200
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1105912Z   MAX_ATTEMPTS: 12
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1106691Z   RETRY_DELAY_SECONDS: 5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1107571Z   SKIP_IF_EMPTY_BASE_URL: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1109059Z   JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1110696Z   OPENAI_API_KEY: dummy-openai-key-for-health-gate
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1111923Z   STRIPE_SECRET_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1112798Z   STRIPE_WEBHOOK_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1113681Z   STORAGE_SECRETS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1114498Z   AWS_ACCESS_KEY_ID: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1115302Z   AWS_SECRET_ACCESS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1116166Z   AWS_REGION: us-east-1
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1116957Z   S3_BUCKET_NAME: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1117721Z   SQLITE_DB_PATH: :memory:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1118784Z   VERBOSE_MODE: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1119838Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1121556Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1123282Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1124810Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1126363Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1127929Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:26.1129331Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:28.5809979Z Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (26.1.1)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.3085551Z Collecting crewai==1.14.1 (from -r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.3655188Z   Downloading crewai-1.14.1-py3-none-any.whl.metadata (36 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.4230253Z Collecting openai==2.32.0 (from -r requirements.txt (line 3))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.4272432Z   Downloading openai-2.32.0-py3-none-any.whl.metadata (31 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.4657041Z Collecting fastapi==0.115.12 (from -r requirements.txt (line 6))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.4704498Z   Downloading fastapi-0.115.12-py3-none-any.whl.metadata (27 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.4957773Z Collecting uvicorn==0.34.3 (from uvicorn[standard]==0.34.3->-r requirements.txt (line 7))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.5130120Z   Downloading uvicorn-0.34.3-py3-none-any.whl.metadata (6.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.5329920Z Collecting python-multipart==0.0.20 (from -r requirements.txt (line 8))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.5367519Z   Downloading python_multipart-0.0.20-py3-none-any.whl.metadata (1.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.5478951Z Collecting slowapi==0.1.9 (from -r requirements.txt (line 9))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.5516267Z   Downloading slowapi-0.1.9-py3-none-any.whl.metadata (3.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.7146102Z Collecting Pillow>=10.0.0 (from -r requirements.txt (line 12))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.7197243Z   Downloading pillow-12.2.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.8334426Z Collecting snowflake-connector-python==3.14.0 (from -r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.8470221Z   Downloading snowflake_connector_python-3.14.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (67 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.8939403Z Collecting bcrypt==4.3.0 (from -r requirements.txt (line 18))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.8997492Z   Downloading bcrypt-4.3.0-cp39-abi3-manylinux_2_34_x86_64.whl.metadata (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.9159356Z Collecting PyJWT==2.10.1 (from -r requirements.txt (line 19))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:29.9206081Z   Downloading PyJWT-2.10.1-py3-none-any.whl.metadata (4.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.0955793Z Collecting cryptography==44.0.2 (from -r requirements.txt (line 20))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.0999099Z   Downloading cryptography-44.0.2-cp39-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.2698273Z Collecting boto3==1.42.90 (from -r requirements.txt (line 23))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.2742868Z   Downloading boto3-1.42.90-py3-none-any.whl.metadata (6.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.3106268Z Collecting google-api-python-client==2.176.0 (from -r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.3162326Z   Downloading google_api_python_client-2.176.0-py3-none-any.whl.metadata (7.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.3724659Z Collecting google-auth==2.40.3 (from -r requirements.txt (line 27))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.3765315Z   Downloading google_auth-2.40.3-py2.py3-none-any.whl.metadata (6.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.3914563Z Collecting google-auth-httplib2==0.2.0 (from -r requirements.txt (line 28))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.3950643Z   Downloading google_auth_httplib2-0.2.0-py2.py3-none-any.whl.metadata (2.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.4552468Z Collecting stripe==12.1.0 (from -r requirements.txt (line 31))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.4599607Z   Downloading stripe-12.1.0-py2.py3-none-any.whl.metadata (2.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.4962954Z Collecting twilio==9.6.3 (from -r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.5010708Z   Downloading twilio-9.6.3-py2.py3-none-any.whl.metadata (13 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.5350126Z Collecting pytest==8.3.5 (from -r requirements.txt (line 37))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.5391058Z   Downloading pytest-8.3.5-py3-none-any.whl.metadata (7.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.5564744Z Collecting httpx==0.28.1 (from -r requirements.txt (line 38))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.5606170Z   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.5756816Z Collecting pytest-cov==6.1.0 (from -r requirements.txt (line 39))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.5835396Z   Downloading pytest_cov-6.1.0-py3-none-any.whl.metadata (28 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6036601Z Collecting allure-pytest==2.13.5 (from -r requirements.txt (line 40))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6082431Z   Downloading allure_pytest-2.13.5-py3-none-any.whl.metadata (2.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6247930Z Collecting pytest-asyncio==0.24.0 (from -r requirements.txt (line 41))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6289548Z   Downloading pytest_asyncio-0.24.0-py3-none-any.whl.metadata (3.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6442766Z Collecting pytest-mock==3.14.0 (from -r requirements.txt (line 42))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6482041Z   Downloading pytest_mock-3.14.0-py3-none-any.whl.metadata (3.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6690094Z Collecting requests==2.32.5 (from -r requirements.txt (line 45))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6729461Z   Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6931086Z Collecting tavily-python==0.7.4 (from -r requirements.txt (line 46))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.6979205Z   Downloading tavily_python-0.7.4-py3-none-any.whl.metadata (7.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.7136620Z Collecting python-dotenv==1.1.1 (from -r requirements.txt (line 49))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.7173742Z   Downloading python_dotenv-1.1.1-py3-none-any.whl.metadata (24 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8152737Z Collecting pydantic==2.11.9 (from pydantic[email]==2.11.9->-r requirements.txt (line 50))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8198457Z   Downloading pydantic-2.11.9-py3-none-any.whl.metadata (68 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8419402Z Collecting apscheduler>=3.10.0 (from -r requirements.txt (line 51))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8458105Z   Downloading apscheduler-3.11.2-py3-none-any.whl.metadata (6.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8618616Z Collecting python-docx==1.1.2 (from -r requirements.txt (line 52))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8665391Z   Downloading python_docx-1.1.2-py3-none-any.whl.metadata (2.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8813309Z Collecting openpyxl==3.1.5 (from -r requirements.txt (line 53))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8850682Z   Downloading openpyxl-3.1.5-py2.py3-none-any.whl.metadata (2.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.8974011Z Collecting aiofiles~=24.1.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9011211Z   Downloading aiofiles-24.1.0-py3-none-any.whl.metadata (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9138805Z Collecting aiosqlite~=0.21.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9174963Z   Downloading aiosqlite-0.21.0-py3-none-any.whl.metadata (4.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9311164Z Collecting appdirs~=1.4.4 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9346825Z   Downloading appdirs-1.4.4-py2.py3-none-any.whl.metadata (9.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9659245Z Collecting chromadb~=1.1.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9713151Z   Downloading chromadb-1.1.1-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9884842Z Collecting click~=8.1.7 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:30.9926886Z   Downloading click-8.1.8-py3-none-any.whl.metadata (2.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.0153367Z Collecting instructor>=1.3.3 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.0194168Z   Downloading instructor-1.15.1-py3-none-any.whl.metadata (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.0526885Z Collecting json-repair~=0.25.2 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.0566245Z   Downloading json_repair-0.25.3-py3-none-any.whl.metadata (7.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.0734383Z Collecting json5~=0.10.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.0774211Z   Downloading json5-0.10.0-py3-none-any.whl.metadata (34 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.1103127Z Collecting jsonref~=1.1.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.1151461Z   Downloading jsonref-1.1.0-py3-none-any.whl.metadata (2.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.1545522Z Collecting lancedb<0.30.1,>=0.29.2 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.1590072Z   Downloading lancedb-0.30.0-cp39-abi3-manylinux_2_28_x86_64.whl.metadata (5.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.1809423Z Collecting mcp~=1.26.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.1850818Z   Downloading mcp-1.26.0-py3-none-any.whl.metadata (89 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.2135405Z Collecting opentelemetry-api~=1.34.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.2186860Z   Downloading opentelemetry_api-1.34.1-py3-none-any.whl.metadata (1.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.2779804Z Collecting opentelemetry-exporter-otlp-proto-http~=1.34.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.2821169Z   Downloading opentelemetry_exporter_otlp_proto_http-1.34.1-py3-none-any.whl.metadata (2.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.3047370Z Collecting opentelemetry-sdk~=1.34.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.3088288Z   Downloading opentelemetry_sdk-1.34.1-py3-none-any.whl.metadata (1.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.3243141Z Collecting pdfplumber~=0.11.4 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.3280674Z   Downloading pdfplumber-0.11.9-py3-none-any.whl.metadata (43 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.3469026Z Collecting portalocker~=2.7.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.3508013Z   Downloading portalocker-2.7.0-py2.py3-none-any.whl.metadata (6.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.3697385Z Collecting pydantic-settings~=2.10.1 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.3754971Z   Downloading pydantic_settings-2.10.1-py3-none-any.whl.metadata (3.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.4161972Z Collecting pyyaml~=6.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.4203948Z   Downloading pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.7372801Z Collecting regex~=2026.1.15 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.7436621Z   Downloading regex-2026.1.15-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.8320133Z Collecting textual>=7.5.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.8358914Z   Downloading textual-8.2.7-py3-none-any.whl.metadata (9.1 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.9687677Z Collecting tokenizers<1,>=0.21 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.9727335Z   Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.9856407Z Collecting tomli-w~=1.1.0 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:31.9916121Z   Downloading tomli_w-1.1.0-py3-none-any.whl.metadata (5.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.0137394Z Collecting tomli~=2.0.2 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.0178056Z   Downloading tomli-2.0.2-py3-none-any.whl.metadata (10.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.2356953Z Collecting uv~=0.9.13 (from crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.2413907Z   Downloading uv-0.9.30-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.2605424Z Collecting anyio<5,>=3.5.0 (from openai==2.32.0->-r requirements.txt (line 3))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.2647886Z   Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.2768353Z Collecting distro<2,>=1.7.0 (from openai==2.32.0->-r requirements.txt (line 3))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.2814668Z   Downloading distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.4236632Z Collecting jiter<1,>=0.10.0 (from openai==2.32.0->-r requirements.txt (line 3))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.4277009Z   Downloading jiter-0.15.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.4401592Z Collecting sniffio (from openai==2.32.0->-r requirements.txt (line 3))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.4436374Z   Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.4724010Z Collecting tqdm>4 (from openai==2.32.0->-r requirements.txt (line 3))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.4765128Z   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.4971405Z Collecting typing-extensions<5,>=4.11 (from openai==2.32.0->-r requirements.txt (line 3))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5010051Z   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5223647Z Collecting certifi (from httpx==0.28.1->-r requirements.txt (line 38))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5269230Z   Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5446626Z Collecting httpcore==1.* (from httpx==0.28.1->-r requirements.txt (line 38))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5491255Z   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5647936Z Collecting idna (from httpx==0.28.1->-r requirements.txt (line 38))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5691973Z   Downloading idna-3.15-py3-none-any.whl.metadata (7.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5828241Z Collecting annotated-types>=0.6.0 (from pydantic==2.11.9->pydantic[email]==2.11.9->-r requirements.txt (line 50))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:32.5865594Z   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.2396144Z Collecting pydantic-core==2.33.2 (from pydantic==2.11.9->pydantic[email]==2.11.9->-r requirements.txt (line 50))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.2437021Z   Downloading pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.2579021Z Collecting typing-inspection>=0.4.0 (from pydantic==2.11.9->pydantic[email]==2.11.9->-r requirements.txt (line 50))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.2617584Z   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.2743864Z Collecting et-xmlfile (from openpyxl==3.1.5->-r requirements.txt (line 53))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.2781703Z   Downloading et_xmlfile-2.0.0-py3-none-any.whl.metadata (2.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.3005603Z Collecting starlette<0.47.0,>=0.40.0 (from fastapi==0.115.12->-r requirements.txt (line 6))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.3050400Z   Downloading starlette-0.46.2-py3-none-any.whl.metadata (6.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.3226906Z Collecting h11>=0.8 (from uvicorn==0.34.3->uvicorn[standard]==0.34.3->-r requirements.txt (line 7))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.3268014Z   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.3506580Z Collecting limits>=2.3 (from slowapi==0.1.9->-r requirements.txt (line 9))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.3548827Z   Downloading limits-5.8.0-py3-none-any.whl.metadata (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.3713199Z Collecting asn1crypto<2.0.0,>0.24.0 (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.3759914Z   Downloading asn1crypto-1.5.1-py2.py3-none-any.whl.metadata (13 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.4674561Z Collecting cffi<2.0.0,>=1.9 (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.4714155Z   Downloading cffi-1.17.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.4943718Z Collecting pyOpenSSL<26.0.0,>=22.0.0 (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.4983477Z   Downloading pyopenssl-25.3.0-py3-none-any.whl.metadata (17 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.5336401Z Collecting pytz (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.5379721Z   Downloading pytz-2026.2-py2.py3-none-any.whl.metadata (22 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.5589614Z Collecting packaging (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.5628304Z   Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.7224173Z Collecting charset_normalizer<4,>=2 (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.7269650Z   Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.7545767Z Collecting filelock<4,>=3.5 (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.7585791Z   Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.7715553Z Collecting sortedcontainers>=2.4.0 (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.7755494Z   Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.7938598Z Collecting platformdirs<5.0.0,>=2.6.0 (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.7976443Z   Downloading platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.8152422Z Collecting tomlkit (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.8199607Z   Downloading tomlkit-0.15.0-py3-none-any.whl.metadata (2.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.8426745Z Collecting urllib3<3,>=1.21.1 (from requests==2.32.5->-r requirements.txt (line 45))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:33.8468774Z   Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.0445335Z Collecting botocore<1.43.0,>=1.42.90 (from boto3==1.42.90->-r requirements.txt (line 23))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.0485622Z   Downloading botocore-1.42.97-py3-none-any.whl.metadata (5.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.0652561Z Collecting jmespath<2.0.0,>=0.7.1 (from boto3==1.42.90->-r requirements.txt (line 23))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.0688957Z   Downloading jmespath-1.1.0-py3-none-any.whl.metadata (7.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.0855599Z Collecting s3transfer<0.17.0,>=0.16.0 (from boto3==1.42.90->-r requirements.txt (line 23))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.0895512Z   Downloading s3transfer-0.16.1-py3-none-any.whl.metadata (1.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.1049356Z Collecting httplib2<1.0.0,>=0.19.0 (from google-api-python-client==2.176.0->-r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.1089266Z   Downloading httplib2-0.31.2-py3-none-any.whl.metadata (2.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.1402475Z Collecting google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5 (from google-api-python-client==2.176.0->-r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.1442010Z   Downloading google_api_core-2.30.3-py3-none-any.whl.metadata (3.1 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.1573081Z Collecting uritemplate<5,>=3.0.1 (from google-api-python-client==2.176.0->-r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.1608967Z   Downloading uritemplate-4.2.0-py3-none-any.whl.metadata (2.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.1793988Z Collecting cachetools<6.0,>=2.0.0 (from google-auth==2.40.3->-r requirements.txt (line 27))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.1832998Z   Downloading cachetools-5.5.2-py3-none-any.whl.metadata (5.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.2031057Z Collecting pyasn1-modules>=0.2.1 (from google-auth==2.40.3->-r requirements.txt (line 27))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.2069279Z   Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.2214009Z Collecting rsa<5,>=3.1.4 (from google-auth==2.40.3->-r requirements.txt (line 27))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.2252069Z   Downloading rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.7401750Z Collecting aiohttp>=3.8.4 (from twilio==9.6.3->-r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.7448333Z   Downloading aiohttp-3.13.5-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.7596924Z Collecting aiohttp-retry>=2.8.3 (from twilio==9.6.3->-r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.7639027Z   Downloading aiohttp_retry-2.9.1-py3-none-any.whl.metadata (8.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.7767158Z Collecting iniconfig (from pytest==8.3.5->-r requirements.txt (line 37))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.7805554Z   Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.7929781Z Collecting pluggy<2,>=1.5 (from pytest==8.3.5->-r requirements.txt (line 37))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:34.7967111Z   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.2309241Z Collecting coverage>=7.5 (from coverage[toml]>=7.5->pytest-cov==6.1.0->-r requirements.txt (line 39))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.2356860Z   Downloading coverage-7.14.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.2595086Z Collecting allure-python-commons==2.13.5 (from allure-pytest==2.13.5->-r requirements.txt (line 40))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.2645331Z   Downloading allure_python_commons-2.13.5-py3-none-any.whl.metadata (5.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.3076704Z Collecting tiktoken>=0.5.1 (from tavily-python==0.7.4->-r requirements.txt (line 46))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.3120909Z   Downloading tiktoken-0.13.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (6.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.4992086Z Collecting lxml>=3.1.0 (from python-docx==1.1.2->-r requirements.txt (line 52))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.5032504Z   Downloading lxml-6.1.1-cp311-cp311-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl.metadata (3.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.5209594Z Collecting attrs>=16.0.0 (from allure-python-commons==2.13.5->allure-pytest==2.13.5->-r requirements.txt (line 40))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.5253553Z   Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.5461595Z Collecting email-validator>=2.0.0 (from pydantic[email]==2.11.9->-r requirements.txt (line 50))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.5526978Z   Downloading email_validator-2.3.0-py3-none-any.whl.metadata (26 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.5836282Z Collecting httptools>=0.6.3 (from uvicorn[standard]==0.34.3->-r requirements.txt (line 7))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.5879599Z   Downloading httptools-0.7.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (3.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.6272705Z Collecting uvloop>=0.15.1 (from uvicorn[standard]==0.34.3->-r requirements.txt (line 7))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.6317105Z   Downloading uvloop-0.22.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (4.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.7062818Z Collecting watchfiles>=0.13 (from uvicorn[standard]==0.34.3->-r requirements.txt (line 7))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.7107595Z   Downloading watchfiles-1.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.7903781Z Collecting websockets>=10.4 (from uvicorn[standard]==0.34.3->-r requirements.txt (line 7))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.7945369Z   Downloading websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.8181172Z Collecting python-dateutil<3.0.0,>=2.1 (from botocore<1.43.0,>=1.42.90->boto3==1.42.90->-r requirements.txt (line 23))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.8217331Z   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.8398301Z Collecting pycparser (from cffi<2.0.0,>=1.9->snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.8435695Z   Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.8595185Z Collecting build>=1.0.3 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.8630325Z   Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.9480546Z Collecting pybase64>=1.4.1 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:35.9523959Z   Downloading pybase64-1.4.3-cp311-cp311-manylinux1_x86_64.manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_5_x86_64.whl.metadata (8.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.2284979Z Collecting numpy>=1.22.5 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.2327632Z   Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.2656668Z Collecting posthog<6.0.0,>=2.4.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.2707772Z   Downloading posthog-5.4.0-py3-none-any.whl.metadata (5.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.3322697Z Collecting onnxruntime>=1.14.1 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.3366111Z   Downloading onnxruntime-1.26.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.3573341Z Collecting opentelemetry-exporter-otlp-proto-grpc>=1.2.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.3615409Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.42.0-py3-none-any.whl.metadata (2.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.3926228Z Collecting pypika>=0.48.9 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.3971033Z   Downloading pypika-0.51.1-py2.py3-none-any.whl.metadata (51 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.4162419Z Collecting overrides>=7.3.1 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.4201934Z   Downloading overrides-7.7.0-py3-none-any.whl.metadata (5.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.4423937Z Collecting importlib-resources (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:36.4466776Z   Downloading importlib_resources-7.1.0-py3-none-any.whl.metadata (4.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.0052259Z Collecting grpcio>=1.58.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.0092192Z   Downloading grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.0289764Z Collecting typer>=0.9.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.0330669Z   Downloading typer-0.25.1-py3-none-any.whl.metadata (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.0720361Z Collecting kubernetes>=28.1.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.0765653Z   Downloading kubernetes-35.0.0-py2.py3-none-any.whl.metadata (1.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.0924819Z Collecting tenacity>=8.2.3 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.0963928Z   Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.1444340Z Collecting mmh3>=4.0.1 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.1485884Z   Downloading mmh3-5.2.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.3660134Z Collecting orjson>=3.9.12 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.3700772Z   Downloading orjson-3.11.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (41 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.4028743Z Collecting rich>=10.11.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.4070268Z   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.4275368Z Collecting jsonschema>=4.19.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.4316592Z   Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.4537417Z Collecting googleapis-common-protos<2.0.0,>=1.63.2 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client==2.176.0->-r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.4572997Z   Downloading googleapis_common_protos-1.75.0-py3-none-any.whl.metadata (8.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.5961293Z Collecting protobuf<8.0.0,>=4.25.8 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client==2.176.0->-r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.6010227Z   Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.6174072Z Collecting proto-plus<2.0.0,>=1.22.3 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client==2.176.0->-r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.6212339Z   Downloading proto_plus-1.28.0-py3-none-any.whl.metadata (2.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.6494084Z Collecting pyparsing<4,>=3.1 (from httplib2<1.0.0,>=0.19.0->google-api-python-client==2.176.0->-r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.6533072Z   Downloading pyparsing-3.3.2-py3-none-any.whl.metadata (5.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.6720141Z Collecting deprecation>=2.1.0 (from lancedb<0.30.1,>=0.29.2->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.6768336Z   Downloading deprecation-2.1.0-py2.py3-none-any.whl.metadata (4.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.7560886Z Collecting pyarrow>=16 (from lancedb<0.30.1,>=0.29.2->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.7601674Z   Downloading pyarrow-24.0.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (3.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.7776127Z Collecting lance-namespace>=0.3.2 (from lancedb<0.30.1,>=0.29.2->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.7814348Z   Downloading lance_namespace-0.7.6-py3-none-any.whl.metadata (1.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.7951770Z Collecting httpx-sse>=0.4 (from mcp~=1.26.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.7987570Z   Downloading httpx_sse-0.4.3-py3-none-any.whl.metadata (9.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.8231944Z Collecting sse-starlette>=1.6.1 (from mcp~=1.26.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.8271458Z   Downloading sse_starlette-3.4.4-py3-none-any.whl.metadata (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.8567671Z Collecting importlib-metadata<8.8.0,>=6.0 (from opentelemetry-api~=1.34.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.8606713Z   Downloading importlib_metadata-8.7.1-py3-none-any.whl.metadata (4.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.8796722Z Collecting zipp>=3.20 (from importlib-metadata<8.8.0,>=6.0->opentelemetry-api~=1.34.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.8833985Z   Downloading zipp-4.1.0-py3-none-any.whl.metadata (3.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9023514Z Collecting opentelemetry-exporter-otlp-proto-common==1.34.1 (from opentelemetry-exporter-otlp-proto-http~=1.34.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9059971Z   Downloading opentelemetry_exporter_otlp_proto_common-1.34.1-py3-none-any.whl.metadata (1.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9224304Z Collecting opentelemetry-proto==1.34.1 (from opentelemetry-exporter-otlp-proto-http~=1.34.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9260931Z   Downloading opentelemetry_proto-1.34.1-py3-none-any.whl.metadata (2.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9406670Z Collecting protobuf<8.0.0,>=4.25.8 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client==2.176.0->-r requirements.txt (line 26))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9446170Z   Downloading protobuf-5.29.6-cp38-abi3-manylinux2014_x86_64.whl.metadata (592 bytes)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9627523Z Collecting opentelemetry-semantic-conventions==0.55b1 (from opentelemetry-sdk~=1.34.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9664799Z   Downloading opentelemetry_semantic_conventions-0.55b1-py3-none-any.whl.metadata (2.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9850660Z Collecting pdfminer.six==20251230 (from pdfplumber~=0.11.4->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:37.9893900Z   Downloading pdfminer_six-20251230-py3-none-any.whl.metadata (4.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.0705671Z Collecting pypdfium2>=4.18.0 (from pdfplumber~=0.11.4->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.0747585Z   Downloading pypdfium2-5.8.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (68 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1022949Z Collecting six>=1.5 (from posthog<6.0.0,>=2.4.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1064718Z   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1212613Z Collecting backoff>=1.10.0 (from posthog<6.0.0,>=2.4.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1251349Z   Downloading backoff-2.2.1-py3-none-any.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1392059Z INFO: pip is looking at multiple versions of pyopenssl to determine which version is compatible with other requirements. This could take a while.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1396496Z Collecting pyOpenSSL<26.0.0,>=22.0.0 (from snowflake-connector-python==3.14.0->-r requirements.txt (line 15))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1436408Z   Downloading pyopenssl-25.2.0-py3-none-any.whl.metadata (17 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1546160Z   Downloading pyopenssl-25.1.0-py3-none-any.whl.metadata (17 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1881681Z Collecting pyasn1>=0.1.3 (from rsa<5,>=3.1.4->google-auth==2.40.3->-r requirements.txt (line 27))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.1922144Z   Downloading pyasn1-0.6.3-py3-none-any.whl.metadata (8.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.3884957Z Collecting huggingface-hub<2.0,>=0.16.4 (from tokenizers<1,>=0.21->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.3927499Z   Downloading huggingface_hub-1.15.0-py3-none-any.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.4276499Z Collecting fsspec>=2023.5.0 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1,>=0.21->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.4313226Z   Downloading fsspec-2026.4.0-py3-none-any.whl.metadata (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.4765269Z Collecting hf-xet<2.0.0,>=1.4.3 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1,>=0.21->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.4806590Z   Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.5137066Z Collecting tzlocal>=3.0 (from apscheduler>=3.10.0->-r requirements.txt (line 51))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.5176121Z   Downloading tzlocal-5.3.1-py3-none-any.whl.metadata (7.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.5345649Z Collecting aiohappyeyeballs>=2.5.0 (from aiohttp>=3.8.4->twilio==9.6.3->-r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.5386998Z   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.5505889Z Collecting aiosignal>=1.4.0 (from aiohttp>=3.8.4->twilio==9.6.3->-r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.5543480Z   Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.6185060Z Collecting frozenlist>=1.1.1 (from aiohttp>=3.8.4->twilio==9.6.3->-r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.6231084Z   Downloading frozenlist-1.8.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.8322084Z Collecting multidict<7.0,>=4.5 (from aiohttp>=3.8.4->twilio==9.6.3->-r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.8362255Z   Downloading multidict-6.7.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.8905121Z Collecting propcache>=0.2.0 (from aiohttp>=3.8.4->twilio==9.6.3->-r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:38.8984884Z   Downloading propcache-0.5.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (16 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.1192411Z Collecting yarl<2.0,>=1.17.0 (from aiohttp>=3.8.4->twilio==9.6.3->-r requirements.txt (line 34))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.1234867Z   Downloading yarl-1.23.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.1593575Z Collecting pyproject_hooks (from build>=1.0.3->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.1635143Z   Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.1852010Z Collecting dnspython>=2.0.0 (from email-validator>=2.0.0->pydantic[email]==2.11.9->-r requirements.txt (line 50))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.1889262Z   Downloading dnspython-2.8.0-py3-none-any.whl.metadata (5.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.2197518Z Collecting docstring-parser<1.0,>=0.16 (from instructor>=1.3.3->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.2235212Z   Downloading docstring_parser-0.18.0-py3-none-any.whl.metadata (3.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.2376598Z Collecting jinja2<4.0.0,>=3.1.4 (from instructor>=1.3.3->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.2415026Z   Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.2458556Z Collecting jiter<1,>=0.10.0 (from openai==2.32.0->-r requirements.txt (line 3))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.2496245Z   Downloading jiter-0.13.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.2592918Z Collecting rich>=10.11.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.2629405Z   Downloading rich-14.3.4-py3-none-any.whl.metadata (18 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3197008Z Collecting MarkupSafe>=2.0 (from jinja2<4.0.0,>=3.1.4->instructor>=1.3.3->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3238645Z   Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3415645Z Collecting markdown-it-py>=2.2.0 (from rich>=10.11.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3453178Z   Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3640330Z Collecting pygments<3.0.0,>=2.13.0 (from rich>=10.11.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3680601Z   Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3772858Z INFO: pip is looking at multiple versions of typer to determine which version is compatible with other requirements. This could take a while.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3777016Z Collecting typer>=0.9.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3814240Z   Downloading typer-0.25.0-py3-none-any.whl.metadata (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3896025Z   Downloading typer-0.24.2-py3-none-any.whl.metadata (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.3979275Z   Downloading typer-0.24.1-py3-none-any.whl.metadata (16 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4057753Z   Downloading typer-0.24.0-py3-none-any.whl.metadata (16 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4137399Z   Downloading typer-0.23.2-py3-none-any.whl.metadata (16 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4220157Z   Downloading typer-0.23.1-py3-none-any.whl.metadata (16 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4399233Z Collecting shellingham>=1.3.0 (from typer>=0.9.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4434221Z   Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4536326Z Collecting annotated-doc>=0.0.2 (from typer>=0.9.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4575685Z   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4748984Z Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.19.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4786392Z   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.4977769Z Collecting referencing>=0.28.4 (from jsonschema>=4.19.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.5015862Z   Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.8826386Z Collecting rpds-py>=0.25.0 (from jsonschema>=4.19.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.8870836Z   Downloading rpds_py-0.30.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.9144428Z Collecting websocket-client!=0.40.0,!=0.41.*,!=0.42.*,>=0.32.0 (from kubernetes>=28.1.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.9197817Z   Downloading websocket_client-1.9.0-py3-none-any.whl.metadata (8.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.9330421Z Collecting requests-oauthlib (from kubernetes>=28.1.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.9370359Z   Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl.metadata (11 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.9510317Z Collecting durationpy>=0.7 (from kubernetes>=28.1.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.9546707Z   Downloading durationpy-0.10-py3-none-any.whl.metadata (340 bytes)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.9751679Z Collecting lance-namespace-urllib3-client==0.7.6 (from lance-namespace>=0.3.2->lancedb<0.30.1,>=0.29.2->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:39.9793410Z   Downloading lance_namespace_urllib3_client-0.7.6-py3-none-any.whl.metadata (28 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.0038664Z Collecting deprecated>=1.2 (from limits>=2.3->slowapi==0.1.9->-r requirements.txt (line 9))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.0076011Z   Downloading deprecated-1.3.1-py2.py3-none-any.whl.metadata (5.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2086579Z Collecting wrapt<3,>=1.10 (from deprecated>=1.2->limits>=2.3->slowapi==0.1.9->-r requirements.txt (line 9))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2128057Z   Downloading wrapt-2.1.2-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (7.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2300031Z Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=10.11.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2342563Z   Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2559353Z Collecting flatbuffers (from onnxruntime>=1.14.1->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2594835Z   Downloading flatbuffers-25.12.19-py2.py3-none-any.whl.metadata (1.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2727802Z INFO: pip is looking at multiple versions of opentelemetry-exporter-otlp-proto-grpc to determine which version is compatible with other requirements. This could take a while.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2731727Z Collecting opentelemetry-exporter-otlp-proto-grpc>=1.2.0 (from chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2770115Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.41.1-py3-none-any.whl.metadata (2.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2861005Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.41.0-py3-none-any.whl.metadata (2.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.2948316Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.40.0-py3-none-any.whl.metadata (2.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3040223Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.39.1-py3-none-any.whl.metadata (2.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3126844Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.39.0-py3-none-any.whl.metadata (2.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3203953Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.38.0-py3-none-any.whl.metadata (2.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3283230Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.37.0-py3-none-any.whl.metadata (2.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3366769Z INFO: pip is still looking at multiple versions of opentelemetry-exporter-otlp-proto-grpc to determine which version is compatible with other requirements. This could take a while.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3406160Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.36.0-py3-none-any.whl.metadata (2.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3492391Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.35.0-py3-none-any.whl.metadata (2.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3585285Z   Downloading opentelemetry_exporter_otlp_proto_grpc-1.34.1-py3-none-any.whl.metadata (2.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3906795Z INFO: pip is looking at multiple versions of sse-starlette to determine which version is compatible with other requirements. This could take a while.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3911319Z Collecting sse-starlette>=1.6.1 (from mcp~=1.26.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.3953974Z   Downloading sse_starlette-3.4.3-py3-none-any.whl.metadata (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4042428Z   Downloading sse_starlette-3.4.2-py3-none-any.whl.metadata (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4126704Z   Downloading sse_starlette-3.4.1-py3-none-any.whl.metadata (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4232887Z   Downloading sse_starlette-3.3.4-py3-none-any.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4317497Z   Downloading sse_starlette-3.3.3-py3-none-any.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4400176Z   Downloading sse_starlette-3.3.2-py3-none-any.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4492511Z   Downloading sse_starlette-3.3.1-py3-none-any.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4540495Z INFO: pip is still looking at multiple versions of sse-starlette to determine which version is compatible with other requirements. This could take a while.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4581642Z   Downloading sse_starlette-3.3.0-py3-none-any.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4662230Z   Downloading sse_starlette-3.2.1-py3-none-any.whl.metadata (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4743778Z   Downloading sse_starlette-3.2.0-py3-none-any.whl.metadata (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4829445Z   Downloading sse_starlette-3.1.2-py3-none-any.whl.metadata (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4913064Z   Downloading sse_starlette-3.1.1-py3-none-any.whl.metadata (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4959014Z INFO: This is taking longer than usual. You might need to provide the dependency resolver with stricter constraints to reduce runtime. See https://pip.pypa.io/warnings/backtracking for guidance. If you want to abort this run, press Ctrl + C.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.4998139Z   Downloading sse_starlette-3.1.0-py3-none-any.whl.metadata (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.5081978Z   Downloading sse_starlette-3.0.4-py3-none-any.whl.metadata (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.5163756Z   Downloading sse_starlette-3.0.3-py3-none-any.whl.metadata (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.5356379Z Collecting mdit-py-plugins (from textual>=7.5.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.5397601Z   Downloading mdit_py_plugins-0.6.1-py3-none-any.whl.metadata (2.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.5593413Z Collecting linkify-it-py<3,>=1 (from markdown-it-py[linkify]>=2.1.0->textual>=7.5.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.5631789Z   Downloading linkify_it_py-2.1.0-py3-none-any.whl.metadata (8.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.5772392Z Collecting uc-micro-py (from linkify-it-py<3,>=1->markdown-it-py[linkify]>=2.1.0->textual>=7.5.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.5808822Z   Downloading uc_micro_py-2.0.0-py3-none-any.whl.metadata (2.2 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.6228309Z Collecting oauthlib>=3.0.0 (from requests-oauthlib->kubernetes>=28.1.0->chromadb~=1.1.0->crewai==1.14.1->-r requirements.txt (line 2))
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.6267864Z   Downloading oauthlib-3.3.1-py3-none-any.whl.metadata (7.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.6493401Z Downloading crewai-1.14.1-py3-none-any.whl (1.0 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.6656083Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.0/1.0 MB 74.6 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.6697536Z Downloading openai-2.32.0-py3-none-any.whl (1.2 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.6837330Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 89.5 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.6876637Z Downloading PyJWT-2.10.1-py3-none-any.whl (22 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.6937572Z Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7000798Z Downloading python_dotenv-1.1.1-py3-none-any.whl (20 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7066263Z Downloading pydantic-2.11.9-py3-none-any.whl (444 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7150438Z Downloading openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7219984Z Downloading fastapi-0.115.12-py3-none-any.whl (95 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7284427Z Downloading uvicorn-0.34.3-py3-none-any.whl (62 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7344214Z Downloading python_multipart-0.0.20-py3-none-any.whl (24 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7401338Z Downloading slowapi-0.1.9-py3-none-any.whl (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7491219Z Downloading snowflake_connector_python-3.14.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.5 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7681423Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.5/2.5 MB 147.7 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7728376Z Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7794360Z Downloading bcrypt-4.3.0-cp39-abi3-manylinux_2_34_x86_64.whl (284 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.7861605Z Downloading cryptography-44.0.2-cp39-abi3-manylinux_2_34_x86_64.whl (4.2 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.8074443Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 210.7 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.8114984Z Downloading boto3-1.42.90-py3-none-any.whl (140 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.8213515Z Downloading google_api_python_client-2.176.0-py3-none-any.whl (13.7 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.8887693Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.7/13.7 MB 208.3 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.8930878Z Downloading google_auth-2.40.3-py2.py3-none-any.whl (216 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.8999103Z Downloading google_auth_httplib2-0.2.0-py2.py3-none-any.whl (9.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9097434Z Downloading stripe-12.1.0-py2.py3-none-any.whl (1.6 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9187143Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 203.5 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9255704Z Downloading twilio-9.6.3-py2.py3-none-any.whl (1.9 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9362672Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.9/1.9 MB 199.0 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9401818Z Downloading pytest-8.3.5-py3-none-any.whl (343 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9472326Z Downloading pytest_cov-6.1.0-py3-none-any.whl (23 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9551154Z Downloading allure_pytest-2.13.5-py3-none-any.whl (11 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9612524Z Downloading pytest_asyncio-0.24.0-py3-none-any.whl (18 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9669752Z Downloading pytest_mock-3.14.0-py3-none-any.whl (9.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9735753Z Downloading tavily_python-0.7.4-py3-none-any.whl (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9799797Z Downloading python_docx-1.1.2-py3-none-any.whl (244 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9907597Z Downloading allure_python_commons-2.13.5-py3-none-any.whl (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:40.9973758Z Downloading pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.0 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0071632Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 238.7 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0108726Z Downloading aiofiles-24.1.0-py3-none-any.whl (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0178927Z Downloading aiosqlite-0.21.0-py3-none-any.whl (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0244782Z Downloading anyio-4.13.0-py3-none-any.whl (114 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0306503Z Downloading appdirs-1.4.4-py2.py3-none-any.whl (9.6 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0366742Z Downloading asn1crypto-1.5.1-py2.py3-none-any.whl (105 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0429469Z Downloading botocore-1.42.97-py3-none-any.whl (15.0 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0878357Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.0/15.0 MB 346.6 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0918698Z Downloading cachetools-5.5.2-py3-none-any.whl (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.0984427Z Downloading cffi-1.17.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (467 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.1054650Z Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.1127354Z Downloading chromadb-1.1.1-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (19.9 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.1769229Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 19.9/19.9 MB 325.5 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.1808052Z Downloading click-8.1.8-py3-none-any.whl (98 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.1867796Z Downloading distro-1.9.0-py3-none-any.whl (20 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.1931075Z Downloading filelock-3.29.0-py3-none-any.whl (39 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.1987251Z Downloading google_api_core-2.30.3-py3-none-any.whl (173 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2052373Z Downloading googleapis_common_protos-1.75.0-py3-none-any.whl (300 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2126081Z Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2191845Z Downloading httplib2-0.31.2-py3-none-any.whl (91 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2255946Z Downloading idna-3.15-py3-none-any.whl (72 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2317003Z Downloading jmespath-1.1.0-py3-none-any.whl (20 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2382419Z Downloading json_repair-0.25.3-py3-none-any.whl (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2439883Z Downloading json5-0.10.0-py3-none-any.whl (34 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2498763Z Downloading jsonref-1.1.0-py3-none-any.whl (9.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.2573390Z Downloading lancedb-0.30.0-cp39-abi3-manylinux_2_28_x86_64.whl (46.9 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.4927961Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.9/46.9 MB 200.4 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.4967003Z Downloading mcp-1.26.0-py3-none-any.whl (233 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5033539Z Downloading opentelemetry_api-1.34.1-py3-none-any.whl (65 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5098935Z Downloading importlib_metadata-8.7.1-py3-none-any.whl (27 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5184751Z Downloading opentelemetry_exporter_otlp_proto_http-1.34.1-py3-none-any.whl (17 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5260499Z Downloading opentelemetry_exporter_otlp_proto_common-1.34.1-py3-none-any.whl (18 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5319327Z Downloading opentelemetry_proto-1.34.1-py3-none-any.whl (55 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5378822Z Downloading opentelemetry_sdk-1.34.1-py3-none-any.whl (118 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5442793Z Downloading opentelemetry_semantic_conventions-0.55b1-py3-none-any.whl (196 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5519163Z Downloading pdfplumber-0.11.9-py3-none-any.whl (60 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5581259Z Downloading pdfminer_six-20251230-py3-none-any.whl (6.6 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5782170Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.6/6.6 MB 358.2 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5820484Z Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5879533Z Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5937602Z Downloading portalocker-2.7.0-py2.py3-none-any.whl (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.5994400Z Downloading posthog-5.4.0-py3-none-any.whl (105 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6058212Z Downloading proto_plus-1.28.0-py3-none-any.whl (50 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6115666Z Downloading protobuf-5.29.6-cp38-abi3-manylinux2014_x86_64.whl (320 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6186533Z Downloading pydantic_settings-2.10.1-py3-none-any.whl (45 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6247749Z Downloading pyopenssl-25.1.0-py3-none-any.whl (56 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6310276Z Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6377707Z Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6442315Z Downloading pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (806 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6499395Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 806.6/806.6 kB 157.5 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6539408Z Downloading regex-2026.1.15-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (800 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6599120Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 800.5/800.5 kB 154.2 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6634516Z Downloading rsa-4.9.1-py3-none-any.whl (34 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6695633Z Downloading s3transfer-0.16.1-py3-none-any.whl (86 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6759752Z Downloading starlette-0.46.2-py3-none-any.whl (72 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6823146Z Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6947270Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 307.5 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.6988068Z Downloading huggingface_hub-1.15.0-py3-none-any.whl (663 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7043610Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 663.6/663.6 kB 117.6 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7083383Z Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7231862Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 339.0 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7269386Z Downloading tomli-2.0.2-py3-none-any.whl (13 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7357475Z Downloading tomli_w-1.1.0-py3-none-any.whl (6.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7415259Z Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7485722Z Downloading uritemplate-4.2.0-py3-none-any.whl (11 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7543091Z Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.7606663Z Downloading uv-0.9.30-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (22.8 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.8831960Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 22.8/22.8 MB 188.0 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.8874355Z Downloading pillow-12.2.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9121968Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 310.9 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9161292Z Downloading apscheduler-3.11.2-py3-none-any.whl (64 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9223187Z Downloading aiohttp-3.13.5-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.8 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9306813Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 244.5 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9352804Z Downloading multidict-6.7.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (246 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9420557Z Downloading yarl-1.23.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9484039Z Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9542240Z Downloading aiohttp_retry-2.9.1-py3-none-any.whl (10.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9612048Z Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9732396Z Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9792945Z Downloading attrs-26.1.0-py3-none-any.whl (67 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9857899Z Downloading backoff-2.2.1-py3-none-any.whl (15 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9917107Z Downloading build-1.5.0-py3-none-any.whl (26 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:41.9974517Z Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0038549Z Downloading coverage-7.14.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (252 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0101212Z Downloading deprecation-2.1.0-py2.py3-none-any.whl (11 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0166012Z Downloading email_validator-2.3.0-py3-none-any.whl (35 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0231934Z Downloading dnspython-2.8.0-py3-none-any.whl (331 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0297641Z Downloading frozenlist-1.8.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (231 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0364729Z Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0431791Z Downloading grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (6.8 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0681142Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.8/6.8 MB 293.6 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0725636Z Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0826521Z Downloading httptools-0.7.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (456 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0905135Z Downloading httpx_sse-0.4.3-py3-none-any.whl (9.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.0977241Z Downloading instructor-1.15.1-py3-none-any.whl (178 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1043937Z Downloading docstring_parser-0.18.0-py3-none-any.whl (22 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1116246Z Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1184101Z Downloading jiter-0.13.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (362 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1253240Z Downloading rich-14.3.4-py3-none-any.whl (310 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1320807Z Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1394378Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 207.9 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1431743Z Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1490270Z Downloading typer-0.23.1-py3-none-any.whl (56 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1556113Z Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1630548Z Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1713375Z Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1821876Z Downloading kubernetes-35.0.0-py2.py3-none-any.whl (2.0 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1925719Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 227.4 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.1962980Z Downloading durationpy-0.10-py3-none-any.whl (3.9 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2036451Z Downloading lance_namespace-0.7.6-py3-none-any.whl (12 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2098981Z Downloading lance_namespace_urllib3_client-0.7.6-py3-none-any.whl (324 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2168057Z Downloading limits-5.8.0-py3-none-any.whl (60 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2237444Z Downloading deprecated-1.3.1-py2.py3-none-any.whl (11 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2296386Z Downloading wrapt-2.1.2-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (114 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2357477Z Downloading lxml-6.1.1-cp311-cp311-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (5.2 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2544570Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.2/5.2 MB 309.7 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2586380Z Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2645853Z Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2702779Z Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2764017Z Downloading mmh3-5.2.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (103 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.2825966Z Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.3379791Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 316.5 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.3422056Z Downloading onnxruntime-1.26.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (18.2 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.4203729Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.2/18.2 MB 237.2 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.4245768Z Downloading opentelemetry_exporter_otlp_proto_grpc-1.34.1-py3-none-any.whl (18 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.4310250Z Downloading orjson-3.11.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (133 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.4374546Z Downloading overrides-7.7.0-py3-none-any.whl (17 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.4434415Z Downloading packaging-26.2-py3-none-any.whl (100 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.4500782Z Downloading propcache-0.5.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (58 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.4583281Z Downloading pyarrow-24.0.0-cp311-cp311-manylinux_2_28_x86_64.whl (48.8 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6020522Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.8/48.8 MB 344.6 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6061670Z Downloading pyasn1-0.6.3-py3-none-any.whl (83 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6126782Z Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6190802Z Downloading pybase64-1.4.3-cp311-cp311-manylinux1_x86_64.manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_5_x86_64.whl (71 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6250622Z Downloading pypdfium2-5.8.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.7 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6376544Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 331.1 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6415327Z Downloading pypika-0.51.1-py2.py3-none-any.whl (60 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6493478Z Downloading referencing-0.37.0-py3-none-any.whl (26 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6561538Z Downloading rpds_py-0.30.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (390 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6630131Z Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6686431Z Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6742893Z Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6801950Z Downloading sse_starlette-3.0.3-py3-none-any.whl (11 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6861201Z Downloading textual-8.2.7-py3-none-any.whl (731 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6915104Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 731.1/731.1 kB 143.9 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.6953212Z Downloading linkify_it_py-2.1.0-py3-none-any.whl (19 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7013804Z Downloading tiktoken-0.13.0-cp311-cp311-manylinux_2_28_x86_64.whl (1.1 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7084261Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 182.1 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7130321Z Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7186667Z Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7255373Z Downloading tzlocal-5.3.1-py3-none-any.whl (18 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7342530Z Downloading uvloop-0.22.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.8 MB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7486432Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.8/3.8 MB 295.4 MB/s  0:00:00
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7525537Z Downloading watchfiles-1.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (456 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7595375Z Downloading websocket_client-1.9.0-py3-none-any.whl (82 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7671496Z Downloading websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (184 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7733138Z Downloading zipp-4.1.0-py3-none-any.whl (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7796697Z Downloading et_xmlfile-2.0.0-py3-none-any.whl (18 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7857494Z Downloading flatbuffers-25.12.19-py2.py3-none-any.whl (26 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7918116Z Downloading importlib_resources-7.1.0-py3-none-any.whl (37 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.7976270Z Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8042318Z Downloading mdit_py_plugins-0.6.1-py3-none-any.whl (66 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8101043Z Downloading pycparser-3.0-py3-none-any.whl (48 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8161961Z Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8222244Z Downloading pytz-2026.2-py2.py3-none-any.whl (510 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8292976Z Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl (24 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8349905Z Downloading oauthlib-3.3.1-py3-none-any.whl (160 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8412040Z Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8473013Z Downloading tomlkit-0.15.0-py3-none-any.whl (41 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:42.8538467Z Downloading uc_micro_py-2.0.0-py3-none-any.whl (6.4 kB)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:41:43.4882986Z Installing collected packages: sortedcontainers, pytz, pypika, flatbuffers, durationpy, asn1crypto, appdirs, zipp, wrapt, websockets, websocket-client, uvloop, uv, urllib3, uritemplate, uc-micro-py, tzlocal, typing-extensions, tqdm, tomlkit, tomli-w, tomli, tenacity, sniffio, six, shellingham, rpds-py, regex, pyyaml, python-multipart, python-dotenv, pyproject_hooks, pypdfium2, pyparsing, PyJWT, pygments, pycparser, pybase64, pyasn1, pyarrow, protobuf, propcache, portalocker, pluggy, platformdirs, Pillow, packaging, overrides, orjson, oauthlib, numpy, multidict, mmh3, mdurl, MarkupSafe, lxml, jsonref, json5, json-repair, jmespath, jiter, iniconfig, importlib-resources, idna, httpx-sse, httptools, hf-xet, h11, fsspec, frozenlist, filelock, et-xmlfile, docstring-parser, dnspython, distro, coverage, click, charset_normalizer, certifi, cachetools, bcrypt, backoff, attrs, annotated-types, annotated-doc, aiohappyeyeballs, aiofiles, yarl, uvicorn, typing-inspection, rsa, requests, referencing, python-docx, python-dateutil, pytest, pydantic-core, pyasn1-modules, proto-plus, opentelemetry-proto, openpyxl, onnxruntime, markdown-it-py, linkify-it-py, jinja2, importlib-metadata, httplib2, httpcore, grpcio, googleapis-common-protos, email-validator, deprecation, deprecated, cffi, build, apscheduler, anyio, allure-python-commons, aiosqlite, aiosignal, watchfiles, tiktoken, stripe, starlette, sse-starlette, rich, requests-oauthlib, pytest-mock, pytest-cov, pytest-asyncio, pydantic, posthog, opentelemetry-exporter-otlp-proto-common, opentelemetry-api, mdit-py-plugins, limits, jsonschema-specifications, httpx, google-auth, cryptography, botocore, allure-pytest, aiohttp, typer, textual, tavily-python, slowapi, s3transfer, pyOpenSSL, pydantic-settings, pdfminer.six, opentelemetry-semantic-conventions, openai, lance-namespace-urllib3-client, kubernetes, jsonschema, google-auth-httplib2, google-api-core, fastapi, aiohttp-retry, twilio, snowflake-connector-python, pdfplumber, opentelemetry-sdk, mcp, lance-namespace, instructor, huggingface-hub, google-api-python-client, boto3, tokenizers, opentelemetry-exporter-otlp-proto-http, opentelemetry-exporter-otlp-proto-grpc, lancedb, chromadb, crewai
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:04.1127529Z 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:04.1205687Z Successfully installed MarkupSafe-3.0.3 Pillow-12.2.0 PyJWT-2.10.1 aiofiles-24.1.0 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiohttp-retry-2.9.1 aiosignal-1.4.0 aiosqlite-0.21.0 allure-pytest-2.13.5 allure-python-commons-2.13.5 annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.13.0 appdirs-1.4.4 apscheduler-3.11.2 asn1crypto-1.5.1 attrs-26.1.0 backoff-2.2.1 bcrypt-4.3.0 boto3-1.42.90 botocore-1.42.97 build-1.5.0 cachetools-5.5.2 certifi-2026.4.22 cffi-1.17.1 charset_normalizer-3.4.7 chromadb-1.1.1 click-8.1.8 coverage-7.14.0 crewai-1.14.1 cryptography-44.0.2 deprecated-1.3.1 deprecation-2.1.0 distro-1.9.0 dnspython-2.8.0 docstring-parser-0.18.0 durationpy-0.10 email-validator-2.3.0 et-xmlfile-2.0.0 fastapi-0.115.12 filelock-3.29.0 flatbuffers-25.12.19 frozenlist-1.8.0 fsspec-2026.4.0 google-api-core-2.30.3 google-api-python-client-2.176.0 google-auth-2.40.3 google-auth-httplib2-0.2.0 googleapis-common-protos-1.75.0 grpcio-1.80.0 h11-0.16.0 hf-xet-1.5.0 httpcore-1.0.9 httplib2-0.31.2 httptools-0.7.1 httpx-0.28.1 httpx-sse-0.4.3 huggingface-hub-1.15.0 idna-3.15 importlib-metadata-8.7.1 importlib-resources-7.1.0 iniconfig-2.3.0 instructor-1.15.1 jinja2-3.1.6 jiter-0.13.0 jmespath-1.1.0 json-repair-0.25.3 json5-0.10.0 jsonref-1.1.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 kubernetes-35.0.0 lance-namespace-0.7.6 lance-namespace-urllib3-client-0.7.6 lancedb-0.30.0 limits-5.8.0 linkify-it-py-2.1.0 lxml-6.1.1 markdown-it-py-4.2.0 mcp-1.26.0 mdit-py-plugins-0.6.1 mdurl-0.1.2 mmh3-5.2.1 multidict-6.7.1 numpy-2.4.6 oauthlib-3.3.1 onnxruntime-1.26.0 openai-2.32.0 openpyxl-3.1.5 opentelemetry-api-1.34.1 opentelemetry-exporter-otlp-proto-common-1.34.1 opentelemetry-exporter-otlp-proto-grpc-1.34.1 opentelemetry-exporter-otlp-proto-http-1.34.1 opentelemetry-proto-1.34.1 opentelemetry-sdk-1.34.1 opentelemetry-semantic-conventions-0.55b1 orjson-3.11.9 overrides-7.7.0 packaging-26.2 pdfminer.six-20251230 pdfplumber-0.11.9 platformdirs-4.9.6 pluggy-1.6.0 portalocker-2.7.0 posthog-5.4.0 propcache-0.5.2 proto-plus-1.28.0 protobuf-5.29.6 pyOpenSSL-25.1.0 pyarrow-24.0.0 pyasn1-0.6.3 pyasn1-modules-0.4.2 pybase64-1.4.3 pycparser-3.0 pydantic-2.11.9 pydantic-core-2.33.2 pydantic-settings-2.10.1 pygments-2.20.0 pyparsing-3.3.2 pypdfium2-5.8.0 pypika-0.51.1 pyproject_hooks-1.2.0 pytest-8.3.5 pytest-asyncio-0.24.0 pytest-cov-6.1.0 pytest-mock-3.14.0 python-dateutil-2.9.0.post0 python-docx-1.1.2 python-dotenv-1.1.1 python-multipart-0.0.20 pytz-2026.2 pyyaml-6.0.3 referencing-0.37.0 regex-2026.1.15 requests-2.32.5 requests-oauthlib-2.0.0 rich-14.3.4 rpds-py-0.30.0 rsa-4.9.1 s3transfer-0.16.1 shellingham-1.5.4 six-1.17.0 slowapi-0.1.9 sniffio-1.3.1 snowflake-connector-python-3.14.0 sortedcontainers-2.4.0 sse-starlette-3.0.3 starlette-0.46.2 stripe-12.1.0 tavily-python-0.7.4 tenacity-9.1.4 textual-8.2.7 tiktoken-0.13.0 tokenizers-0.23.1 tomli-2.0.2 tomli-w-1.1.0 tomlkit-0.15.0 tqdm-4.67.3 twilio-9.6.3 typer-0.23.1 typing-extensions-4.15.0 typing-inspection-0.4.2 tzlocal-5.3.1 uc-micro-py-2.0.0 uritemplate-4.2.0 urllib3-2.7.0 uv-0.9.30 uvicorn-0.34.3 uvloop-0.22.1 watchfiles-1.2.0 websocket-client-1.9.0 websockets-16.0 wrapt-2.1.2 yarl-1.23.0 zipp-4.1.0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0023398Z ##[group]Run python -m uvicorn app:app --host 127.0.0.1 --port 8000 > /tmp/health-gate-app.log 2>&1 &
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0024126Z [36;1mpython -m uvicorn app:app --host 127.0.0.1 --port 8000 > /tmp/health-gate-app.log 2>&1 &[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0024595Z [36;1mecho "APP_PID=$!" >> "$GITHUB_ENV"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0061193Z shell: /usr/bin/bash -e {0}
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0061439Z env:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0061664Z   BASE_URL: http://127.0.0.1:8000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0061947Z   BASE_URL_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0062152Z   START_LOCAL_SERVER: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0062390Z   REQUIRE_AUTH_NEGATIVE_401: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0062635Z   EXPECTED_HEALTH_STATUS: 200
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0062875Z   MAX_ATTEMPTS: 12
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0063069Z   RETRY_DELAY_SECONDS: 5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0063313Z   SKIP_IF_EMPTY_BASE_URL: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0063676Z   JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0064176Z   OPENAI_API_KEY: dummy-openai-key-for-health-gate
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0064509Z   STRIPE_SECRET_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0064736Z   STRIPE_WEBHOOK_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0064965Z   STORAGE_SECRETS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0065233Z   AWS_ACCESS_KEY_ID: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0065442Z   AWS_SECRET_ACCESS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0065675Z   AWS_REGION: us-east-1
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0065891Z   S3_BUCKET_NAME: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0066096Z   SQLITE_DB_PATH: :memory:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0066333Z   VERBOSE_MODE: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0066614Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0067080Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0067544Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0067960Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0068548Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0068978Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0069337Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0181294Z ##[group]Run set -e
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0181741Z [36;1mset -e[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0182082Z [36;1mbase="${BASE_URL%/}"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0182485Z [36;1mif [[ -z "$base" ]]; then[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0182934Z [36;1m  base="${BASE_URL_SECRET%/}"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0183352Z [36;1mfi[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0183737Z [36;1mfor attempt in $(seq 1 "$MAX_ATTEMPTS"); do[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0184417Z [36;1m  code=$(curl -s -o /dev/null -w "%{http_code}" "$base/health" || true)[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0185124Z [36;1m  echo "attempt=$attempt health_status=$code"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0185725Z [36;1m  if [[ "$code" == "$EXPECTED_HEALTH_STATUS" ]]; then[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0186268Z [36;1m    echo "Health check passed"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0186702Z [36;1m    exit 0[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0187018Z [36;1m  fi[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0187400Z [36;1m  if [[ "$attempt" -lt "$MAX_ATTEMPTS" ]]; then[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0188377Z [36;1m    sleep "$RETRY_DELAY_SECONDS"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0188856Z [36;1m  fi[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0189169Z [36;1mdone[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0189637Z [36;1mecho "Health check failed after $MAX_ATTEMPTS attempts"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0190280Z [36;1mif [[ -f /tmp/health-gate-app.log ]]; then[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0190806Z [36;1m  echo "--- app log tail ---"[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0191349Z [36;1m  tail -n 120 /tmp/health-gate-app.log || true[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0191834Z [36;1mfi[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0192111Z [36;1mexit 1[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0244512Z shell: /usr/bin/bash -e {0}
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0244945Z env:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0245310Z   BASE_URL: http://127.0.0.1:8000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0245779Z   BASE_URL_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0246132Z   START_LOCAL_SERVER: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0246530Z   REQUIRE_AUTH_NEGATIVE_401: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0246957Z   EXPECTED_HEALTH_STATUS: 200
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0247335Z   MAX_ATTEMPTS: 12
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0247930Z   RETRY_DELAY_SECONDS: 5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0248579Z   SKIP_IF_EMPTY_BASE_URL: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0249133Z   JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0250012Z   OPENAI_API_KEY: dummy-openai-key-for-health-gate
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0250555Z   STRIPE_SECRET_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0250904Z   STRIPE_WEBHOOK_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0251280Z   STORAGE_SECRETS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0251640Z   AWS_ACCESS_KEY_ID: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0251966Z   AWS_SECRET_ACCESS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0252317Z   AWS_REGION: us-east-1
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0252657Z   S3_BUCKET_NAME: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0252991Z   SQLITE_DB_PATH: :memory:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0253368Z   VERBOSE_MODE: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0253830Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0254606Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0255372Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0256087Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0256755Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0257435Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0258275Z   APP_PID: 2379
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0258590Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:05.0669190Z attempt=1 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:10.0759097Z attempt=2 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:15.0841760Z attempt=3 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:20.0922651Z attempt=4 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:25.1002945Z attempt=5 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:30.1088740Z attempt=6 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:35.1169758Z attempt=7 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:40.1250283Z attempt=8 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:45.1331051Z attempt=9 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:50.1411294Z attempt=10 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:42:55.1494687Z attempt=11 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1576624Z attempt=12 health_status=000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1579742Z Health check failed after 12 attempts
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1580155Z --- app log tail ---
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1587227Z 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1587658Z During handling of the above exception, another exception occurred:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1588512Z 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1588701Z Traceback (most recent call last):
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1595628Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/starlette/routing.py", line 692, in lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1596419Z     async with self.lifespan_context(app) as maybe_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1597107Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1597685Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1597957Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1599103Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1599831Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1600429Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1600954Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1601194Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1601757Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1602405Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1602967Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1603445Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1603682Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1604254Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1604901Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1605741Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1606232Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1606506Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1607093Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1607748Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1608588Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1609088Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1609317Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1609871Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1610467Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1611012Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1611478Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1611698Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1612226Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1612826Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1613354Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1613800Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1614021Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1614526Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1615113Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1615777Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1616229Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1616453Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1616955Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1617537Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1618402Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1618858Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1619078Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1619594Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1620183Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1620703Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1621140Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1621364Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1621873Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1622449Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1622960Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1623403Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1623621Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1624133Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1624714Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1625377Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/contextlib.py", line 210, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1625823Z     return await anext(self.gen)
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1626043Z            ^^^^^^^^^^^^^^^^^^^^^
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1626552Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/fastapi/routing.py", line 133, in merged_lifespan
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1627125Z     async with original_context(app) as maybe_original_state:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1627735Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/starlette/routing.py", line 569, in __aenter__
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1628564Z     await self._router.startup()
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1629084Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/starlette/routing.py", line 669, in startup
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1629609Z     await handler()
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1630077Z   File "/home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder/app.py", line 289, in startup
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1630576Z     run_migrations()
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1631131Z   File "/home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder/database/migrations.py", line 524, in run_migrations
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1631720Z     _run_migration(
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1632268Z   File "/home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder/database/migrations.py", line 377, in _run_migration
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1633010Z     raise RuntimeError(f"Migration v{version} failed: {description}: {exc}")
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1633606Z RuntimeError: Migration v12 failed: cart_items uses stock_quantity as the sole stock field: no such column: stock
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1634023Z 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1634137Z ERROR:    Application startup failed. Exiting.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1634799Z Running migrations…
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1635083Z [sqlite] execute error: duplicate column name: image_url
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1635434Z SQL: ALTER TABLE cart_items ADD COLUMN image_url TEXT
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1635944Z [sqlite] execute error: duplicate column name: compare_price
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1636352Z SQL: ALTER TABLE cart_items ADD COLUMN compare_price REAL DEFAULT 0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1636747Z [sqlite] execute error: duplicate column name: discount_pct
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1637136Z SQL: ALTER TABLE cart_items ADD COLUMN discount_pct REAL DEFAULT 0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1637533Z [sqlite] execute error: duplicate column name: is_flash_offer
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1637932Z SQL: ALTER TABLE cart_items ADD COLUMN is_flash_offer INTEGER DEFAULT 0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1638662Z [sqlite] execute error: duplicate column name: flash_offer_ends
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1639041Z SQL: ALTER TABLE cart_items ADD COLUMN flash_offer_ends TEXT
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1639414Z [sqlite] execute error: duplicate column name: stock_quantity
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1639812Z SQL: ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1640222Z [sqlite] execute error: duplicate column name: updated_at
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1640579Z SQL: ALTER TABLE cart_items ADD COLUMN updated_at TEXT
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1640933Z [sqlite] execute error: duplicate column name: classification
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1641359Z SQL: ALTER TABLE websites ADD COLUMN classification TEXT DEFAULT 'generic'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1641805Z [sqlite] execute error: duplicate column name: image_storage_backend
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1642269Z SQL: ALTER TABLE websites ADD COLUMN image_storage_backend TEXT DEFAULT 'auto'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1642729Z [sqlite] execute error: duplicate column name: image_storage_config
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1643131Z SQL: ALTER TABLE websites ADD COLUMN image_storage_config TEXT
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1643508Z [sqlite] execute error: duplicate column name: build_mode
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1643910Z SQL: ALTER TABLE websites ADD COLUMN build_mode TEXT DEFAULT 'agentic_only'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1644342Z [sqlite] execute error: duplicate column name: output_target
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1644751Z SQL: ALTER TABLE websites ADD COLUMN output_target TEXT DEFAULT 'legacy'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1645336Z [sqlite] execute error: duplicate column name: classification_label
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1645755Z SQL: ALTER TABLE websites ADD COLUMN classification_label TEXT
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1646154Z [sqlite] execute error: duplicate column name: input_snapshot_json
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1646553Z SQL: ALTER TABLE websites ADD COLUMN input_snapshot_json TEXT
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1646940Z [sqlite] execute error: duplicate column name: source_context_json
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1647329Z SQL: ALTER TABLE websites ADD COLUMN source_context_json TEXT
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1647727Z [sqlite] execute error: duplicate column name: classification_group
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1648453Z SQL: ALTER TABLE websites ADD COLUMN classification_group TEXT
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1648858Z [sqlite] execute error: no such column: num_pages
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1649128Z SQL: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1649349Z                 UPDATE websites SET content_depth = CASE
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1649657Z                     WHEN num_pages <= 1 THEN 'minimal'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1649972Z                     WHEN num_pages <= 3 THEN 'standard'
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1650238Z                     WHEN num_pa
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1650536Z [sqlite] execute error: duplicate column name: stock_quantity
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1650942Z SQL: ALTER TABLE cart_items ADD COLUMN stock_quantity INTEGER DEFAULT 0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1660890Z ##[error]Process completed with exit code 1.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1715724Z ##[group]Run if [[ -n "${APP_PID:-}" ]]; then
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1716070Z [36;1mif [[ -n "${APP_PID:-}" ]]; then[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1716332Z [36;1m  kill "$APP_PID" || true[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1716577Z [36;1mfi[0m
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1750092Z shell: /usr/bin/bash -e {0}
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1750322Z env:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1750517Z   BASE_URL: http://127.0.0.1:8000
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1750766Z   BASE_URL_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1750994Z   START_LOCAL_SERVER: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1751219Z   REQUIRE_AUTH_NEGATIVE_401: true
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1751468Z   EXPECTED_HEALTH_STATUS: 200
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1751683Z   MAX_ATTEMPTS: 12
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1751874Z   RETRY_DELAY_SECONDS: 5
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1752084Z   SKIP_IF_EMPTY_BASE_URL: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1752413Z   JWT_SECRET: github-actions-health-gate-secret-32-chars-minimum
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1752806Z   OPENAI_API_KEY: dummy-openai-key-for-health-gate
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1753128Z   STRIPE_SECRET_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1753333Z   STRIPE_WEBHOOK_SECRET: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1753546Z   STORAGE_SECRETS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1753739Z   AWS_ACCESS_KEY_ID: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1753934Z   AWS_SECRET_ACCESS_KEY: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1754159Z   AWS_REGION: us-east-1
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1754361Z   S3_BUCKET_NAME: 
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1754553Z   SQLITE_DB_PATH: :memory:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1754760Z   VERBOSE_MODE: false
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1755022Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1755441Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1755855Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1756216Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1756587Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1756965Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1757272Z   APP_PID: 2379
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1757465Z ##[endgroup]
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1812196Z /home/runner/work/_temp/d7151b18-635b-41fa-b46a-a155d2fd194e.sh: line 2: kill: (2379) - No such process
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.1899994Z Post job cleanup.
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.2880065Z [command]/usr/bin/git version
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.2916947Z git version 2.54.0
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.2961982Z Temporarily overriding HOME='/home/runner/work/_temp/f084b2ae-4ce1-4a59-b5a7-fbb1ede6495e' before making global git config changes
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.2963421Z Adding repository directory to the temporary git global config as a safe directory
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.2968881Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-s3-website-builder/agentic-s3-website-builder
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3011429Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3043892Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3268521Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3295525Z http.https://github.com/.extraheader
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3308938Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3339151Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3562871Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3595437Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.3955043Z Cleaning up orphan processes
+wave3-health-gate / health-gate	UNKNOWN STEP	2026-05-19T16:43:00.4214656Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-python@v5. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
