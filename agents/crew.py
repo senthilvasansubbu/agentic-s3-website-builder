@@ -154,6 +154,7 @@ def _inject_products_section(html_code: str, categories: list[str]) -> str:
 
 def _enforce_generated_html_spec(html_code: str, user_requirements: str, website_id: str = "") -> str:
   """Force critical fields to match explicit build spec when LLM output drifts."""
+  fixed = html_code
   spec = _extract_expected_spec(user_requirements)
   name = spec["website_name"]
   email = spec["email"]
@@ -165,6 +166,86 @@ def _enforce_generated_html_spec(html_code: str, user_requirements: str, website
   enable_blog = bool(spec.get("enable_blog"))
   enable_livestream = bool(spec.get("enable_livestream"))
   enable_shopping_cart = bool(spec.get("enable_shopping_cart"))
+  enable_chatbot = bool(spec.get("enable_chatbot"))
+
+  # Inject chatbot widget if enabled and missing
+  if enable_chatbot and 'id="chatbot-widget"' not in fixed:
+    chatbot_widget = '''
+    <!-- Chatbot Widget -->
+<style>
+#chatbot-widget { position: fixed; bottom: 28px; right: 28px; z-index: 400; }
+#chat-toggle {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border: none; color: #fff; font-size: 1.5rem; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(99,102,241,.5);
+}
+#chat-box {
+  position: absolute; bottom: 70px; right: 0; width: 340px;
+  background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb); border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.35);
+  display: none; flex-direction: column; overflow: hidden;
+}
+#chat-box.open { display: flex; }
+.chat-head {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: #fff; padding: 16px 20px; font-weight: 700;
+}
+.chat-messages { flex: 1; height: 300px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: .88rem; line-height: 1.5; }
+.chat-msg.bot  { background: #f0f2f5; align-self: flex-start; border-bottom-left-radius: 4px; }
+.chat-msg.user { background: #e0e7ff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.chat-footer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border, #e5e7eb); }
+#chatInput { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); font-size: .95rem; }
+#chatInput:focus { outline: none; border-color: var(--accent); }
+</style>
+<div id="chatbot-widget">
+  <div id="chat-box">
+    <div class="chat-head">🤖 AI Assistant</div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg bot">Hi! 👋 I'm your AI assistant. Ask me anything about this website or our services.</div>
+    </div>
+    <div class="chat-footer">
+      <input type="text" id="chatInput" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendChat()" />
+      <button onclick="sendChat()">➤</button>
+    </div>
+  </div>
+  <button id="chat-toggle" onclick="toggleChat()">🤖</button>
+</div>
+<script>
+function toggleChat() {
+  document.getElementById('chat-box').classList.toggle('open');
+}
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  appendChatMsg(msg, 'user');
+  appendChatMsg('…', 'bot', 'chat-typing');
+  const res = await fetch('/chatbot/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg, context: 'visitor' })
+  }).then(r => r.json()).catch(() => ({}));
+  document.getElementById('chat-typing')?.remove();
+  appendChatMsg(res.reply || 'Sorry, I could not process that.', 'bot');
+}
+function appendChatMsg(text, role, id = '') {
+  const el = document.createElement('div');
+  el.className = 'chat-msg ' + role;
+  if (id) el.id = id;
+  el.textContent = text;
+  const box = document.getElementById('chatMessages');
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+</script>
+'''
+    if '</body>' in fixed:
+      fixed = fixed.replace('</body>', chatbot_widget + '\n</body>', 1)
+    else:
+      fixed += chatbot_widget
   media_videos = list(spec.get("media_videos") or [])
   media_audios = list(spec.get("media_audios") or [])
   media_embeds = list(spec.get("media_embeds") or [])
@@ -269,7 +350,11 @@ def _enforce_generated_html_spec(html_code: str, user_requirements: str, website
       r"Organization Name",
     ]
     for pat in generic_placeholder_patterns:
-      fixed = re.sub(pat, name, fixed, flags=re.I)
+      if pat and isinstance(pat, str):
+        try:
+          fixed = re.sub(pat, name, fixed, flags=re.I)
+        except re.error as e:
+          logger.warning(f"Invalid regex pattern in generic_placeholder_patterns: {pat!r} — {e}")
 
     # Force page title.
     if re.search(r"<title>.*?</title>", fixed, re.I | re.S):
@@ -1143,12 +1228,18 @@ def _sync_legacy_entrypoint(site_dir: str, html_code: str) -> None:
     parent = os.path.dirname(site_dir)
     os.makedirs(parent, exist_ok=True)
 
-    mirrored = re.sub(
-      r'((?:src|href)=["\'])assets/',
-      r'\1legacy/assets/',
-      html_code,
-      flags=re.I,
-    )
+    pattern = r'((?:src|href)=["\']assets/'
+    replacement = r'\1legacy/assets/'
+    try:
+      mirrored = re.sub(
+        pattern,
+        replacement,
+        html_code,
+        flags=re.I,
+      )
+    except re.error as e:
+      logger.error(f"Regex error in _sync_legacy_entrypoint: pattern={pattern!r}, error={e}")
+      mirrored = html_code  # fallback: do not transform
     with open(os.path.join(parent, "index.html"), "w", encoding="utf-8") as f:
         f.write(mirrored)
 
@@ -1166,9 +1257,7 @@ def _generate_static_fallback(user_requirements: str, theme_key: str = "modern")
         biz_name = biz_name_match.group(1).strip()
     else:
         biz_name_match2 = re.search(r'Business Name:\s*(.+)', user_requirements)
-        biz_name = biz_name_match2.group(1).strip() if biz_name_match2 else \
-            " ".join(user_requirements.replace("===", "").split()[:5]).title()
-
+        biz_name = biz_name_match2.group(1).strip() if biz_name_match2 else "Business Name"
     # Is this an informational (non-retail) site?
     is_informational = bool(re.search(r'SITE TYPE:\s*Informational', user_requirements, re.I))
     # Also honor explicit non-cart directives from requirements_analyst.
@@ -1329,23 +1418,23 @@ def _generate_static_fallback(user_requirements: str, theme_key: str = "modern")
                 user_requirements
             )
             excerpt = excerpt_match.group(0).strip()[:250] if excerpt_match else ""
-            section_desc = excerpt if len(excerpt) > 40 else f"Explore our {sec_label} — dedicated to sharing knowledge, community, and inspiration."
+            section_desc = excerpt if len(excerpt) > 40 else f"Explore our {sec_label} --- dedicated to sharing knowledge, community, and inspiration."
             extra_sections_html += f"""
-<!-- ── {sec_label} ── -->
-<section id="{sec_id}">
-  <div class="section reveal">
-    <div class="section-header">
+<!-- --- {sec_label} --- -->
+<section id=\"{sec_id}\">
+  <div class=\"section reveal\">
+    <div class=\"section-header\">
       <h2>{sec_label}</h2>
       <p>{section_desc}</p>
-      <div class="section-divider"></div>
+      <div class=\"section-divider\"></div>
     </div>
-    <div class="cat-grid">
-      <div class="cat-card">
-        <img src="https://source.unsplash.com/featured/800x500/?{kw}" alt="{sec_label}" loading="lazy">
-        <div class="cat-info">
+    <div class=\"cat-grid\">
+      <div class=\"cat-card\">
+        <img src=\"https://source.unsplash.com/featured/800x500/?{kw}\" alt=\"{sec_label}\" loading=\"lazy\">
+        <div class=\"cat-info\">
           <h3>{sec_label}</h3>
           <p>{section_desc}</p>
-          <a href="#contact" class="cat-btn">Learn More</a>
+          <a href=\"#contact\" class=\"cat-btn\">Learn More</a>
         </div>
       </div>
     </div>
