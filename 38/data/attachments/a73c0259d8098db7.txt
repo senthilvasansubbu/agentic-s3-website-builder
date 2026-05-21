@@ -1,0 +1,2 @@
+ℹ️  Snowflake not configured — using SQLite at ':memory:'
+✅ Snowflake credentials found — connecting to Snowflake.
