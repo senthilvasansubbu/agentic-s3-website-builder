@@ -1,0 +1,7 @@
+2026-05-21 09:44:42  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-21 09:44:42  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-21 09:44:42  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
+2026-05-21 09:44:42  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
+2026-05-21 09:44:42  INFO      apscheduler.scheduler  Scheduler started
+✅ Scheduler started — monitoring every 5min | reminders daily
+2026-05-21 09:44:42  INFO      httpx  HTTP Request: POST http://testserver/api/v1/shop/cart/00686c78-7fc9-43bb-8b70-09f05717abf0 "HTTP/1.1 422 Unprocessable Entity"
