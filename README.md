@@ -10,6 +10,9 @@ AI-powered website generation platform built on FastAPI, with a multi-agent cont
 - [Deployment Verification](docs/010_DEPLOYMENT_VERIFICATION.md)
 - [Manual Test Guide](docs/004_MANUAL_TEST_GUIDE.md)
 
+ - [Database ERM Diagram](docs/database-erm.md)
+ - [Database Table Details](docs/database-table-details.md)
+
 ## What This Repository Includes
 
 - FastAPI application with auth, website builder, commerce, payment, monitoring, and admin APIs.
