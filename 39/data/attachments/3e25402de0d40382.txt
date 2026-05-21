@@ -1,0 +1,6 @@
+INFO     apscheduler.scheduler:base.py:507 Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO     apscheduler.scheduler:base.py:507 Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO     apscheduler.scheduler:base.py:1090 Added job "run_all_checks" to job store "default"
+INFO     apscheduler.scheduler:base.py:1090 Added job "run_payment_reminders" to job store "default"
+INFO     apscheduler.scheduler:base.py:214 Scheduler started
+INFO     httpx:_client.py:1025 HTTP Request: DELETE http://testserver/api/v1/clients/6a2825b8-d76e-4407-af9c-7dc0a0d093da "HTTP/1.1 404 Not Found"
