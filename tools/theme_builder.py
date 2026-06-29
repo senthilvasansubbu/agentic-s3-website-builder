@@ -289,14 +289,15 @@ a:hover {{ opacity: .8; }}
 
 /* Navbar */
 .navbar {{
+  position: sticky; top: 0; z-index: 1000;
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 40px; background: var(--bg);
-  box-shadow: var(--shadow); position: sticky; top: 0; z-index: 1000;
+  box-shadow: var(--shadow);
 }}
 .navbar .logo {{ font-family: var(--font-heading); font-size: 1.4rem; font-weight: 700; color: var(--primary); }}
 .navbar .logo img {{ height: 40px; vertical-align: middle; margin-right: 8px; }}
-.nav-links {{ display: flex; gap: 28px; list-style: none; }}
-.nav-links a {{ font-weight: 600; color: var(--text); transition: color .2s; }}
+.nav-links {{ display: flex; align-items: center; gap: 28px; list-style: none; }}
+.nav-links a {{ display: block; font-weight: 600; color: var(--text); transition: color .2s; }}
 .nav-links a:hover {{ color: var(--primary); }}
 .nav-cta {{ padding: 10px 22px; background: var(--gradient); color: #fff !important; border-radius: var(--radius); font-weight: 700 !important; }}
 
@@ -372,7 +373,8 @@ footer {{ background: #1a202c; color: #a0aec0; padding: 60px 40px 30px; }}
 .footer-bottom {{ border-top: 1px solid #2d3748; padding-top: 24px; text-align: center; font-size: .85rem; }}
 
 /* ── Hamburger button (hidden on desktop) ── */
-.hamburger {{ display: none; background: none; border: none; font-size: 1.6rem; cursor: pointer; color: #fff; padding: 4px 8px; }}
+.hamburger {{ display: none; background: none; border: none; font-size: 1.35rem; cursor: pointer; color: var(--primary); padding: 6px 8px; border-radius: 8px; }}
+.hamburger:focus-visible {{ outline: 2px solid var(--secondary); outline-offset: 2px; }}
 
 /* ── Responsive: tablet ── */
 @media (max-width: 900px) {{
@@ -389,13 +391,33 @@ footer {{ background: #1a202c; color: #a0aec0; padding: 60px 40px 30px; }}
   .footer-grid {{ grid-template-columns: 1fr 1fr !important; }}
 }}
 
-/* ── Responsive: mobile ── */
-@media (max-width: 640px) {{
-  .navbar {{ padding: 10px 16px; }}
-  .nav-links {{ display: none; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0;
-    background: rgba(30,30,40,.97); padding: 20px 16px; gap: 12px; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,.3); }}
+/* ── Responsive: mobile/tablet nav ── */
+@media (max-width: 900px) {{
+  .navbar {{ padding: 10px 16px; position: sticky; top: 0; }}
+  .nav-links {{
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    padding: 14px 16px;
+    gap: 10px;
+    z-index: 1001;
+    border-top: 1px solid rgba(0,0,0,.08);
+    box-shadow: 0 10px 28px rgba(0,0,0,.12);
+  }}
+  .nav-links li {{ width: 100%; }}
+  .nav-links a {{ width: 100%; padding: 10px 12px; border-radius: 8px; }}
+  .nav-links a:hover {{ background: rgba(0,0,0,.04); }}
   .nav-links.open {{ display: flex; }}
   .hamburger {{ display: block; }}
+}}
+
+/* ── Responsive: mobile layout ── */
+@media (max-width: 640px) {{
   .section {{ padding: 48px 16px; }}
   .hero {{ padding: 60px 16px; min-height: 70vh; }}
   .hero h1 {{ font-size: clamp(1.6rem, 7vw, 2.4rem); }}
@@ -526,9 +548,10 @@ document.addEventListener('DOMContentLoaded', updateCartUI);
   {stripe_js}
 </head>
 <body>
-  <nav class="navbar">
+  <nav class="navbar" role="navigation" aria-label="Primary">
     <div class="logo">{logo_tag}{site_title}</div>
-    <ul class="nav-links">{nav_items}<li><a href="/login" class="nav-cta">My Account</a></li></ul>
+    <button class="hamburger" type="button" aria-label="Toggle menu" aria-controls="site-nav-links" aria-expanded="false">☰</button>
+    <ul id="site-nav-links" class="nav-links">{nav_items}<li><a href="/login" class="nav-cta">My Account</a></li></ul>
   </nav>
 
   {body_html}
@@ -546,6 +569,41 @@ document.addEventListener('DOMContentLoaded', updateCartUI);
     </div>
     <div class="footer-bottom">&copy; 2026 {site_title}. All rights reserved.</div>
   </footer>
+  <script>
+    (function() {{
+      const toggle = document.querySelector('.hamburger');
+      const links = document.getElementById('site-nav-links');
+      if (!toggle || !links) return;
+
+      function closeMenu() {{
+        links.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+      }}
+
+      toggle.addEventListener('click', function() {{
+        const isOpen = links.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      }});
+
+      links.querySelectorAll('a').forEach(function(a) {{
+        a.addEventListener('click', function() {{
+          if (window.innerWidth <= 900) closeMenu();
+        }});
+      }});
+
+      window.addEventListener('resize', function() {{
+        if (window.innerWidth > 900) closeMenu();
+      }});
+
+      document.addEventListener('click', function(e) {{
+        if (window.innerWidth > 900) return;
+        if (!links.classList.contains('open')) return;
+        if (e.target === toggle || toggle.contains(e.target)) return;
+        if (links.contains(e.target)) return;
+        closeMenu();
+      }});
+    }})();
+  </script>
   {cart_js}
 </body>
 </html>

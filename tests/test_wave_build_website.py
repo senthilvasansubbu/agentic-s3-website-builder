@@ -22,7 +22,7 @@ def test_wave_build_website_queues_and_tracks_status(client, verified_user, monk
     from api.routes import website_builder as wb
 
     def _fake_build(prompt, **kwargs):
-        return {"output_dir": "output/staging/wave-build-site/legacy", "fallback": False}
+        return {"output_dir": "output/staging/wave-build-site", "fallback": False}
 
     monkeypatch.setattr(wb, "build_website", _fake_build)
 

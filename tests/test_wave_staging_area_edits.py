@@ -17,7 +17,7 @@ def _insert_site(db, user_id: str, website_id: str, local_path: str):
 
 def test_wave_staging_area_get_uses_manifest_entry(client, verified_user, _in_memory_db, tmp_path):
     website_id = "wave-staging-get"
-    local_path = tmp_path / "output" / "staging" / website_id / "legacy"
+    local_path = tmp_path / "output" / "staging" / website_id
     target_entry = local_path / "pages" / "landing.html"
     target_entry.parent.mkdir(parents=True, exist_ok=True)
     target_entry.write_text("<html><body><h1>Landing</h1></body></html>", encoding="utf-8")
@@ -36,7 +36,7 @@ def test_wave_staging_area_get_uses_manifest_entry(client, verified_user, _in_me
 
 def test_wave_staging_area_put_updates_entry_and_manifest(client, verified_user, _in_memory_db, tmp_path):
     website_id = "wave-staging-put"
-    local_path = tmp_path / "output" / "staging" / website_id / "legacy"
+    local_path = tmp_path / "output" / "staging" / website_id
     local_path.mkdir(parents=True, exist_ok=True)
     _insert_site(_in_memory_db, verified_user["user_id"], website_id, str(local_path))
 

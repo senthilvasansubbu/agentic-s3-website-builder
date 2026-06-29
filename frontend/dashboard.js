@@ -222,16 +222,38 @@ function logout() {
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-function _systemDialogConfig({ icon = '', title = 'Confirm', msg = '', okLabel = 'Confirm', okClass = 'btn-primary', cancelLabel = 'Cancel', showCancel = true, onResult = null }) {
+function _systemDialogConfig({ icon = '', title = 'Confirm', msg = '', okLabel = 'Confirm', okClass = 'btn-primary', cancelLabel = 'Cancel', showCancel = true, inputConfig = null, onResult = null }) {
   document.getElementById('confirmIcon').textContent = icon;
   document.getElementById('confirmTitle').textContent = title;
-  document.getElementById('confirmMsg').textContent = msg;
+  const msgEl = document.getElementById('confirmMsg');
+  msgEl.textContent = msg;
 
   const okBtn = document.getElementById('confirmOkBtn');
   const cancelBtn = document.getElementById('confirmCancelBtn');
+  const actionsRow = cancelBtn.parentElement;
+  const existingInput = document.getElementById('confirmPromptInput');
+  if (existingInput) existingInput.remove();
+  let promptInput = null;
+  if (inputConfig) {
+    promptInput = document.createElement('input');
+    promptInput.id = 'confirmPromptInput';
+    promptInput.type = 'text';
+    promptInput.value = String(inputConfig.initialValue || '');
+    promptInput.placeholder = String(inputConfig.placeholder || '');
+    promptInput.style.cssText = 'width:100%;padding:9px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-size:.9rem;outline:none;margin:-6px 0 14px';
+    promptInput.onfocus = () => { promptInput.style.borderColor = 'var(--accent)'; };
+    promptInput.onblur = () => { promptInput.style.borderColor = 'var(--border)'; };
+    msgEl.insertAdjacentElement('afterend', promptInput);
+  }
+
   const cleanup = () => {
     okBtn.onclick = null;
     cancelBtn.onclick = null;
+    if (promptInput) {
+      promptInput.onfocus = null;
+      promptInput.onblur = null;
+      promptInput.remove();
+    }
   };
   okBtn.textContent = okLabel;
   okBtn.className = `btn ${okClass}`;
@@ -239,17 +261,28 @@ function _systemDialogConfig({ icon = '', title = 'Confirm', msg = '', okLabel =
   cancelBtn.style.display = showCancel ? '' : 'none';
 
   okBtn.onclick = () => {
+    if (promptInput && inputConfig?.required && !String(promptInput.value || '').trim()) {
+      promptInput.focus();
+      promptInput.style.borderColor = 'var(--danger)';
+      return;
+    }
     cleanup();
     closeModal('confirmModal');
-    if (onResult) onResult(true);
+    if (onResult) onResult(promptInput ? String(promptInput.value || '') : true);
   };
   cancelBtn.onclick = () => {
     cleanup();
     closeModal('confirmModal');
-    if (onResult) onResult(false);
+    if (onResult) onResult(promptInput ? null : false);
   };
 
   openModal('confirmModal');
+  if (promptInput) {
+    setTimeout(() => {
+      promptInput.focus();
+      promptInput.select();
+    }, 10);
+  }
 }
 
 function styledConfirm(msg, opts = {}) {
@@ -281,8 +314,29 @@ function styledAlert(msg, opts = {}) {
   });
 }
 
+function styledPrompt(msg, opts = {}) {
+  return new Promise(resolve => {
+    _systemDialogConfig({
+      icon: opts.icon || '✍️',
+      title: opts.title || 'Enter Value',
+      msg,
+      okLabel: opts.okLabel || 'OK',
+      okClass: opts.okClass || 'btn-primary',
+      cancelLabel: opts.cancelLabel || 'Cancel',
+      showCancel: true,
+      inputConfig: {
+        initialValue: opts.initialValue || '',
+        placeholder: opts.placeholder || '',
+        required: !!opts.required,
+      },
+      onResult: resolve,
+    });
+  });
+}
+
 window.wbConfirm = styledConfirm;
 window.wbAlert = styledAlert;
+window.wbPrompt = styledPrompt;
 
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
@@ -1093,7 +1147,7 @@ async function _pollBuildStatusUntilTerminal(websiteId, { onUpdate, maxAttempts 
     const error = snap?.error || '';
 
     if (typeof onUpdate === 'function') onUpdate(status, error);
-    if (['built', 'error', 'not_found'].includes(status)) {
+    if (['built', 'fallback', 'error', 'not_found'].includes(status)) {
       return { status, error };
     }
 
@@ -2072,6 +2126,8 @@ async function buildWebsite() {
   _updateImportFlowStepper();
 
   document.getElementById('buildProgress').style.display = 'block';
+  // Always show spinner at build start
+  document.getElementById('buildSpinner').style.display = 'inline-block';
   document.getElementById('buildProgressMsg').textContent = '🔄 Generating your website — this may take 30–90 seconds…';
 
   const msgs = [
@@ -2160,6 +2216,7 @@ async function buildWebsite() {
     queued:  { msg: '⏳ Build queued — waiting for worker…',     pct: 10 },
     running: { msg: '🤖 AI agents are building your website…',   pct: 55 },
     built:   { msg: '✅ Website generated successfully!',         pct: 100 },
+    fallback:{ msg: '✅ Website generated (fallback mode).',      pct: 100 },
     error:   { msg: '❌ Build failed.',                           pct: 100 },
     timeout: { msg: '⚠️ Build is taking longer than expected. Check My Websites for status.', pct: 100 },
   };
@@ -2170,7 +2227,7 @@ async function buildWebsite() {
     document.getElementById('buildProgressMsg').textContent = errorMsg ? `❌ ${errorMsg}` : s.msg;
     document.getElementById('buildProgressBar').style.width = s.pct + '%';
     document.getElementById('buildStageLabel').textContent  = 'Stage: ' + status;
-    if (['built', 'error', 'timeout'].includes(status)) {
+    if (['built', 'fallback', 'error', 'timeout'].includes(status)) {
       document.getElementById('buildSpinner').style.display = 'none';
     }
   };
@@ -2186,9 +2243,9 @@ async function buildWebsite() {
         const data = JSON.parse(e.data);
         const status = data.build_status || 'queued';
         setStage(status, data.error);
-        if (['built', 'error', 'timeout', 'not_found'].includes(status)) {
+        if (['built', 'fallback', 'error', 'timeout', 'not_found'].includes(status)) {
           es.close();
-          if (status === 'built') {
+          if (status === 'built' || status === 'fallback') {
             toast('Website built! Opening Staging Area…');
             setTimeout(async () => {
               resetBuildForm();
@@ -2212,7 +2269,7 @@ async function buildWebsite() {
 
             document.getElementById('buildSpinner').style.display = 'none';
 
-            if (finalState.status === 'built') {
+            if (finalState.status === 'built' || finalState.status === 'fallback') {
               toast('Website built! Opening Staging Area…');
               setTimeout(async () => {
                 resetBuildForm();
@@ -3152,8 +3209,236 @@ function switchBuildTab(tab) {
 let stagedWebsiteId = null;
 let currentStagingUrl = null;
 let currentStagingEntryPath = 'index.html';
+let currentStagingHomeEntryPath = 'index.html';
 let currentStagingArtifactCount = 0;
 let currentStagingArtifacts = [];
+
+function _cacheBustUrl(url) {
+  const base = String(url || '').trim();
+  if (!base) return '';
+  return `${base.split('?')[0]}?t=${Date.now()}`;
+}
+
+function _normalizeStagingPagePath(rawPath) {
+  let p = String(rawPath || '').trim().replace(/\\/g, '/');
+  p = p.replace(/^\/+/, '');
+  p = p.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._/-]/g, '-').replace(/-+/g, '-');
+  p = p.split('/').filter(seg => seg && seg !== '.' && seg !== '..').join('/');
+  if (!p) return '';
+  if (!/\.html?$/i.test(p)) p += '.html';
+  return p;
+}
+
+function _stagingHtmlPages(artifacts, fallbackEntry = 'index.html') {
+  const pages = new Set();
+  (artifacts || []).forEach(a => {
+    const p = String(a || '').trim().replace(/^\/+/, '');
+    if (/\.html?$/i.test(p)) pages.add(p);
+  });
+  const fallback = String(fallbackEntry || '').trim().replace(/^\/+/, '');
+  if (fallback && /\.html?$/i.test(fallback)) pages.add(fallback);
+  if (!pages.size) pages.add('index.html');
+  return Array.from(pages).sort((a, b) => a.localeCompare(b));
+}
+
+function _renderStagingPagePicker(selectedPath) {
+  const sel = document.getElementById('stagingPageSelect');
+  const addBtn = document.getElementById('stagingAddPageBtn');
+  const setHomeBtn = document.getElementById('stagingSetHomeBtn');
+  if (!sel || !addBtn || !setHomeBtn) return;
+
+  const pages = _stagingHtmlPages(currentStagingArtifacts, currentStagingEntryPath);
+  const selected = String(selectedPath || currentStagingEntryPath || pages[0] || 'index.html').trim();
+  const home = String(currentStagingHomeEntryPath || '').trim();
+  sel.innerHTML = pages.map(p => `<option value="${_esc(p)}">${_esc(p)}${p === home ? ' (home)' : ''}</option>`).join('');
+  if (selected) sel.value = selected;
+  if (!sel.value && pages.length) sel.value = pages[0];
+
+  const hasSite = !!stagedWebsiteId;
+  sel.disabled = !hasSite || !pages.length;
+  addBtn.disabled = !hasSite;
+  setHomeBtn.disabled = !hasSite || !sel.value;
+}
+
+function onStagingPageChange() {
+  const pageSel = document.getElementById('stagingPageSelect');
+  const path = String(pageSel?.value || '').trim();
+  if (!stagedWebsiteId || !path) return;
+  loadStagedSite(stagedWebsiteId, path);
+}
+
+let createPageTemplateCatalog = null;
+let createPageSelectedTemplateKey = '';
+
+function _templateCardMarkup(t, isSelected = false) {
+  const title = _esc(t?.template_name || t?.template_key || 'Template');
+  const desc = _esc(t?.description || '');
+  const badge = _esc((t?.classification_key || '').replace(/_/g, ' '));
+  const base = _esc((t?.base_type || '').replace(/_/g, ' '));
+  return `<button data-template-key="${_esc(t?.template_key || '')}" onclick="selectCreatePageTemplate('${_esc(t?.template_key || '')}')"
+    style="text-align:left;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};background:${isSelected ? 'rgba(99,102,241,.16)' : 'rgba(99,102,241,.05)'};border-radius:9px;padding:8px;cursor:pointer;display:grid;gap:5px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <strong style="font-size:.83rem;color:var(--text)">${title}</strong>
+        <span style="font-size:.66rem;color:var(--muted);text-transform:uppercase">${base}</span>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted)">${desc}</div>
+      <div style="font-size:.66rem;color:var(--accent)">${badge}</div>
+    </button>`;
+}
+
+function _renderCreatePageTemplateLists() {
+  const recWrap = document.getElementById('createPageRecommendedTemplates');
+  const allWrap = document.getElementById('createPageAllTemplates');
+  const hint = document.getElementById('createPageTemplateHint');
+  const submit = document.getElementById('createPageSubmitBtn');
+  if (!recWrap || !allWrap || !hint || !submit) return;
+  const rec = Array.isArray(createPageTemplateCatalog?.recommended) ? createPageTemplateCatalog.recommended : [];
+  const all = Array.isArray(createPageTemplateCatalog?.all_templates) ? createPageTemplateCatalog.all_templates : [];
+  const blank = createPageTemplateCatalog?.blank_template || { template_key: 'blank', template_name: 'Blank Starter Page', description: 'Start from a clean page shell.' };
+
+  recWrap.innerHTML = rec.length
+    ? rec.map(t => _templateCardMarkup(t, t.template_key === createPageSelectedTemplateKey)).join('')
+    : '<div style="font-size:.76rem;color:var(--muted)">No recommended templates found.</div>';
+
+  const allWithBlank = [blank, ...all];
+  allWrap.innerHTML = allWithBlank.map(t => _templateCardMarkup(t, t.template_key === createPageSelectedTemplateKey)).join('');
+
+  if (createPageSelectedTemplateKey) {
+    const selected = allWithBlank.find(t => t.template_key === createPageSelectedTemplateKey) || rec.find(t => t.template_key === createPageSelectedTemplateKey);
+    hint.textContent = selected ? `${selected.template_name} selected.` : 'Template selected.';
+    submit.disabled = false;
+  } else {
+    hint.textContent = 'Select a template to continue.';
+    submit.disabled = true;
+  }
+}
+
+function selectCreatePageTemplate(templateKey) {
+  createPageSelectedTemplateKey = String(templateKey || '').trim();
+  _renderCreatePageTemplateLists();
+}
+
+async function openCreatePageModal() {
+  if (!stagedWebsiteId) {
+    toast('Select a website first', false);
+    return;
+  }
+  const catalog = await apiFetch(`/websites/${stagedWebsiteId}/page-templates`);
+  if (!catalog) {
+    toast('Failed to load templates', false);
+    return;
+  }
+  createPageTemplateCatalog = catalog;
+  createPageSelectedTemplateKey = '';
+  const pathEl = document.getElementById('createPagePath');
+  const classEl = document.getElementById('createPageClassification');
+  const conflictEl = document.getElementById('createPageConflictMode');
+  const keepHeader = document.getElementById('createPageRetainHeader');
+  const keepMenu = document.getElementById('createPageRetainMenu');
+  const keepFooter = document.getElementById('createPageRetainFooter');
+  if (pathEl) pathEl.value = 'pages/new-page.html';
+  if (classEl) classEl.value = String(catalog.classification || 'generic').replace(/_/g, ' ');
+  if (conflictEl) conflictEl.value = 'overwrite';
+  if (keepHeader) keepHeader.checked = true;
+  if (keepMenu) keepMenu.checked = true;
+  if (keepFooter) keepFooter.checked = true;
+  _renderCreatePageTemplateLists();
+  const modal = document.getElementById('createPageModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeCreatePageModal() {
+  const modal = document.getElementById('createPageModal');
+  if (modal) modal.style.display = 'none';
+  createPageTemplateCatalog = null;
+  createPageSelectedTemplateKey = '';
+}
+
+async function submitCreatePage() {
+  if (!stagedWebsiteId) return;
+  const pathRaw = document.getElementById('createPagePath')?.value || '';
+  const entryPath = _normalizeStagingPagePath(pathRaw);
+  if (!entryPath) {
+    toast('Enter a valid page path', false);
+    return;
+  }
+  if (!createPageSelectedTemplateKey) {
+    toast('Choose a template first', false);
+    return;
+  }
+
+  const conflictMode = document.getElementById('createPageConflictMode')?.value || 'overwrite';
+  const retainHeader = !!document.getElementById('createPageRetainHeader')?.checked;
+  const retainMenu = !!document.getElementById('createPageRetainMenu')?.checked;
+  const retainFooter = !!document.getElementById('createPageRetainFooter')?.checked;
+  const submitBtn = document.getElementById('createPageSubmitBtn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating...';
+  }
+
+  const r = await apiFetch(`/websites/${stagedWebsiteId}/pages/create`, {
+    method: 'POST',
+    body: JSON.stringify({
+      entry_path: entryPath,
+      template_key: createPageSelectedTemplateKey,
+      conflict_mode: conflictMode,
+      retain_header: retainHeader,
+      retain_menu: retainMenu,
+      retain_footer: retainFooter,
+    }),
+  });
+
+  if (submitBtn) {
+    submitBtn.textContent = 'Create Page';
+    submitBtn.disabled = false;
+  }
+
+  if (r && r.saved) {
+    toast(`Page created: ${r.entry_path || entryPath}`);
+    currentStagingArtifacts = Array.isArray(r?.staging?.artifacts) ? r.staging.artifacts : currentStagingArtifacts;
+    closeCreatePageModal();
+    await loadStagedSite(stagedWebsiteId, r.entry_path || entryPath);
+  } else {
+    toast('Failed to create page', false);
+  }
+}
+
+async function setStagingHomePage() {
+  if (!stagedWebsiteId) {
+    toast('Select a website first', false);
+    return;
+  }
+  const pageSel = document.getElementById('stagingPageSelect');
+  const entryPath = String(pageSel?.value || '').trim();
+  if (!entryPath) {
+    toast('Select a page first', false);
+    return;
+  }
+
+  if (!(await styledConfirm(`Set ${entryPath} as the default home page for this website?`, {
+    title: 'Set Home Page?',
+    icon: '🏠',
+    okLabel: 'Set Home',
+    okClass: 'btn-primary',
+  }))) return;
+
+  const r = await apiFetch(`/websites/${stagedWebsiteId}/staged-home`, {
+    method: 'POST',
+    body: JSON.stringify({ entry_path: entryPath }),
+  });
+
+  if (r && r.saved) {
+    currentStagingHomeEntryPath = (r?.staging?.entry_html || entryPath).trim();
+    currentStagingArtifactCount = Number(r?.staging?.artifact_count) || currentStagingArtifactCount;
+    currentStagingArtifacts = Array.isArray(r?.staging?.artifacts) ? r.staging.artifacts : currentStagingArtifacts;
+    _renderStagingPagePicker(currentStagingEntryPath);
+    _renderStagingSummary((websites || []).find(x => x.website_id === stagedWebsiteId), r?.staging || null, currentStagingUrl);
+    toast(`Home page set to ${currentStagingHomeEntryPath}`);
+  } else {
+    toast('Failed to set home page', false);
+  }
+}
 
 async function loadBuildNarrative(websiteId) {
   const card = document.getElementById('stagingNarrativeCard');
@@ -3303,6 +3588,8 @@ function _renderStagingSummary(w, staging, previewUrl) {
 
   const parts = [];
   if (previewUrl) parts.push(`Preview: ${previewUrl}`);
+  if (currentStagingEntryPath) parts.push(`Editing: ${currentStagingEntryPath}`);
+  if (currentStagingHomeEntryPath) parts.push(`Home: ${currentStagingHomeEntryPath}`);
   if (staging && staging.entry_html) parts.push(`Entry: ${staging.entry_html}`);
   if (Number.isFinite(Number(staging?.artifact_count))) {
     parts.push(`${Number(staging.artifact_count)} artifact(s)`);
@@ -3338,11 +3625,17 @@ async function loadStagingWebsites() {
     document.getElementById('stagingStatusBar').textContent = 'No staged or built websites found for this account.';
   }
 
+  if (!cur) {
+    stagedWebsiteId = null;
+    currentStagingHomeEntryPath = 'index.html';
+    _renderStagingPagePicker('');
+  }
+
   // Re-load if a site was already selected
   if (cur && eligible.find(w => w.website_id === cur)) loadStagedSite(cur);
 }
 
-async function loadStagedSite(preselect) {
+async function loadStagedSite(preselect, entryPathOverride = null) {
   const id = preselect || document.getElementById('stagingSiteSelect').value;
   if (preselect) {
     const sel = document.getElementById('stagingSiteSelect');
@@ -3372,9 +3665,13 @@ async function loadStagedSite(preselect) {
     staging = null;
   }
 
-  currentStagingEntryPath = (staging && staging.entry_html) || 'index.html';
+  const homeEntry = ((staging && staging.entry_html) || 'index.html');
+  currentStagingHomeEntryPath = String(homeEntry || 'index.html').trim().replace(/^\/+/, '') || 'index.html';
+  const forcedEntry = String(entryPathOverride || '').trim().replace(/^\/+/, '');
+  currentStagingEntryPath = forcedEntry || currentStagingHomeEntryPath;
   currentStagingArtifactCount = Number(staging && staging.artifact_count) || 0;
   currentStagingArtifacts = Array.isArray(staging && staging.artifacts) ? staging.artifacts : [];
+  _renderStagingPagePicker(currentStagingEntryPath);
 
   // Derive preview URL from local_path
   let previewUrl = null;
@@ -3414,10 +3711,21 @@ async function loadStagedSite(preselect) {
           _originalHTML = frame.contentDocument.documentElement.outerHTML;
           _historyStack = [];
           _updateUndoBtn();
+          // Rebuild section bindings after any iframe reload (save/refresh/popout source changes)
+          // so reorder/delete never points to stale DOM nodes.
+          if (stagingOverlayOn) {
+            _injectOverlay(frame.contentDocument);
+          } else {
+            stagingSections = [];
+            const secList = document.getElementById('secList');
+            if (secList) secList.innerHTML = '';
+            const jump = document.getElementById('stagingJumpSelect');
+            if (jump) jump.innerHTML = '<option value="">— jump to section —</option>';
+          }
         }
       } catch(_) {}
     };
-    frame.src = previewUrl;
+      frame.src = _cacheBustUrl(previewUrl);
     frame.style.display = '';
     placeholder.style.display = 'none';
     _renderStagingSummary(w, staging, previewUrl);
@@ -3429,10 +3737,12 @@ async function loadStagedSite(preselect) {
   }
 
   // Enable controls
-  ['stagingEditBtn', 'stagingFontBtn', 'stagingAddSecBtn', 'stagingUndoBtn', 'stagingResetBtn', 'stagingPopoutBtn', 'stagingRefreshBtn', 'stagingSaveBtn', 'stagingGoLiveBtn', 'stagingAnchorBtn'].forEach(btnId => {
+  ['stagingEditBtn', 'stagingFontBtn', 'stagingAddSecBtn', 'stagingUndoBtn', 'stagingResetBtn', 'stagingPopoutBtn', 'stagingRefreshBtn', 'stagingSaveBtn', 'stagingGoLiveBtn', 'stagingAnchorBtn', 'stagingAddPageBtn', 'stagingSetHomeBtn'].forEach(btnId => {
     const btn = document.getElementById(btnId);
     if (btn) btn.disabled = false;
   });
+  const pageSel = document.getElementById('stagingPageSelect');
+  if (pageSel) pageSel.disabled = false;
 
   // iframe src is already set above; no need to preload HTML separately
 }
@@ -3670,13 +3980,14 @@ function _reorderSection(fromIdx, toIdx) {
   _historyPush();
   const src = stagingSections[fromIdx].el;
   const tgt = stagingSections[toIdx].el;
-  const parent = src.parentNode;
-  if (!parent) return;
-  // Insert src before or after target depending on direction
+  const srcParent = src ? src.parentNode : null;
+  const tgtParent = tgt ? tgt.parentNode : null;
+  if (!srcParent || !tgtParent) return;
+  // Support reordering across different parent containers (e.g. body vs main).
   if (fromIdx < toIdx) {
-    parent.insertBefore(src, tgt.nextSibling);
+    tgtParent.insertBefore(src, tgt.nextSibling);
   } else {
-    parent.insertBefore(src, tgt);
+    tgtParent.insertBefore(src, tgt);
   }
   _injectOverlay(frame.contentDocument);
   toast('Section reordered — click 💾 Save to persist', true);
@@ -3713,9 +4024,25 @@ function _confirmDeleteSection() {
   const frame = document.getElementById('stagingIframe');
   if (!frame.contentDocument || idx === null) return;
   const s = stagingSections[idx];
-  if (!s) return;
+
+  const structural = Array.from(
+    frame.contentDocument.querySelectorAll('nav, header, section, footer')
+  ).filter(el => el.closest('nav, header, section, footer') === el);
+
+  let targetEl = null;
+  if (s && s.el && s.el.isConnected) {
+    targetEl = s.el;
+  } else if (idx >= 0 && idx < structural.length) {
+    targetEl = structural[idx];
+  }
+
+  if (!targetEl) {
+    toast('Unable to delete section: preview changed. Refresh and try again.', false);
+    return;
+  }
+
   _historyPush();
-  s.el.remove();
+  targetEl.remove();
   _injectOverlay(frame.contentDocument);
   if (activeSectionIndex !== null) closeSecEditor();
   toast('Section deleted — click 💾 Save to persist', true);
@@ -3734,6 +4061,28 @@ const SEC_TEMPLATES = [
 ];
 
 let _selectedTemplate = null;
+
+function _applyUniformSectionContainerStyle(newEl, refEl) {
+  if (!newEl || !refEl) return;
+  try {
+    const cs = window.getComputedStyle(refEl);
+    // Match spacing + container border/shape with existing sections.
+    newEl.style.marginTop = cs.marginTop;
+    newEl.style.marginBottom = cs.marginBottom;
+    newEl.style.paddingTop = cs.paddingTop;
+    newEl.style.paddingRight = cs.paddingRight;
+    newEl.style.paddingBottom = cs.paddingBottom;
+    newEl.style.paddingLeft = cs.paddingLeft;
+    newEl.style.borderTop = cs.borderTop;
+    newEl.style.borderRight = cs.borderRight;
+    newEl.style.borderBottom = cs.borderBottom;
+    newEl.style.borderLeft = cs.borderLeft;
+    newEl.style.borderRadius = cs.borderRadius;
+    newEl.style.boxShadow = cs.boxShadow;
+    newEl.style.background = cs.background;
+  } catch (_) {}
+}
+
 function openAddSectionModal() {
   const frame = document.getElementById('stagingIframe');
   if (!frame.contentDocument) { toast('Load a preview first', false); return; }
@@ -3775,11 +4124,19 @@ function insertNewSection() {
   tmp.innerHTML = html;
   const newEl = tmp.firstElementChild;
   const afterIdx = parseInt(document.getElementById('addSecAfter').value);
+  const refEl = (afterIdx >= 0 && stagingSections[afterIdx])
+    ? stagingSections[afterIdx].el
+    : (stagingSections.find(s => s && s.el && s.el.tagName === 'SECTION') || {}).el;
+
+  if (newEl && newEl.tagName === 'SECTION' && refEl && refEl.tagName === 'SECTION') {
+    _applyUniformSectionContainerStyle(newEl, refEl);
+  }
+
   if (afterIdx < 0 || stagingSections.length === 0) {
     doc.body.insertBefore(newEl, doc.body.firstElementChild);
   } else {
-    const refEl = stagingSections[afterIdx].el;
-    refEl.parentNode.insertBefore(newEl, refEl.nextSibling);
+    const insertAfter = stagingSections[afterIdx].el;
+    insertAfter.parentNode.insertBefore(newEl, insertAfter.nextSibling);
   }
   closeAddSectionModal();
   _injectOverlay(doc);
@@ -3917,10 +4274,23 @@ function openSecEditor(idx) {
       return { mode };
     }
 
+    function _clickInit(domEl) {
+      return {
+        enabled: domEl?.dataset?.wbClickEnabled === '1',
+        url: domEl?.dataset?.wbClickUrl || '',
+        mode: domEl?.dataset?.wbClickMode || 'popup',
+      };
+    }
+
     // ── Gather editable elements ───────────────────────────────────────────
     // Collect all HTML into one string — avoids O(n²) innerHTML re-parses
     const htmlChunks = [];
     let fieldIdx = 0;
+    let allianceMeta = null;
+    let gridMeta = null;
+    let heroMeta = null;
+    let sectionBoxMeta = null;
+    const _imgFidToEl = new Map();
 
     // Metadata to store on fields after single innerHTML set
     let brandEl = null, brandFid = '';
@@ -3929,7 +4299,10 @@ function openSecEditor(idx) {
     const logo = el.querySelector('img');
     if (activeSectionIndex === 0) {
       fieldIdx++;
-      htmlChunks.push(_imgField(fieldIdx, 'Logo / Image', logo ? logo.src : '', logo ? logo.alt : '', `img-${fieldIdx}`));
+      const logoFid = `img-${fieldIdx}`;
+      const logoSrc = logo ? (logo.getAttribute('src') || logo.src || '') : '';
+      htmlChunks.push(_imgField(fieldIdx, 'Logo / Image', _normalizeStagingAssetUrl(logoSrc), logo ? logo.alt : '', logoFid, { click: _clickInit(logo) }));
+      if (logo) _imgFidToEl.set(logoFid, logo);
 
       // Brand Name — either sibling of logo img, or text-only logo element
       if (logo) {
@@ -3951,7 +4324,7 @@ function openSecEditor(idx) {
     const _headingStartField = fieldIdx + 1;
     _headingEls.forEach(h => {
       fieldIdx++;
-      htmlChunks.push(_textField(fieldIdx, h.tagName, h.innerText.trim(), `txt-${fieldIdx}`, _elInit(h)));
+      htmlChunks.push(_textField(fieldIdx, h.tagName, h.innerText.trim(), `txt-${fieldIdx}`, _elInit(h), { clickable: true, clickInit: _clickInit(h) }));
     });
 
     // Paragraphs — track start field
@@ -3979,8 +4352,137 @@ function openSecEditor(idx) {
     el.querySelectorAll('img').forEach((img, i) => {
       if (i === 0 && activeSectionIndex === 0 && logo) return;
       fieldIdx++;
-      htmlChunks.push(_imgField(fieldIdx, `Image ${i+1}`, img.src, img.alt, `img-${fieldIdx}`, _imgAnimInit(img)));
+      const fid = `img-${fieldIdx}`;
+      const src = img.getAttribute('src') || img.src || '';
+      const imgInit = _imgAnimInit(img);
+      imgInit.click = _clickInit(img);
+      htmlChunks.push(_imgField(fieldIdx, `Image ${i+1}`, _normalizeStagingAssetUrl(src), img.alt, fid, imgInit));
+      _imgFidToEl.set(fid, img);
     });
+
+    // Section layout controls (available for every section)
+    const textTarget = _findHeroTextTarget(el) || el;
+    const imageTarget = _findHeroImageTarget(el);
+    const textCs = textTarget ? iframeView.getComputedStyle(textTarget) : null;
+    const rawAlign = textTarget ? (textTarget.style.textAlign || textCs.textAlign || 'left') : 'left';
+    const rawV = textTarget ? (textTarget.dataset.wbValign || textTarget.style.justifyContent || textCs.justifyContent || 'flex-start') : 'flex-start';
+    const vAlign = String(rawV).includes('center') ? 'center' : (String(rawV).includes('end') ? 'bottom' : 'top');
+    const layoutMode = textTarget ? (textTarget.dataset.wbLayoutMode || 'preserve') : 'preserve';
+    const imageCs = imageTarget ? iframeView.getComputedStyle(imageTarget) : null;
+    const showImage = imageTarget ? ((imageTarget.style.display || imageCs.display) !== 'none') : false;
+    htmlChunks.push(_heroLayoutField({
+      showImage,
+      hasImage: !!imageTarget,
+      textAlign: rawAlign,
+      vAlign,
+      layoutMode,
+    }));
+    heroMeta = { textTarget, imageTarget, sectionEl: el };
+
+    // Section box controls
+    const secCs = iframeView.getComputedStyle(el);
+    const borderWidth = parseFloat(el.style.borderTopWidth || secCs.borderTopWidth || '0') || 0;
+    const borderRadius = parseFloat(el.style.borderTopLeftRadius || secCs.borderTopLeftRadius || '0') || 0;
+    const borderStyle = (el.style.borderTopStyle || secCs.borderTopStyle || 'none').toLowerCase();
+    const borderColor = _rgbToHex(el.style.borderTopColor || secCs.borderTopColor || '#d1d5db');
+    const hasPctWidth = /%$/.test(String(el.style.width || '').trim());
+    const parentEl = el.parentElement;
+    const parentRect = parentEl ? parentEl.getBoundingClientRect() : null;
+    const elRect = el.getBoundingClientRect();
+    const derivedPct = (parentRect && parentRect.width > 0)
+      ? Math.round(Math.max(20, Math.min(100, (elRect.width / parentRect.width) * 100)))
+      : 100;
+    const widthPct = hasPctWidth
+      ? (parseFloat(String(el.style.width).replace('%','')) || derivedPct)
+      : derivedPct;
+    let align = 'center';
+    const ml = String(el.style.marginLeft || '').trim().toLowerCase();
+    const mr = String(el.style.marginRight || '').trim().toLowerCase();
+    if (ml === '0px' || ml === '0') align = 'left';
+    if (mr === '0px' || mr === '0') align = 'right';
+    if (ml === 'auto' && mr === 'auto') align = 'center';
+
+    htmlChunks.push(_sectionBoxField({
+      borderWidth,
+      borderRadius,
+      borderStyle,
+      borderColor,
+      widthPct,
+      align,
+    }));
+    sectionBoxMeta = { target: el };
+
+    // Alliance table rows (existing rows + add-new inputs)
+    const allianceTable = el.querySelector('table');
+    if (allianceTable) {
+      const body = allianceTable.tBodies[0] || allianceTable;
+      const rowEls = [...body.querySelectorAll('tr')].filter(r => r.querySelectorAll('td').length >= 1);
+      if (rowEls.length) {
+        allianceMeta = { table: allianceTable, rows: rowEls };
+        htmlChunks.push('<div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:6px"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);display:block;margin-bottom:8px">🤝 Alliance Table Rows</label></div>');
+        rowEls.forEach((tr, rowIdx) => {
+          const cells = [...tr.querySelectorAll('td')];
+          const c0 = cells[0];
+          const c1 = cells[1];
+          const c2 = cells[2];
+          const logoImg = c0 ? c0.querySelector('img') : null;
+          const brandEl = c0 ? (c0.querySelector('strong') || c0) : null;
+          htmlChunks.push(_allianceRowEditor(rowIdx, {
+            logo: logoImg ? (logoImg.getAttribute('src') || logoImg.src || '') : '',
+            brand: brandEl ? (brandEl.textContent || '').trim() : '',
+            category: c1 ? (c1.textContent || '').trim() : '',
+            support: c2 ? (c2.textContent || '').trim() : '',
+          }));
+        });
+        htmlChunks.push(_allianceAddRowEditor());
+      }
+    }
+
+    // Generic grid/card item editing (for repeated info cards)
+    const gridCandidates = [...el.querySelectorAll('div,section,article,ul,ol')].filter(container => {
+      const cs = iframeView.getComputedStyle(container);
+      const isLayout = cs.display.includes('grid') || cs.display.includes('flex');
+      if (!isLayout) return false;
+      const kids = [...container.children].filter(k => ['DIV', 'ARTICLE', 'LI', 'SECTION'].includes(k.tagName));
+      if (kids.length < 2 || kids.length > 12) return false;
+      const populated = kids.filter(k => (k.innerText || '').trim().length >= 2);
+      return populated.length >= 2;
+    });
+
+    if (gridCandidates.length) {
+      const scored = gridCandidates.map(c => {
+        const kids = [...c.children].filter(k => ['DIV', 'ARTICLE', 'LI', 'SECTION'].includes(k.tagName));
+        const populated = kids.filter(k => (k.innerText || '').trim().length >= 2).length;
+        return { c, score: populated, kids };
+      }).sort((a, b) => b.score - a.score);
+
+      const best = scored[0];
+      const items = [];
+      best.kids.forEach((cardEl) => {
+        const titleEl = cardEl.querySelector('h1,h2,h3,h4,h5,strong,b,.title,[class*="title"],[class*="label"]');
+        let bodyEl = cardEl.querySelector('p,small');
+        if (!bodyEl) {
+          const textEls = [...cardEl.querySelectorAll('span,div')].filter(x => (x.textContent || '').trim().length > 0);
+          bodyEl = textEls.find(x => x !== titleEl) || null;
+        }
+        const title = titleEl ? (titleEl.textContent || '').trim() : '';
+        const body = bodyEl ? (bodyEl.textContent || '').trim() : '';
+        if (title || body) {
+          items.push({ cardEl, titleEl, bodyEl, title, body });
+        }
+      });
+
+      if (items.length >= 2) {
+        gridMeta = { container: best.c, items };
+        htmlChunks.push('<div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:6px"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);display:block;margin-bottom:8px">🔳 Grid / Card Content</label></div>');
+        items.forEach((item, idx2) => {
+          htmlChunks.push(_gridCardEditor(idx2, {
+            title: item.title,
+            body: item.body,
+          }));
+        });
+      }
+    }
 
     // ── Background editor (always shown at bottom) ──────────────────────────
     const bgTarget = _bgTarget(el);
@@ -3988,9 +4490,12 @@ function openSecEditor(idx) {
     const bgImage  = computed.backgroundImage !== 'none' ? computed.backgroundImage : (bgTarget.style.backgroundImage || '');
     const bgColor  = bgTarget.style.backgroundColor || computed.backgroundColor || '';
     const bgUrlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
-    const bgUrl = bgUrlMatch ? bgUrlMatch[1] : '';
+    const bgUrl = _normalizeStagingAssetUrl(bgUrlMatch ? bgUrlMatch[1] : '');
     const carouselRaw = bgTarget.dataset.wbBgCarouselUrls || '';
-    const bgUrls = carouselRaw ? carouselRaw.split('||').map(s => s.trim()).filter(Boolean) : (bgUrl ? [bgUrl] : []);
+    const bgUrls = carouselRaw
+      ? carouselRaw.split('||').map(s => _normalizeStagingAssetUrl(s.trim())).filter(Boolean)
+      : (bgUrl ? [bgUrl] : []);
+    const bgColorInput = _rgbToHex((bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') ? bgColor : '#ffffff');
     const carouselEnabled = bgUrls.length > 1;
     const carouselIntervalSec = Math.max(2, Math.round((parseInt(bgTarget.dataset.wbBgIntervalMs || '5000', 10) || 5000) / 1000));
     const carouselStyle = bgTarget.dataset.wbBgStyle || 'slide-left';
@@ -4026,10 +4531,127 @@ function openSecEditor(idx) {
       }
     });
     fields._anchorEls = _anchorElsList;
+    fields._allianceMeta = allianceMeta;
+    fields._gridMeta = gridMeta;
+    fields._heroMeta = heroMeta;
+    fields._sectionBoxMeta = sectionBoxMeta;
+    fields._sectionBoxInit = {
+      borderStyle,
+      borderColor,
+      borderWidth: Math.round(borderWidth),
+      radius: Math.round(borderRadius),
+      widthPct: Math.round(widthPct),
+      align,
+    };
+    fields._bgInit = {
+      urls: bgUrls.slice(),
+      url: _normalizeStagingAssetUrl(bgUrl || ''),
+      color: bgColorInput,
+      opacity: 100,
+      size: document.getElementById('secBgSize')?.value || 'cover',
+      overlay: 0,
+      carouselEnabled,
+      interval: carouselIntervalSec,
+      style: carouselStyle,
+      speed: carouselSpeedMs,
+      motion: bgMotion,
+    };
+    fields._imgFidToEl = _imgFidToEl;
+    _imgFidToEl.forEach((imgEl, fid) => {
+      const div = fields.querySelector(`div[data-fid="${fid}"]`);
+      if (div) div._imgEl = imgEl;
+    });
 
     fields._sectionEl = el;
     editor._sectionEl = el;
   }); // end requestAnimationFrame
+}
+
+function addAllianceRowToActiveSection() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame.contentDocument || activeSectionIndex === null || !stagingSections[activeSectionIndex]) return;
+  const { el } = stagingSections[activeSectionIndex];
+  const table = el.querySelector('table');
+  if (!table) {
+    toast('No table found in this section', false);
+    return;
+  }
+
+  const brand = (document.getElementById('ar-new-brand')?.value || '').trim();
+  const category = (document.getElementById('ar-new-category')?.value || '').trim();
+  const support = (document.getElementById('ar-new-support')?.value || '').trim();
+  const logo = (document.getElementById('ar-new-logo')?.value || '').trim();
+
+  if (!brand || !category || !support) {
+    toast('Please fill Brand, Category, and Support fields', false);
+    return;
+  }
+
+  _historyPush();
+  const doc = frame.contentDocument;
+  const body = table.tBodies[0] || table;
+  const template = body.querySelector('tr:last-child');
+  const newRow = template ? template.cloneNode(true) : doc.createElement('tr');
+
+  if (!template) {
+    newRow.innerHTML = '<td></td><td></td><td></td>';
+  }
+
+  const cells = [...newRow.querySelectorAll('td')];
+  while (cells.length < 3) {
+    const td = doc.createElement('td');
+    newRow.appendChild(td);
+    cells.push(td);
+  }
+
+  const c0 = cells[0], c1 = cells[1], c2 = cells[2];
+  const existingImg = c0.querySelector('img');
+  const existingStrong = c0.querySelector('strong');
+  const brandWrap = c0.querySelector('.brand-cell');
+
+  if (brandWrap) {
+    if (existingImg) {
+      const src = logo || existingImg.getAttribute('src') || existingImg.src;
+      existingImg.src = src;
+      existingImg.setAttribute('src', src);
+      existingImg.alt = `${brand} logo`;
+    }
+    if (existingStrong) {
+      existingStrong.textContent = brand;
+    } else {
+      const s = doc.createElement('strong');
+      s.textContent = brand;
+      brandWrap.appendChild(s);
+    }
+  } else if (existingImg || logo) {
+    c0.innerHTML = '';
+    const wrap = doc.createElement('div');
+    wrap.className = 'brand-cell';
+    const lp = doc.createElement('div');
+    lp.className = 'brand-logo-placeholder';
+    const img = existingImg || doc.createElement('img');
+    if (logo) {
+      img.src = logo;
+      img.setAttribute('src', logo);
+    }
+    img.alt = `${brand} logo`;
+    img.loading = 'lazy';
+    lp.appendChild(img);
+    const s = doc.createElement('strong');
+    s.textContent = brand;
+    wrap.appendChild(lp);
+    wrap.appendChild(s);
+    c0.appendChild(wrap);
+  } else {
+    c0.textContent = brand;
+  }
+
+  _setText(c1, category);
+  _setParagraphText(c2, support);
+
+  body.appendChild(newRow);
+  openSecEditor(activeSectionIndex);
+  toast('Alliance row added — click 💾 Save to persist');
 }
 
 function _bgField(bgUrl, bgColor, bgUrls = [], carouselEnabled = false, carouselIntervalSec = 5, carouselStyle = 'slide-left', carouselSpeedMs = 900, bgMotion = 'none', sectionLabel = 'Section', secIdx = 0) {
@@ -4210,12 +4832,76 @@ function _parseBgUrls() {
   return list
     .split(/\r?\n|,/)
     .map(s => s.trim())
+    .map(s => _normalizeStagingAssetUrl(s))
     .filter(Boolean)
     .filter((v, i, arr) => arr.indexOf(v) === i);
 }
 
+function _isBgPanelDirty(fieldsEl) {
+  const init = fieldsEl?._bgInit;
+  if (!init) return false;
+
+  const cur = {
+    urls: _parseBgUrls(),
+    url: _normalizeStagingAssetUrl(document.getElementById('secBgUrl')?.value?.trim() || ''),
+    color: document.getElementById('secBgColor')?.value || '#ffffff',
+    opacity: parseInt(document.getElementById('secBgOpacity')?.value || '100', 10) || 100,
+    size: document.getElementById('secBgSize')?.value || 'cover',
+    overlay: parseInt(document.getElementById('secBgOverlay')?.value || '0', 10) || 0,
+    carouselEnabled: !!document.getElementById('secBgCarouselEnabled')?.checked,
+    interval: Math.max(2, parseInt(document.getElementById('secBgInterval')?.value || '5', 10) || 5),
+    style: document.getElementById('secBgStyle')?.value || 'slide-left',
+    speed: Math.max(250, parseInt(document.getElementById('secBgSpeed')?.value || '900', 10) || 900),
+    motion: document.getElementById('secBgMotion')?.value || 'none',
+  };
+
+  const arrEq = (a, b) => {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  };
+
+  if (!arrEq(cur.urls, init.urls || [])) return true;
+  if (cur.url !== (init.url || '')) return true;
+  if (cur.color !== (init.color || '#ffffff')) return true;
+  if (cur.opacity !== (init.opacity ?? 100)) return true;
+  if (cur.size !== (init.size || 'cover')) return true;
+  if (cur.overlay !== (init.overlay ?? 0)) return true;
+  if (cur.carouselEnabled !== !!init.carouselEnabled) return true;
+  if (cur.interval !== (init.interval ?? 5)) return true;
+  if (cur.style !== (init.style || 'slide-left')) return true;
+  if (cur.speed !== (init.speed ?? 900)) return true;
+  if (cur.motion !== (init.motion || 'none')) return true;
+
+  return false;
+}
+
+function _isSectionBoxPanelDirty(fieldsEl) {
+  const init = fieldsEl?._sectionBoxInit;
+  if (!init) return false;
+
+  const cur = {
+    borderStyle: fieldsEl.querySelector('#secBoxBorderStyle')?.value || 'none',
+    borderColor: fieldsEl.querySelector('#secBoxBorderColor')?.value || '#d1d5db',
+    borderWidth: Math.max(0, parseInt(fieldsEl.querySelector('#secBoxBorderWidth')?.value || '0', 10) || 0),
+    radius: Math.max(0, parseInt(fieldsEl.querySelector('#secBoxRadius')?.value || '0', 10) || 0),
+    widthPct: Math.max(20, Math.min(100, parseInt(fieldsEl.querySelector('#secBoxWidthPct')?.value || '100', 10) || 100)),
+    align: fieldsEl.querySelector('#secBoxAlign')?.value || 'center',
+  };
+
+  if (cur.borderStyle !== (init.borderStyle || 'none')) return true;
+  if (cur.borderColor !== (init.borderColor || '#d1d5db')) return true;
+  if (cur.borderWidth !== (init.borderWidth ?? 0)) return true;
+  if (cur.radius !== (init.radius ?? 0)) return true;
+  if (cur.widthPct !== (init.widthPct ?? 100)) return true;
+  if (cur.align !== (init.align || 'center')) return true;
+
+  return false;
+}
+
 function syncBgUrlListFromSingle() {
-  const single = (document.getElementById('secBgUrl')?.value || '').trim();
+  const single = _normalizeStagingAssetUrl((document.getElementById('secBgUrl')?.value || '').trim());
   if (!single) return;
   const urls = _parseBgUrls();
   if (!urls.length) {
@@ -4234,6 +4920,12 @@ function toggleBgCarouselOptions() {
   if (box) box.style.display = enabled ? 'flex' : 'none';
   const trans = document.getElementById('secBgTransitionOpts');
   if (trans) trans.style.display = enabled ? 'grid' : 'none';
+  if (enabled) {
+    const count = _parseBgUrls().length;
+    if (count < 2) {
+      toast('Add at least 2 background images for carousel animation', false);
+    }
+  }
 }
 
 function applyBgAnimPreset(level) {
@@ -4434,7 +5126,7 @@ function _applyBgToEl(el) {
   const wbId   = _ensureWbId(target);
 
   const urls    = _parseBgUrls();
-  const fallbackUrl = document.getElementById('secBgUrl')?.value?.trim() || '';
+  const fallbackUrl = _normalizeStagingAssetUrl(document.getElementById('secBgUrl')?.value?.trim() || '');
   const finalUrls = urls.length ? urls : (fallbackUrl ? [fallbackUrl] : []);
   const url     = finalUrls[0] || '';
   const color   = document.getElementById('secBgColor')?.value || '#ffffff';
@@ -4539,7 +5231,7 @@ async function uploadBgImage(inputEl) {
     });
     if (r.ok) {
       const data = await r.json();
-      const url = window.location.origin + (data.full_url || data.thumb_url || '');
+      const url = _normalizeStagingAssetUrl(data.full_url || data.thumb_url || '');
       appendUrl(url);
       return true;
     } else {
@@ -4597,7 +5289,7 @@ function removeBgImageAt(idx) {
 function addBgImageUrl() {
   const inp = document.getElementById('secBgAddUrl');
   if (!inp) return;
-  const url = inp.value.trim();
+  const url = _normalizeStagingAssetUrl(inp.value.trim());
   if (!url) return;
   const ta = document.getElementById('secBgUrls');
   if (ta) {
@@ -4704,13 +5396,16 @@ function _styleBar(fid, init = {}) {
   </div>`;
 }
 
-function _textField(idx, tag, val, fid, init = {}) {
+function _textField(idx, tag, val, fid, init = {}, opts = {}) {
+  const clickable = !!opts.clickable;
+  const clickInit = opts.clickInit || {};
   return `<div data-fid="${fid}" data-type="text" data-tag="${tag}">
     <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">${idx}. ${tag}</label>
     <input type="text" value="${_esc(val)}" data-fid="${fid}"
       style="width:100%;padding:8px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem;outline:none"
       onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
     ${_styleBar(fid, init)}
+    ${clickable ? _clickActionField(fid, clickInit) : ''}
   </div>`;
 }
 
@@ -4774,6 +5469,218 @@ function _linkField(idx, tag, text, href, fid, init = {}) {
   </div>`;
 }
 
+function _clickActionField(fid, init = {}) {
+  const enabled = !!init.enabled;
+  const mode = ['popup', 'newtab', 'same'].includes(init.mode) ? init.mode : 'popup';
+  const url = _normalizeClickActionUrl(init.url || '');
+  const disabled = enabled ? '' : 'disabled';
+  return `<div style="margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:rgba(99,102,241,.04)">
+    <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
+      <input type="checkbox" data-fid="${fid}-click-enabled" ${enabled ? 'checked' : ''} onchange="toggleClickActionInputs('${fid}')">
+      Enable click action
+    </label>
+    <input type="text" data-fid="${fid}-click-url" value="${_esc(url)}" placeholder="https://example.com/page"
+      ${disabled}
+      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-top:6px"
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
+    <div style="margin-top:6px">
+      <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Target action</label>
+      <select data-fid="${fid}-click-mode" ${disabled}
+        style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+        <option value="popup" ${mode === 'popup' ? 'selected' : ''}>Popup (themed)</option>
+        <option value="newtab" ${mode === 'newtab' ? 'selected' : ''}>Open in new tab</option>
+        <option value="same" ${mode === 'same' ? 'selected' : ''}>Open in same tab</option>
+      </select>
+    </div>
+  </div>`;
+}
+
+function toggleClickActionInputs(fid) {
+  const enabled = !!document.querySelector(`[data-fid="${fid}-click-enabled"]`)?.checked;
+  const urlEl = document.querySelector(`[data-fid="${fid}-click-url"]`);
+  const modeEl = document.querySelector(`[data-fid="${fid}-click-mode"]`);
+  if (urlEl) urlEl.disabled = !enabled;
+  if (modeEl) modeEl.disabled = !enabled;
+}
+
+function _ensureWbClickActionEngine(doc) {
+  if (!doc || !doc.head) return;
+  if (!doc.getElementById('__wb_click_action_style')) {
+    const st = doc.createElement('style');
+    st.id = '__wb_click_action_style';
+    st.textContent = `
+      .__wb_action_overlay{position:fixed;inset:0;background:rgba(10,15,25,.55);display:none;align-items:center;justify-content:center;z-index:999999}
+      .__wb_action_overlay.open{display:flex}
+      .__wb_action_modal{width:min(92vw,980px);height:min(86vh,760px);background:var(--card,#fff);color:var(--text,#111827);border-radius:14px;box-shadow:0 22px 64px rgba(0,0,0,.35);border:1px solid color-mix(in srgb, var(--primary,#2563eb) 20%, transparent);display:flex;flex-direction:column;overflow:hidden}
+      .__wb_action_hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(90deg, color-mix(in srgb, var(--primary,#2563eb) 14%, white), color-mix(in srgb, var(--secondary,#38bdf8) 10%, white));border-bottom:1px solid color-mix(in srgb, var(--primary,#2563eb) 18%, transparent)}
+      .__wb_action_title{font-size:.84rem;font-weight:700;opacity:.9}
+      .__wb_action_btns{display:flex;gap:8px}
+      .__wb_action_btn{border:1px solid var(--border,#d1d5db);background:var(--bg,#f8fafc);color:var(--text,#111827);border-radius:8px;padding:5px 9px;font-size:.75rem;cursor:pointer}
+      .__wb_action_btn.close{font-weight:700}
+      .__wb_action_btn.open{display:inline-flex;align-items:center;justify-content:center;width:32px;height:30px;padding:0}
+      .__wb_action_btn.open svg{width:15px;height:15px;display:block;fill:currentColor}
+      .__wb_action_fallback{display:none;margin:10px 12px;padding:10px 12px;border-radius:10px;border:1px solid color-mix(in srgb, var(--primary,#2563eb) 24%, transparent);background:color-mix(in srgb, var(--primary,#2563eb) 8%, white);font-size:.78rem;line-height:1.35}
+      .__wb_action_fallback.open{display:block}
+      .__wb_action_frame{width:100%;height:100%;border:0;background:#fff}
+      [data-wb-click-enabled="1"]{cursor:pointer}
+    `;
+    doc.head.appendChild(st);
+  }
+  if (!doc.getElementById('__wb_click_action_script')) {
+    const sc = doc.createElement('script');
+    sc.id = '__wb_click_action_script';
+    sc.textContent = `(function(){
+      function normalizeUrl(raw){
+        var u = String(raw || '').trim();
+        if (!u) return '';
+        if (/^(https?:|mailto:|tel:|#|\\/)/i.test(u)) return u;
+        if (/^\\/\\//.test(u)) return 'https:' + u;
+        if (/^[a-z0-9.-]+\\.[a-z]{2,}(?:[/:?#].*)?$/i.test(u)) return 'https://' + u;
+        return u;
+      }
+      function ensureOverlay(){
+        var o = document.querySelector('.__wb_action_overlay');
+        if (o) return o;
+        o = document.createElement('div');
+        o.className = '__wb_action_overlay';
+        o.innerHTML = '<div class="__wb_action_modal"><div class="__wb_action_hd"><span class="__wb_action_title">Quick View</span><div class="__wb_action_btns"><button class="__wb_action_btn open" aria-label="Open in new tab" title="Open in new tab"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3z"></path><path d="M5 5h6V3H3v8h2V5zm0 14h14v-6h2v8H3v-8h2v6z"></path></svg></button><button class="__wb_action_btn close" aria-label="Close">✕</button></div></div><div class="__wb_action_fallback" role="status" aria-live="polite"></div><iframe class="__wb_action_frame" src="about:blank" loading="lazy"></iframe></div>';
+        document.body.appendChild(o);
+        o.addEventListener('click', function(e){ if (e.target === o) close(); });
+        o.querySelector('.close').addEventListener('click', close);
+        o.querySelector('.open').addEventListener('click', function(){
+          var u = o.dataset.url || '';
+          if (u) window.open(u, '_blank', 'noopener');
+        });
+        return o;
+      }
+      function setFallback(o, isVisible, text){
+        var box = o.querySelector('.__wb_action_fallback');
+        if (!box) return;
+        if (isVisible) {
+          box.textContent = text || 'This page may block embedding in an iframe. Use Open in new tab to continue.';
+          box.classList.add('open');
+        } else {
+          box.textContent = '';
+          box.classList.remove('open');
+        }
+      }
+      function monitorEmbed(o, url){
+        var frame = o.querySelector('.__wb_action_frame');
+        if (!frame) return;
+        if (o.__wbEmbedTimer) {
+          clearTimeout(o.__wbEmbedTimer);
+          o.__wbEmbedTimer = null;
+        }
+        setFallback(o, false, '');
+        frame.onload = function(){
+          if (o.__wbEmbedTimer) {
+            clearTimeout(o.__wbEmbedTimer);
+            o.__wbEmbedTimer = null;
+          }
+          try {
+            var currentHref = String(frame.contentWindow && frame.contentWindow.location && frame.contentWindow.location.href || '');
+            var isExternal = /^https?:/i.test(url);
+            if (isExternal && currentHref === 'about:blank') {
+              setFallback(o, true, 'This site appears to block iframe embedding. Use Open in new tab to view it.');
+              return;
+            }
+          } catch (_e) {
+            // Cross-origin frame loaded; not inspectable, which is expected.
+          }
+          setFallback(o, false, '');
+        };
+        frame.onerror = function(){
+          if (o.__wbEmbedTimer) {
+            clearTimeout(o.__wbEmbedTimer);
+            o.__wbEmbedTimer = null;
+          }
+          setFallback(o, true, 'Unable to load this page in the popup. Use Open in new tab to continue.');
+        };
+        o.__wbEmbedTimer = setTimeout(function(){
+          setFallback(o, true, 'Loading is taking longer than expected. This site may block iframe embedding. Use Open in new tab.');
+        }, 4500);
+      }
+      function open(url){
+        url = normalizeUrl(url);
+        if (!url) return;
+        var o = ensureOverlay();
+        o.dataset.url = url;
+        monitorEmbed(o, url);
+        o.querySelector('.__wb_action_frame').src = url;
+        o.classList.add('open');
+      }
+      function close(){
+        var o = document.querySelector('.__wb_action_overlay');
+        if (!o) return;
+        if (o.__wbEmbedTimer) {
+          clearTimeout(o.__wbEmbedTimer);
+          o.__wbEmbedTimer = null;
+        }
+        setFallback(o, false, '');
+        o.classList.remove('open');
+        o.querySelector('.__wb_action_frame').src = 'about:blank';
+      }
+      function onClick(ev){
+        var n = ev.target.closest('[data-wb-click-enabled="1"]');
+        if (!n) return;
+        var url = normalizeUrl(n.dataset.wbClickUrl || '');
+        var mode = (n.dataset.wbClickMode || 'popup').trim();
+        if (!url) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (mode === 'newtab') window.open(url, '_blank', 'noopener');
+        else if (mode === 'same') window.location.href = url;
+        else open(url);
+      }
+      function onKey(ev){
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        var n = ev.target.closest('[data-wb-click-enabled="1"]');
+        if (!n) return;
+        ev.preventDefault();
+        n.click();
+      }
+      function applyBindings(){
+        document.querySelectorAll('[data-wb-click-enabled="1"]').forEach(function(n){
+          n.setAttribute('tabindex', '0');
+          n.setAttribute('role', 'button');
+        });
+      }
+      if (!document.__wbClickBound){
+        document.addEventListener('click', onClick, true);
+        document.addEventListener('keydown', onKey, true);
+        document.__wbClickBound = true;
+      }
+      window.__wbOpenActionPopup = open;
+      window.__wbCloseActionPopup = close;
+      window.__wbApplyClickBindings = applyBindings;
+      applyBindings();
+    })();`;
+    (doc.body || doc.head).appendChild(sc);
+  }
+}
+
+function _applyClickActionFromField(fieldsEl, fid, domEl) {
+  if (!domEl) return;
+  const enabledEl = fieldsEl.querySelector(`[data-fid="${fid}-click-enabled"]`);
+  if (!enabledEl) return;
+  const url = _normalizeClickActionUrl((fieldsEl.querySelector(`[data-fid="${fid}-click-url"]`)?.value || '').trim());
+  const mode = (fieldsEl.querySelector(`[data-fid="${fid}-click-mode"]`)?.value || 'popup').trim();
+  const enabled = !!enabledEl.checked && !!url;
+  if (enabled) {
+    domEl.dataset.wbClickEnabled = '1';
+    domEl.dataset.wbClickUrl = url;
+    domEl.dataset.wbClickMode = ['popup','newtab','same'].includes(mode) ? mode : 'popup';
+    domEl.style.setProperty('cursor', 'pointer', 'important');
+  } else {
+    delete domEl.dataset.wbClickEnabled;
+    delete domEl.dataset.wbClickUrl;
+    delete domEl.dataset.wbClickMode;
+    domEl.style.removeProperty('cursor');
+    domEl.removeAttribute('tabindex');
+    domEl.removeAttribute('role');
+  }
+}
+
 function removeSectionLink(btn, fid) {
   const wrap = btn.closest('[data-fid]');
   if (!wrap) return;
@@ -4826,6 +5733,7 @@ function moveLinkField(btn, dir) {
 
 function _imgField(idx, tag, src, alt, fid, init = {}) {
   const mode = init.mode || 'none';
+  const clickInit = init.click || {};
   const thumb = src ? `<img src="${_esc(src)}" style="height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px">` : '';
   return `<div data-fid="${fid}" data-type="img">
     <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">${idx}. ${tag}</label>
@@ -4858,6 +5766,7 @@ function _imgField(idx, tag, src, alt, fid, init = {}) {
       </label>
       <button class="btn btn-secondary btn-sm" onclick="clearSectionImage('${fid}')" title="Remove image">🗑 Remove</button>
     </div>
+    ${_clickActionField(fid, clickInit)}
   </div>`;
 }
 
@@ -4865,11 +5774,7 @@ function _esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-/* Set text on an element without destroying inner styling spans/em/strong.
-   Walks down to the deepest single-child inline element that holds the text,
-   so font classes on wrappers like <span class="fancy"> are preserved. */
-function _setText(el, text) {
-  // Walk into sole child inline elements (span, em, strong, b, i, a without href change)
+function _getDeepTextTarget(el) {
   let target = el;
   while (target.children.length === 1) {
     const child = target.children[0];
@@ -4878,6 +5783,275 @@ function _setText(el, text) {
       target = child;
     } else break;
   }
+  return target;
+}
+
+function _setParagraphText(el, text) {
+  const target = _getDeepTextTarget(el);
+  const raw = String(text || '');
+  if (raw.includes('\n')) {
+    target.innerHTML = _esc(raw).replace(/\r?\n/g, '<br>');
+    target.style.setProperty('white-space', 'normal', 'important');
+  } else {
+    target.textContent = raw;
+  }
+}
+
+function _normalizeStagingAssetUrl(rawUrl) {
+  const raw = String(rawUrl || '').trim();
+  if (!raw) return '';
+
+  if (/^assets\//i.test(raw)) return raw;
+  if (/^\/assets\//i.test(raw)) return raw.replace(/^\//, '');
+
+  const fromStagingPath = (p) => {
+    const m = String(p || '').match(/\/output\/staging\/[^/]+\/(.+)$/i);
+    return (m && m[1]) ? m[1] : null;
+  };
+
+  if (/^\/output\/staging\//i.test(raw)) {
+    return fromStagingPath(raw) || raw;
+  }
+
+  try {
+    const u = new URL(raw, window.location.origin);
+    const rel = fromStagingPath(u.pathname);
+    if (rel) return rel;
+  } catch (_) {
+    // Keep unparseable values as-is
+  }
+
+  return raw;
+}
+
+function _normalizeClickActionUrl(rawUrl) {
+  const raw = String(rawUrl || '').trim();
+  if (!raw) return '';
+  if (/^(https?:|mailto:|tel:|#|\/)/i.test(raw)) return raw;
+  if (/^\/\//.test(raw)) return 'https:' + raw;
+  // Bare domains like "www.google.com" or "example.org/path"
+  if (/^[a-z0-9.-]+\.[a-z]{2,}(?:[/:?#].*)?$/i.test(raw)) return 'https://' + raw;
+  return raw;
+}
+
+function _allianceRowEditor(rowIdx, data) {
+  const logoFid = `ar-${rowIdx}-logo`;
+  const brandFid = `ar-${rowIdx}-brand`;
+  const categoryFid = `ar-${rowIdx}-category`;
+  const supportFid = `ar-${rowIdx}-support`;
+  return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 8px;margin-bottom:8px;background:var(--bg)">
+    <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin-bottom:6px">Alliance Row ${rowIdx + 1}</label>
+    <div style="display:grid;grid-template-columns:1fr;gap:6px">
+      <label style="font-size:.7rem;color:var(--muted)">Logo Image URL</label>
+      <input data-fid="${logoFid}" type="text" value="${_esc(data.logo || '')}" placeholder="assets/images/logo.jpg"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+
+      <label style="font-size:.7rem;color:var(--muted)">Brand</label>
+      <input data-fid="${brandFid}" type="text" value="${_esc(data.brand || '')}" placeholder="Brand name"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+
+      <label style="font-size:.7rem;color:var(--muted)">Category</label>
+      <input data-fid="${categoryFid}" type="text" value="${_esc(data.category || '')}" placeholder="Category"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+
+      <label style="font-size:.7rem;color:var(--muted)">Support Offered</label>
+      <textarea data-fid="${supportFid}" rows="2" placeholder="Support details"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;resize:vertical"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">${_esc(data.support || '')}</textarea>
+    </div>
+  </div>`;
+}
+
+function _allianceAddRowEditor() {
+  return `<div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:8px">
+    <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin-bottom:6px">＋ Add Alliance Row</label>
+    <div style="display:grid;grid-template-columns:1fr;gap:6px">
+      <label style="font-size:.7rem;color:var(--muted)">Logo Image URL</label>
+      <input id="ar-new-logo" type="text" placeholder="assets/images/new-logo.jpg"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <label style="font-size:.7rem;color:var(--muted)">Brand</label>
+      <input id="ar-new-brand" type="text" placeholder="Brand name"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <label style="font-size:.7rem;color:var(--muted)">Category</label>
+      <input id="ar-new-category" type="text" placeholder="Category"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <label style="font-size:.7rem;color:var(--muted)">Support Offered</label>
+      <textarea id="ar-new-support" rows="2" placeholder="Support details"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;resize:vertical"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+    </div>
+    <div style="margin-top:8px;display:flex;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" type="button" onclick="addAllianceRowToActiveSection()">＋ Add Row</button>
+    </div>
+  </div>`;
+}
+
+function _gridCardEditor(cardIdx, data) {
+  const tFid = `grid-${cardIdx}-title`;
+  const bFid = `grid-${cardIdx}-body`;
+  return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 8px;margin-bottom:8px;background:var(--bg)">
+    <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin-bottom:6px">Grid Item ${cardIdx + 1}</label>
+    <div style="display:grid;grid-template-columns:1fr;gap:6px">
+      <label style="font-size:.7rem;color:var(--muted)">Title / Label</label>
+      <input data-fid="${tFid}" type="text" value="${_esc(data.title || '')}" placeholder="Card title"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+
+      <label style="font-size:.7rem;color:var(--muted)">Body</label>
+      <textarea data-fid="${bFid}" rows="2" placeholder="Card text"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;resize:vertical"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">${_esc(data.body || '')}</textarea>
+    </div>
+  </div>`;
+}
+
+function _normalizeTextAlignValue(v) {
+  const raw = String(v || '').toLowerCase();
+  if (raw === 'start') return 'left';
+  if (raw === 'end') return 'right';
+  if (raw.includes('center')) return 'center';
+  if (raw.includes('right')) return 'right';
+  if (raw.includes('justify')) return 'justify';
+  return 'left';
+}
+
+function _findHeroTextTarget(sectionEl) {
+  if (!sectionEl) return null;
+  const preferred = sectionEl.querySelector('.hero-copy, .hero-content, .hero-text, .intro-copy, .intro-content, .banner-copy, .banner-content');
+  if (preferred) return preferred;
+  const firstText = sectionEl.querySelector('h1, h2, h3, p');
+  if (!firstText) return null;
+  return firstText.closest('div, section, article, header, main') || sectionEl;
+}
+
+function _findHeroImageTarget(sectionEl) {
+  if (!sectionEl) return null;
+  const imgs = [...sectionEl.querySelectorAll('img')].filter(img => {
+    const cls = String(img.className || '').toLowerCase();
+    if (/logo|brand|icon|avatar/.test(cls)) return false;
+    if (img.closest('.logo, .brand, .brand-cell, .brand-logo-placeholder, nav')) return false;
+    return true;
+  });
+  if (!imgs.length) return null;
+
+  let best = imgs[0];
+  let bestArea = 0;
+  imgs.forEach(img => {
+    const r = img.getBoundingClientRect();
+    const area = Math.max(0, r.width * r.height);
+    if (area > bestArea) {
+      best = img;
+      bestArea = area;
+    }
+  });
+  return best;
+}
+
+function _heroLayoutField(init = {}) {
+  const showImage = init.showImage !== false;
+  const hasImage = !!init.hasImage;
+  const textAlign = _normalizeTextAlignValue(init.textAlign || 'left');
+  const vAlign = ['top', 'center', 'bottom'].includes(init.vAlign) ? init.vAlign : 'top';
+  const layoutMode = ['preserve','flex','grid'].includes(init.layoutMode) ? init.layoutMode : 'preserve';
+  const disabled = hasImage ? '' : 'disabled';
+  return `<div data-type="hero-layout" style="border-top:1px dashed var(--border);padding-top:12px;margin-top:6px">
+    <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);display:block;margin-bottom:8px">🧭 Hero / Intro Layout</label>
+    <label style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--text);margin-bottom:8px">
+      <input type="checkbox" id="heroImageEnabled" ${showImage ? 'checked' : ''} ${disabled}>
+      Show intro/hero image
+    </label>
+    ${hasImage ? '' : '<div style="font-size:.72rem;color:var(--muted);margin:-4px 0 8px 0">No image detected in this section</div>'}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Text align</label>
+        <select id="heroTextAlign" style="width:100%;padding:7px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem">
+          <option value="left" ${textAlign === 'left' ? 'selected' : ''}>Left</option>
+          <option value="center" ${textAlign === 'center' ? 'selected' : ''}>Center</option>
+          <option value="right" ${textAlign === 'right' ? 'selected' : ''}>Right</option>
+          <option value="justify" ${textAlign === 'justify' ? 'selected' : ''}>Justify</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Vertical align</label>
+        <select id="heroTextVAlign" style="width:100%;padding:7px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem">
+          <option value="top" ${vAlign === 'top' ? 'selected' : ''}>Top</option>
+          <option value="center" ${vAlign === 'center' ? 'selected' : ''}>Center</option>
+          <option value="bottom" ${vAlign === 'bottom' ? 'selected' : ''}>Bottom</option>
+        </select>
+      </div>
+      <div style="grid-column:1 / span 2">
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Layout mode for vertical align</label>
+        <select id="heroLayoutMode" style="width:100%;padding:7px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem">
+          <option value="preserve" ${layoutMode === 'preserve' ? 'selected' : ''}>Preserve current layout (safe)</option>
+          <option value="flex" ${layoutMode === 'flex' ? 'selected' : ''}>Use flex column</option>
+          <option value="grid" ${layoutMode === 'grid' ? 'selected' : ''}>Use grid</option>
+        </select>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _sectionBoxField(init = {}) {
+  const bw = Math.max(0, Math.min(20, Number(init.borderWidth ?? 0) || 0));
+  const br = Math.max(0, Math.min(80, Number(init.borderRadius ?? 0) || 0));
+  const widthPct = Math.max(20, Math.min(100, Number(init.widthPct ?? 100) || 100));
+  const borderStyle = ['none','solid','dashed','dotted','double'].includes(init.borderStyle) ? init.borderStyle : 'none';
+  const borderColor = init.borderColor || '#d1d5db';
+  const align = ['left','center','right'].includes(init.align) ? init.align : 'center';
+
+  return `<div data-type="section-box" style="border-top:1px dashed var(--border);padding-top:12px;margin-top:6px">
+    <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);display:block;margin-bottom:8px">📦 Section Box Layout</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end">
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Border style</label>
+        <select id="secBoxBorderStyle" style="width:100%;padding:7px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem">
+          <option value="none" ${borderStyle === 'none' ? 'selected' : ''}>None</option>
+          <option value="solid" ${borderStyle === 'solid' ? 'selected' : ''}>Solid</option>
+          <option value="dashed" ${borderStyle === 'dashed' ? 'selected' : ''}>Dashed</option>
+          <option value="dotted" ${borderStyle === 'dotted' ? 'selected' : ''}>Dotted</option>
+          <option value="double" ${borderStyle === 'double' ? 'selected' : ''}>Double</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Border color</label>
+        <input id="secBoxBorderColor" type="color" value="${borderColor}" style="width:100%;height:34px;padding:2px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg)">
+      </div>
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Border width: <span id="secBoxBorderWidthVal">${Math.round(bw)}px</span></label>
+        <input id="secBoxBorderWidth" type="range" min="0" max="20" step="1" value="${Math.round(bw)}" oninput="document.getElementById('secBoxBorderWidthVal').textContent=this.value+'px'" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Corner radius: <span id="secBoxRadiusVal">${Math.round(br)}px</span></label>
+        <input id="secBoxRadius" type="range" min="0" max="80" step="1" value="${Math.round(br)}" oninput="document.getElementById('secBoxRadiusVal').textContent=this.value+'px'" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Width: <span id="secBoxWidthVal">${Math.round(widthPct)}%</span></label>
+        <input id="secBoxWidthPct" type="range" min="20" max="100" step="1" value="${Math.round(widthPct)}" oninput="document.getElementById('secBoxWidthVal').textContent=this.value+'%'" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:4px">Alignment</label>
+        <select id="secBoxAlign" style="width:100%;padding:7px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem">
+          <option value="left" ${align === 'left' ? 'selected' : ''}>Left</option>
+          <option value="center" ${align === 'center' ? 'selected' : ''}>Center</option>
+          <option value="right" ${align === 'right' ? 'selected' : ''}>Right</option>
+        </select>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* Set text on an element without destroying inner styling spans/em/strong.
+   Walks down to the deepest single-child inline element that holds the text,
+   so font classes on wrappers like <span class="fancy"> are preserved. */
+function _setText(el, text) {
+  // Walk into sole child inline elements (span, em, strong, b, i, a without href change)
+  const target = _getDeepTextTarget(el);
   // Only set textContent on the deepest target; preserves all ancestor element classes/styles
   target.textContent = text;
 }
@@ -4922,6 +6096,7 @@ function applySecEdits() {
   let hIdx = 0, pIdx = 0, lIdx = 0, iIdx = 0;
   let fieldNum = 0;
   _ensureImageAnimationStyles(doc);
+  _ensureWbClickActionEngine(doc);
 
   // Logo + Brand Name — only for first section
   if (activeSectionIndex === 0) {
@@ -4956,6 +6131,7 @@ function applySecEdits() {
       if (brandEl) {
         _setText(brandEl, brandInp.value);
         _applyStyleBarToEl(fieldsEl, brandFid, brandEl);
+        _applyClickActionFromField(fieldsEl, brandFid, brandEl);
       }
     }
   }
@@ -4967,6 +6143,7 @@ function applySecEdits() {
     const inp = fieldsEl.querySelector(`input[data-fid="${fid}"]`);
     if (inp) _setText(h, inp.value);
     _applyStyleBarToEl(fieldsEl, fid, h);
+    _applyClickActionFromField(fieldsEl, fid, h);
   });
 
   // Paragraphs — apply text + styles
@@ -4974,7 +6151,7 @@ function applySecEdits() {
     fieldNum++;
     const fid = `para-${fieldNum}`;
     const ta = fieldsEl.querySelector(`textarea[data-fid="${fid}"]`);
-    if (ta) _setText(p, ta.value);
+    if (ta) _setParagraphText(p, ta.value);
     _applyStyleBarToEl(fieldsEl, fid, p);
   });
 
@@ -5103,15 +6280,194 @@ function applySecEdits() {
     const srcEl = fieldsEl.querySelector(`input[data-fid="${fid}-src"]`);
     const altEl = fieldsEl.querySelector(`input[data-fid="${fid}-alt"]`);
     const animEl = fieldsEl.querySelector(`select[data-fid="${fid}-anim"]`);
-    if (srcEl) { img.src = srcEl.value; img.setAttribute('src', srcEl.value); }
+    if (srcEl) {
+      const newSrc = _normalizeStagingAssetUrl(srcEl.value || '');
+      if (newSrc) {
+        img.src = newSrc;
+        img.setAttribute('src', newSrc);
+        img.style.removeProperty('display');
+        delete img.dataset.wbEditorHidden;
+      } else {
+        img.removeAttribute('src');
+        img.style.setProperty('display', 'none', 'important');
+        img.dataset.wbEditorHidden = '1';
+      }
+    }
     if (altEl) img.alt = altEl.value;
     _applyImgAnimation(img, animEl?.value || 'none');
+    _applyClickActionFromField(fieldsEl, fid, img);
   });
+
+  // Alliance table rows (if present in this section)
+  const allianceMeta = fieldsEl._allianceMeta;
+  if (allianceMeta && Array.isArray(allianceMeta.rows)) {
+    allianceMeta.rows.forEach((rowEl, rowIdx) => {
+      if (!rowEl || !rowEl.isConnected) return;
+      const logo = fieldsEl.querySelector(`[data-fid="ar-${rowIdx}-logo"]`)?.value?.trim() || '';
+      const brand = fieldsEl.querySelector(`[data-fid="ar-${rowIdx}-brand"]`)?.value?.trim() || '';
+      const category = fieldsEl.querySelector(`[data-fid="ar-${rowIdx}-category"]`)?.value?.trim() || '';
+      const support = fieldsEl.querySelector(`[data-fid="ar-${rowIdx}-support"]`)?.value?.trim() || '';
+
+      const cells = [...rowEl.querySelectorAll('td')];
+      const c0 = cells[0];
+      const c1 = cells[1];
+      const c2 = cells[2];
+      if (!c0) return;
+
+      const img = c0.querySelector('img');
+      const strong = c0.querySelector('strong');
+      if (img && logo) {
+        img.src = logo;
+        img.setAttribute('src', logo);
+      }
+      if (img && brand) img.alt = `${brand} logo`;
+      if (strong && brand) {
+        _setText(strong, brand);
+      } else if (!img && brand) {
+        _setText(c0, brand);
+      }
+      if (c1 && category) _setText(c1, category);
+      if (c2 && support) _setParagraphText(c2, support);
+    });
+  }
+
+  // Generic grid/card item edits
+  const gridMeta = fieldsEl._gridMeta;
+  if (gridMeta && Array.isArray(gridMeta.items)) {
+    gridMeta.items.forEach((item, idx2) => {
+      const titleVal = fieldsEl.querySelector(`[data-fid="grid-${idx2}-title"]`)?.value?.trim() || '';
+      const bodyVal = fieldsEl.querySelector(`[data-fid="grid-${idx2}-body"]`)?.value || '';
+      if (item.titleEl && titleVal) _setText(item.titleEl, titleVal);
+      if (item.bodyEl && bodyVal.trim()) _setParagraphText(item.bodyEl, bodyVal);
+      if (!item.titleEl && titleVal) {
+        const tgt = item.cardEl.querySelector('h1,h2,h3,h4,h5,strong,b') || item.cardEl;
+        _setText(tgt, titleVal);
+      }
+      if (!item.bodyEl && bodyVal.trim()) {
+        const p = item.cardEl.querySelector('p,small,span,div') || item.cardEl;
+        _setParagraphText(p, bodyVal);
+      }
+    });
+  }
+
+  // Hero/Intro layout controls
+  const heroMeta = fieldsEl._heroMeta;
+  if (heroMeta) {
+    const textTarget = heroMeta.textTarget || heroMeta.sectionEl || el;
+    const layoutTarget = heroMeta.sectionEl || textTarget;
+    const imageTarget = heroMeta.imageTarget;
+    const showImage = !!fieldsEl.querySelector('#heroImageEnabled')?.checked;
+    const textAlign = fieldsEl.querySelector('#heroTextAlign')?.value || 'left';
+    const vAlign = fieldsEl.querySelector('#heroTextVAlign')?.value || 'top';
+    const layoutMode = fieldsEl.querySelector('#heroLayoutMode')?.value || 'preserve';
+
+    if (imageTarget) {
+      if (showImage) {
+        const prev = imageTarget.dataset.wbPrevDisplay || '';
+        if (prev && prev !== 'none') imageTarget.style.setProperty('display', prev, 'important');
+        else imageTarget.style.removeProperty('display');
+        delete imageTarget.dataset.wbEditorHidden;
+      } else {
+        if (!imageTarget.dataset.wbPrevDisplay) {
+          const prev = imageTarget.style.display || imageTarget.ownerDocument.defaultView.getComputedStyle(imageTarget).display || '';
+          imageTarget.dataset.wbPrevDisplay = prev;
+        }
+        imageTarget.style.setProperty('display', 'none', 'important');
+        imageTarget.dataset.wbEditorHidden = '1';
+      }
+    }
+
+    if (textTarget) {
+      textTarget.style.setProperty('text-align', textAlign, 'important');
+      const v = (vAlign === 'center') ? 'center' : (vAlign === 'bottom' ? 'flex-end' : 'flex-start');
+      const gridV = (vAlign === 'center') ? 'center' : (vAlign === 'bottom' ? 'end' : 'start');
+      const tag = layoutTarget ? layoutTarget.tagName : textTarget.tagName;
+      const canLayout = ['DIV', 'SECTION', 'ARTICLE', 'HEADER', 'MAIN'].includes(tag);
+      if (canLayout) {
+        const currentDisplay = (layoutTarget.style.display || layoutTarget.ownerDocument.defaultView.getComputedStyle(layoutTarget).display || '').toLowerCase();
+        if (layoutMode === 'grid') {
+          layoutTarget.style.setProperty('display', 'grid', 'important');
+          layoutTarget.style.setProperty('align-content', gridV, 'important');
+          layoutTarget.style.removeProperty('justify-content');
+          layoutTarget.style.removeProperty('flex-direction');
+        } else if (layoutMode === 'flex') {
+          layoutTarget.style.setProperty('display', 'flex', 'important');
+          layoutTarget.style.setProperty('flex-direction', 'column', 'important');
+          layoutTarget.style.setProperty('justify-content', v, 'important');
+          if (!layoutTarget.style.minHeight) layoutTarget.style.setProperty('min-height', '100%', 'important');
+          layoutTarget.style.removeProperty('align-content');
+        } else {
+          // Preserve section's existing layout mode and only apply compatible property.
+          if (currentDisplay === 'grid') {
+            layoutTarget.style.setProperty('align-content', gridV, 'important');
+          } else if (currentDisplay.includes('flex')) {
+            layoutTarget.style.setProperty('justify-content', v, 'important');
+          }
+        }
+      }
+      textTarget.dataset.wbValign = v;
+      textTarget.dataset.wbLayoutMode = layoutMode;
+    }
+  }
+
+  // Section box controls
+  const sectionBoxMeta = fieldsEl._sectionBoxMeta;
+  if (sectionBoxMeta && sectionBoxMeta.target) {
+    if (_isSectionBoxPanelDirty(fieldsEl)) {
+      const target = sectionBoxMeta.target;
+      const init = fieldsEl._sectionBoxInit || {};
+      const borderStyle = fieldsEl.querySelector('#secBoxBorderStyle')?.value || 'none';
+      const borderColor = fieldsEl.querySelector('#secBoxBorderColor')?.value || '#d1d5db';
+      const borderWidth = Math.max(0, parseInt(fieldsEl.querySelector('#secBoxBorderWidth')?.value || '0', 10) || 0);
+      const radius = Math.max(0, parseInt(fieldsEl.querySelector('#secBoxRadius')?.value || '0', 10) || 0);
+      const widthPct = Math.max(20, Math.min(100, parseInt(fieldsEl.querySelector('#secBoxWidthPct')?.value || '100', 10) || 100));
+      const align = fieldsEl.querySelector('#secBoxAlign')?.value || 'center';
+
+      const sizeChanged = widthPct !== (init.widthPct ?? 100) || align !== (init.align || 'center');
+      const borderChanged = borderStyle !== (init.borderStyle || 'none') ||
+        borderColor !== (init.borderColor || '#d1d5db') ||
+        borderWidth !== (init.borderWidth ?? 0);
+      const radiusChanged = radius !== (init.radius ?? 0);
+
+      target.style.setProperty('box-sizing', 'border-box', 'important');
+
+      if (sizeChanged) {
+        target.style.setProperty('width', `${widthPct}%`, 'important');
+        if (align === 'left') {
+          target.style.setProperty('margin-left', '0', 'important');
+          target.style.setProperty('margin-right', 'auto', 'important');
+        } else if (align === 'right') {
+          target.style.setProperty('margin-left', 'auto', 'important');
+          target.style.setProperty('margin-right', '0', 'important');
+        } else {
+          target.style.setProperty('margin-left', 'auto', 'important');
+          target.style.setProperty('margin-right', 'auto', 'important');
+        }
+      }
+
+      if (borderChanged) {
+        target.style.setProperty('border-style', borderStyle, 'important');
+        target.style.setProperty('border-width', `${borderWidth}px`, 'important');
+        target.style.setProperty('border-color', borderColor, 'important');
+        if (borderStyle === 'none' || borderWidth === 0) {
+          target.style.setProperty('border-width', '0px', 'important');
+        }
+      }
+
+      if (radiusChanged) {
+        target.style.setProperty('border-radius', `${radius}px`, 'important');
+      }
+    }
+  }
 
   // Apply background (colour + image) if the bg panel fields exist
   if (document.getElementById('secBgColor') || document.getElementById('secBgUrl')) {
-    _applyBgToEl(el);
+    if (_isBgPanelDirty(fieldsEl)) {
+      _applyBgToEl(el);
+    }
   }
+
+  try { if (doc.defaultView && typeof doc.defaultView.__wbApplyClickBindings === 'function') doc.defaultView.__wbApplyClickBindings(); } catch(_) {}
 
   toast('Changes applied to preview ✅ — click 💾 Save Changes to persist');
   document.getElementById('stagingStatusBar').textContent = 'Preview updated — unsaved. Click 💾 Save Changes.';
@@ -5140,7 +6496,7 @@ async function uploadSectionImage(inputEl, fid) {
     if (r.ok) {
       const data = await r.json();
       // Use returned relative path directly
-      const url = data.full_url || data.thumb_url || '';
+      const url = _normalizeStagingAssetUrl(data.full_url || data.thumb_url || '');
       const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
       if (srcEl) srcEl.value = url;
       // Show thumbnail preview
@@ -5164,7 +6520,7 @@ async function finalizeSectionImage(siteSlug, filename, fid) {
   });
   if (r.ok) {
     const data = await r.json();
-    const newUrl = data.image_url;
+    const newUrl = _normalizeStagingAssetUrl(data.image_url);
     const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
     if (srcEl) srcEl.value = newUrl;
     // Update preview if present
@@ -5186,7 +6542,22 @@ function clearSectionImage(fid) {
   const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
   if (srcEl) srcEl.value = '';
   const wrap = srcEl?.closest('[data-fid]');
-  if (wrap) { const img = wrap.querySelector('img'); if (img) img.src = ''; }
+  if (wrap) {
+    const img = wrap.querySelector('img');
+    if (img) {
+      img.removeAttribute('src');
+      img.style.setProperty('display', 'none', 'important');
+    }
+  }
+  const fieldsEl = document.getElementById('secEditorFields');
+  const liveImg = (wrap && wrap._imgEl) || fieldsEl?._imgFidToEl?.get(fid);
+  if (liveImg) {
+    liveImg.removeAttribute('src');
+    liveImg.style.setProperty('display', 'none', 'important');
+    liveImg.dataset.wbEditorHidden = '1';
+    const status = document.getElementById('stagingStatusBar');
+    if (status) status.textContent = 'Preview updated — unsaved. Click 💾 Save Changes.';
+  }
 }
 
 function closeSecEditor() {
@@ -5355,11 +6726,11 @@ function stagingRefresh() {
     loading.style.display = 'none'; btn.disabled = false; btn.textContent = '⟳ Refresh';
     try { if (frame.contentDocument) _injectResponsiveEnhancements(frame.contentDocument); } catch(_) {}
   };
-  frame.src = currentStagingUrl.split('?')[0] + '?t=' + Date.now();
+  frame.src = _cacheBustUrl(currentStagingUrl);
 }
 
 function stagingPopout() {
-  if (currentStagingUrl) window.open(currentStagingUrl, '_blank');
+  if (currentStagingUrl) window.open(_cacheBustUrl(currentStagingUrl), '_blank');
   else toast('No preview URL available yet', false);
 }
 
@@ -5503,6 +6874,10 @@ async function saveStaged() {
   if (!stagedWebsiteId) return;
   const frame = document.getElementById('stagingIframe');
   if (!frame.contentDocument) { toast('Preview not loaded yet', false); return; }
+  // Persist any pending field edits into the live preview before serializing HTML.
+  if (activeSectionIndex !== null) {
+    applySecEdits();
+  }
   const doc = frame.contentDocument;
   // Remove injected overlay badges and highlights
   doc.querySelectorAll('.__wb_badge').forEach(n => n.remove());
@@ -5528,10 +6903,12 @@ async function saveStaged() {
     const frame = document.getElementById('stagingIframe');
     const url = currentStagingUrl;
     frame.src = '';
-    setTimeout(() => { frame.src = url + '?t=' + Date.now(); }, 100);
+    setTimeout(() => { frame.src = _cacheBustUrl(url); }, 100);
     currentStagingEntryPath = (r && r.staging && r.staging.entry_html) || currentStagingEntryPath;
+    currentStagingHomeEntryPath = currentStagingEntryPath;
     currentStagingArtifactCount = Number(r && r.staging && r.staging.artifact_count) || currentStagingArtifactCount;
     currentStagingArtifacts = Array.isArray(r && r.staging && r.staging.artifacts) ? r.staging.artifacts : currentStagingArtifacts;
+    _renderStagingPagePicker(currentStagingEntryPath);
     _renderStagingSummary((websites || []).find(x => x.website_id === stagedWebsiteId), r && r.staging ? r.staging : null, url);
     // Update status badge
     const w = (websites || []).find(x => x.website_id === stagedWebsiteId);
@@ -5680,6 +7057,7 @@ async function rebuildWebsite() {
     queued:  { msg: '⏳ Build queued — waiting for worker…', pct: 10 },
     running: { msg: '🤖 AI agents rebuilding your website…', pct: 55 },
     built:   { msg: '✅ Rebuild complete!',                   pct: 100 },
+    fallback:{ msg: '✅ Rebuild complete (fallback mode).',   pct: 100 },
     error:   { msg: '❌ Rebuild failed.',                     pct: 100 },
     timeout: { msg: '⚠️ Taking longer than expected. Check My Websites for status.', pct: 100 },
   };
@@ -5695,10 +7073,10 @@ async function rebuildWebsite() {
         const s = stageLabels[status] || stageLabels.queued;
         msgEl.textContent = data.error ? `❌ ${data.error}` : s.msg;
         barEl.style.width = s.pct + '%';
-        if (['built', 'error', 'timeout', 'not_found'].includes(status)) {
+        if (['built', 'fallback', 'error', 'timeout', 'not_found'].includes(status)) {
           es.close();
           spinnerEl.style.display = 'none';
-          if (status === 'built') {
+          if (status === 'built' || status === 'fallback') {
             toast('Rebuild complete! Opening Staging Area…');
             await loadAllSites();
             await loadStagingWebsites();
@@ -5722,7 +7100,7 @@ async function rebuildWebsite() {
 
             spinnerEl.style.display = 'none';
 
-            if (finalState.status === 'built') {
+            if (finalState.status === 'built' || finalState.status === 'fallback') {
               toast('Rebuild complete! Opening Staging Area…');
               await loadAllSites();
               await loadStagingWebsites();

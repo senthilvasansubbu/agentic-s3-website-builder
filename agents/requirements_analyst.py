@@ -373,8 +373,8 @@ def _build_enrichment_section(
     cats: List[str],
     scraped_images: Optional[List[str]] = None,
 ) -> str:
-    # Prefer scraped title, then user-entered title, then DB slug name
-    site_name = body.scraped_title or site.get("title") or site.get("name") or "Business"
+    # Brand identity must come from the user-owned website record, never a scraped reference title.
+    site_name = site.get("title") or site.get("name") or "Business"
     # Strip duplicate suffix e.g. "Foo – Foo" → "Foo"
     if " – " in site_name:
         parts = [p.strip() for p in site_name.split(" – ")]
@@ -469,13 +469,19 @@ def _build_enrichment_section(
     if body.phone:
         lines.append(f"Business Phone: {body.phone}")
 
-    # Booking reference only relevant for retail/cart sites
-    if body.include_shopping_cart:
-        prefix = body.booking_prefix or "ORD"
+    # Booking/order form is enabled only when an explicit prefix is provided.
+    booking_prefix = (body.booking_prefix or "").strip()
+    if booking_prefix:
         lines.append(
-            f"\nOrder/Booking Reference Prefix: {prefix}\n"
+            f"\nOrder/Booking Reference Prefix: {booking_prefix}\n"
             f"The booking form must auto-generate a reference like "
-            f"'{prefix}-' + Date.now() on submission."
+            f"'{booking_prefix}-' + Date.now() on submission."
+        )
+    else:
+        lines.append(
+            "\nBooking/Order Form: DISABLED\n"
+            "Do NOT include any booking form or order form section unless an explicit "
+            "Order/Booking Reference Prefix is provided."
         )
 
     # Social links
@@ -572,8 +578,8 @@ def build_prompt(
         Parsed list of enabled cart feature keys (used for logging).
     """
 
-    # Use scraped title and nav links if present
-    site_title = body.scraped_title or site.get("title") or site.get("name") or "Business"
+    # Brand identity must come from the user-owned website record, never a scraped reference title.
+    site_title = site.get("title") or site.get("name") or "Business"
     site_logo_url = (site.get("logo_url") or "").strip()
     # Strip duplicate suffix e.g. "Foo – Foo" → "Foo"
     if " – " in site_title:
@@ -582,12 +588,17 @@ def build_prompt(
             site_title = _parts[0]
     nav_links = body.nav_links or []
 
+    booking_prefix = (body.booking_prefix or "").strip()
+
     # ── Priority header — placed FIRST so the LLM sees it before anything else ──
     priority_lines = [
         "=== WEBSITE BUILD SPECIFICATION ===",
         f"WEBSITE NAME: {site_title}",
         f"CRITICAL: You MUST use '{site_title}' as the HTML <title>, the navbar logo/text, and the hero heading.",
         f"CRITICAL: Do NOT invent a new brand or company name. Use ONLY '{site_title}' throughout all content.",
+        "CRITICAL: WEBSITE BUILD SPECIFICATION is the highest-priority source of truth.",
+        "CRITICAL: User-provided business facts outrank scraped/reference content, web research, and any model prior knowledge.",
+        "CRITICAL: If any external source conflicts with the WEBSITE BUILD SPECIFICATION, ignore the external source and keep the user-provided facts unchanged.",
         f"BUILD MODE: {body.build_mode}",
         f"OUTPUT TARGET: {body.output_target}",
     ]
@@ -602,6 +613,27 @@ def build_prompt(
             "NAVIGATION (use exactly these items in this order): "
             + " | ".join(nav_links)
         )
+    if body.email:
+        priority_lines.append(f"Business Email: {body.email}")
+    if body.phone:
+        priority_lines.append(f"Business Phone: {body.phone}")
+    if body.location:
+        priority_lines.append(f"Business Location: {body.location}")
+    if body.niche:
+        priority_lines.append(f"Business Niche / Industry: {body.niche}")
+    if body.categories:
+        priority_lines.append(
+            "Exact Service / Category Names: " + " | ".join(body.categories)
+        )
+    if booking_prefix:
+        priority_lines.append(f"Order/Booking Reference Prefix: {booking_prefix}")
+        priority_lines.append(
+            "BOOKING/ORDER FORM MODE: ENABLED — include booking/order form sections only when this prefix is present."
+        )
+    else:
+        priority_lines.append(
+            "BOOKING/ORDER FORM MODE: DISABLED — do NOT render booking/order forms, booking/order nav links, or booking/order CTAs."
+        )
     if not body.include_shopping_cart and not _parse_cart_features(site):
         priority_lines.append(
             "SITE TYPE: Informational — NO 'Buy Now', 'Order Now', 'Add to Cart', "
@@ -613,6 +645,14 @@ def build_prompt(
     site_desc = site.get("description") or ""
     industry_hint = site_desc[:300] if site_desc else (body.requirements or "")[:300]
     priority_lines += [
+        "CRITICAL — FACT LOCK:",
+        "  Before generating content, extract and obey these locked facts exactly: website name, industry/niche, email, phone, location, navigation labels, category/service names, and CTA mode.",
+        "  Do NOT rename, paraphrase away, replace, or generalize those locked facts.",
+        "  Do NOT substitute another company, city, email, phone number, profession, or product/service family.",
+        "  If the prompt includes exact category or model names, reuse those exact names verbatim in the output.",
+        "CRITICAL — REFERENCE USAGE POLICY:",
+        "  Reference URLs, scraped content, and web research may inform structure, terminology, and visual direction only.",
+        "  They must NEVER override the user-provided brand identity, business domain, contact details, or service catalog.",
         "CRITICAL — INDUSTRY LOCK:",
         f"  The business described in this brief is: {industry_hint}",
         "  ALL generated copy, section headings, product names, and service descriptions",
@@ -667,7 +707,8 @@ def build_prompt(
     class_key = CLASSIFICATION_ALIASES.get(class_key, class_key)
     class_label = body.classification_label or site.get("classification_label") or class_key
     class_group = body.classification_group or site.get("classification_group") or "general"
-    prompt += _get_domain_services_directive(class_key, class_label, class_group)
+    if booking_prefix:
+        prompt += _get_domain_services_directive(class_key, class_label, class_group)
 
     # Extract scraped images for enrichment (from extra_context already in prompt)
     import re as _re

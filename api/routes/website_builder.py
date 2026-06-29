@@ -12,18 +12,19 @@ import asyncio
 import re
 import shutil
 import datetime
+import html
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 limiter = Limiter(key_func=get_remote_address)
 
-from api.routes.auth import get_current_user, require_app_user_or_above, require_client_or_above
+from api.routes.auth import get_current_user, has_global_website_access, require_app_user_or_above, require_client_or_above
 from database.snowflake_client import db
 from agents.crew import build_website
 from agents.requirements_analyst import build_prompt, BuildRequest as AnalystRequest
@@ -42,6 +43,7 @@ from config.settings import settings
 
 router = APIRouter(prefix="/websites", tags=["websites"])
 logger = logging.getLogger("website_builder.api")
+logger.setLevel(logging.DEBUG)
 
 FREE_PAGE_LIMIT = 10
 
@@ -143,6 +145,291 @@ def _write_staged_manifest(local_path: str, entry_path: str) -> dict:
     return snapshot
 
 
+_APP_ROOT = Path(__file__).resolve().parents[2]
+_PAGE_TEMPLATE_ROOT = _APP_ROOT / "templates" / "page-templates"
+_TEMPLATE_BASE_TYPES = ["catalogue", "product_list", "gallery", "testimony", "booking_form"]
+_CLASSIFICATION_KEYS = [
+    "b2b", "b2c", "ecommerce_store",
+    "medical_practice", "diagnostics_lab", "medical_equipment", "pharmacy_wellness",
+    "tutor", "school", "training_institute", "research_lab",
+    "law_firm", "engineering_services", "real_estate_agency",
+    "startup_saas", "manufacturer_distributor",
+    "restaurant", "salon_spa", "fitness_wellness",
+    "artist_portfolio", "photographer", "musician_band", "freelancer", "writer_blogger", "student_portfolio",
+    "ngo", "religious_org", "cultural_org", "charity_foundation", "community_club",
+    "generic",
+]
+
+
+def _normalize_entry_path(raw_path: str, default_dir: str = "pages") -> str:
+    path = str(raw_path or "").strip().replace("\\", "/")
+    path = path.lstrip("/")
+    path = re.sub(r"\s+", "-", path)
+    path = re.sub(r"[^a-zA-Z0-9._/-]", "-", path)
+    path = re.sub(r"-+", "-", path)
+    parts = [p for p in path.split("/") if p and p not in (".", "..")]
+    path = "/".join(parts)
+    if not path:
+        path = f"{default_dir}/new-page.html"
+    if not path.lower().endswith((".html", ".htm")):
+        path += ".html"
+    if "/" not in path:
+        path = f"{default_dir}/{path}"
+    return path
+
+
+def _extract_tag_block(source: str, tag: str) -> str:
+    m = re.search(rf"<{tag}\\b[\\s\\S]*?</{tag}>", source or "", flags=re.IGNORECASE)
+    return m.group(0).strip() if m else ""
+
+
+def _extract_head_html(source: str) -> str:
+    m = re.search(r"<head\b[\s\S]*?</head>", source or "", flags=re.IGNORECASE)
+    if m:
+        return m.group(0)
+    return "<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Page</title></head>"
+
+
+def _extract_body_html(source: str) -> str:
+    m = re.search(r"<body\b[^>]*>([\s\S]*?)</body>", source or "", flags=re.IGNORECASE)
+    return (m.group(1) if m else source or "").strip()
+
+
+def _strip_first_tag_block(source: str, tag: str) -> str:
+    return re.sub(rf"<{tag}\\b[\\s\\S]*?</{tag}>", "", source or "", count=1, flags=re.IGNORECASE).strip()
+
+
+def _template_description(base_type: str, variant: str) -> str:
+    base_descriptions = {
+        "catalogue": "Structured catalogue layout for offerings and highlights.",
+        "product_list": "Clean product list section for scannable comparisons.",
+        "gallery": "Photo and video gallery blocks for visual storytelling.",
+        "testimony": "Trust-first customer testimony and proof section.",
+        "booking_form": "Action-oriented booking and enquiry capture form.",
+    }
+    variant_note = "Template A" if variant == "a" else "Template B"
+    return f"{variant_note}: {base_descriptions.get(base_type, 'Flexible page layout.')}"
+
+
+def _build_template_fragment(base_type: str, classification_key: str, variant: str) -> dict:
+    title = classification_key.replace("_", " ").title()
+    block = {
+        "catalogue": f"<section style=\"padding:56px 6%\"><h1>{title} Catalogue</h1><p>Highlight your core offerings with grouped cards.</p><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px\"><article><h3>Item One</h3><p>Short summary and key value.</p></article><article><h3>Item Two</h3><p>Short summary and key value.</p></article><article><h3>Item Three</h3><p>Short summary and key value.</p></article></div></section>",
+        "product_list": f"<section style=\"padding:56px 6%\"><h1>{title} Product List</h1><p>List products/services with fast scan details.</p><ul style=\"display:grid;gap:12px;list-style:none;padding:0\"><li><strong>Product A</strong> - Key feature and benefit.</li><li><strong>Product B</strong> - Key feature and benefit.</li><li><strong>Product C</strong> - Key feature and benefit.</li></ul></section>",
+        "gallery": f"<section style=\"padding:56px 6%\"><h1>{title} Photo / Video Gallery</h1><p>Use image cards and video embeds to show your work.</p><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px\"><figure><img src=\"assets/images/gallery-1.jpg\" alt=\"Gallery image 1\" style=\"width:100%;height:180px;object-fit:cover\"><figcaption>Photo highlight</figcaption></figure><figure><img src=\"assets/images/gallery-2.jpg\" alt=\"Gallery image 2\" style=\"width:100%;height:180px;object-fit:cover\"><figcaption>Photo highlight</figcaption></figure><div style=\"background:#111827;color:#fff;border-radius:10px;padding:14px\"><p style=\"font-weight:700\">Video Placeholder</p><p>Replace with iframe embed URL (YouTube/Vimeo).</p></div></div></section>",
+        "testimony": f"<section style=\"padding:56px 6%\"><h1>{title} Testimonials</h1><p>Build trust with customer outcomes and feedback.</p><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px\"><blockquote>\"Excellent experience and clear outcomes.\"<cite> - Client One</cite></blockquote><blockquote>\"Fast response and professional delivery.\"<cite> - Client Two</cite></blockquote><blockquote>\"Would definitely recommend this team.\"<cite> - Client Three</cite></blockquote></div></section>",
+        "booking_form": f"<section style=\"padding:56px 6%\"><h1>{title} Booking</h1><p>Capture leads with a focused booking form.</p><form style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\"><input type=\"text\" placeholder=\"Full Name\"><input type=\"email\" placeholder=\"Email\"><input type=\"tel\" placeholder=\"Phone\"><input type=\"date\"><textarea placeholder=\"Your request\" style=\"grid-column:1 / -1;min-height:110px\"></textarea><button type=\"button\" style=\"grid-column:1 / -1;padding:10px 14px\">Submit Booking Request</button></form></section>",
+    }.get(base_type, "<section style=\"padding:56px 6%\"><h1>New Page</h1><p>Template content goes here.</p></section>")
+    if variant == "b":
+        block += "<section style=\"padding:0 6% 56px\"><h2>Why Choose Us</h2><p>Add concise value bullets, trust markers, and CTA.</p></section>"
+    return {
+        "html": block,
+        "json": {
+            "classification": classification_key,
+            "base_type": base_type,
+            "variant": variant,
+            "sections": [
+                {"kind": "hero", "title": f"{title} {base_type.replace('_', ' ').title()}"},
+                {"kind": base_type, "title": f"{base_type.replace('_', ' ').title()} Block"},
+                {"kind": "cta", "title": "Primary Action"},
+            ],
+        },
+    }
+
+
+def _ensure_page_template_tables() -> None:
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS page_templates (
+            template_id TEXT PRIMARY KEY,
+            template_key TEXT UNIQUE NOT NULL,
+            template_name TEXT NOT NULL,
+            classification_key TEXT NOT NULL,
+            base_type TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            template_dir TEXT NOT NULL,
+            thumbnail_path TEXT,
+            preview_html_path TEXT,
+            template_json_path TEXT,
+            is_blank INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS classification_template_map (
+            id TEXT PRIMARY KEY,
+            classification_key TEXT NOT NULL,
+            template_id TEXT NOT NULL,
+            is_recommended INTEGER DEFAULT 1,
+            priority INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def _ensure_template_catalog_seeded() -> None:
+    _ensure_page_template_tables()
+    _PAGE_TEMPLATE_ROOT.mkdir(parents=True, exist_ok=True)
+
+    for idx, class_key in enumerate(_CLASSIFICATION_KEYS):
+        for variant, base_offset in (("a", 0), ("b", 2)):
+            base_type = _TEMPLATE_BASE_TYPES[(idx + base_offset) % len(_TEMPLATE_BASE_TYPES)]
+            template_key = f"{class_key}_{variant}_{base_type}"
+            folder = _PAGE_TEMPLATE_ROOT / class_key / template_key
+            folder.mkdir(parents=True, exist_ok=True)
+            meta_path = folder / "meta.json"
+            html_path = folder / "template.html"
+            json_path = folder / "template.json"
+
+            frag = _build_template_fragment(base_type, class_key, variant)
+            template_name = f"{class_key.replace('_', ' ').title()} Template {variant.upper()}"
+            description = _template_description(base_type, variant)
+            meta = {
+                "template_key": template_key,
+                "template_name": template_name,
+                "classification_key": class_key,
+                "base_type": base_type,
+                "description": description,
+                "variant": variant,
+            }
+            if not meta_path.exists():
+                meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+            if not html_path.exists():
+                html_path.write_text(frag["html"], encoding="utf-8")
+            if not json_path.exists():
+                json_path.write_text(json.dumps(frag["json"], indent=2), encoding="utf-8")
+
+            existing = db.fetchone("SELECT template_id FROM page_templates WHERE template_key = %s", (template_key,))
+            if existing and existing.get("template_id"):
+                template_id = existing["template_id"]
+                db.execute(
+                    "UPDATE page_templates SET template_name = %s, classification_key = %s, base_type = %s, description = %s, template_dir = %s, preview_html_path = %s, template_json_path = %s, is_blank = 0, is_active = 1, sort_order = %s, updated_at = CURRENT_TIMESTAMP() WHERE template_id = %s",
+                    (
+                        template_name,
+                        class_key,
+                        base_type,
+                        description,
+                        str(folder.relative_to(_APP_ROOT)).replace("\\", "/"),
+                        str(html_path.relative_to(_APP_ROOT)).replace("\\", "/"),
+                        str(json_path.relative_to(_APP_ROOT)).replace("\\", "/"),
+                        idx,
+                        template_id,
+                    ),
+                )
+            else:
+                template_id = str(uuid.uuid4())
+                db.execute(
+                    "INSERT INTO page_templates (template_id, template_key, template_name, classification_key, base_type, description, template_dir, preview_html_path, template_json_path, is_blank, is_active, sort_order) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0,1,%s)",
+                    (
+                        template_id,
+                        template_key,
+                        template_name,
+                        class_key,
+                        base_type,
+                        description,
+                        str(folder.relative_to(_APP_ROOT)).replace("\\", "/"),
+                        str(html_path.relative_to(_APP_ROOT)).replace("\\", "/"),
+                        str(json_path.relative_to(_APP_ROOT)).replace("\\", "/"),
+                        idx,
+                    ),
+                )
+
+            mapped = db.fetchone(
+                "SELECT id FROM classification_template_map WHERE classification_key = %s AND template_id = %s",
+                (class_key, template_id),
+            )
+            if mapped:
+                db.execute(
+                    "UPDATE classification_template_map SET is_recommended = 1, priority = %s WHERE id = %s",
+                    (1 if variant == "a" else 2, mapped["id"]),
+                )
+            else:
+                db.execute(
+                    "INSERT INTO classification_template_map (id, classification_key, template_id, is_recommended, priority) VALUES (%s,%s,%s,1,%s)",
+                    (str(uuid.uuid4()), class_key, template_id, 1 if variant == "a" else 2),
+                )
+
+
+def _default_blank_template_html() -> str:
+    return (
+        "<main style=\"padding:56px 6%\">"
+        "<section><h1>New Page</h1><p>Edit this starter content in staging.</p></section>"
+        "</main>"
+    )
+
+
+def _read_text_file(path: Path, fallback: str = "") -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return fallback
+
+
+def _ensure_site_partials(local_path: str, home_entry: str, fallback_title: str = "Website") -> None:
+    site_root = Path(local_path)
+    entry_file = site_root / home_entry
+    source_html = _read_text_file(entry_file, "")
+    body_html = _extract_body_html(source_html)
+    title_match = re.search(r"<title>(.*?)</title>", source_html, flags=re.IGNORECASE | re.DOTALL)
+    page_title = (title_match.group(1).strip() if title_match else fallback_title) or fallback_title
+
+    nav_html = _extract_tag_block(body_html, "nav")
+    header_html = _extract_tag_block(body_html, "header")
+    footer_html = _extract_tag_block(body_html, "footer")
+    if header_html:
+        header_html = _strip_first_tag_block(header_html, "nav")
+
+    if not header_html:
+        header_html = f"<header style=\"padding:16px 6%;border-bottom:1px solid #d1d5db\"><div style=\"font-weight:700\">{html.escape(page_title)}</div></header>"
+    if not nav_html:
+        nav_html = "<nav style=\"padding:10px 6%;border-bottom:1px solid #e5e7eb\"><a href=\"index.html\">Home</a></nav>"
+    if not footer_html:
+        footer_html = f"<footer style=\"padding:28px 6%;border-top:1px solid #e5e7eb\"><small>© {html.escape(page_title)}</small></footer>"
+
+    partials_dir = site_root / "partials"
+    partials_dir.mkdir(parents=True, exist_ok=True)
+    (partials_dir / "header.html").write_text(header_html, encoding="utf-8")
+    (partials_dir / "menu.html").write_text(nav_html, encoding="utf-8")
+    (partials_dir / "footer.html").write_text(footer_html, encoding="utf-8")
+    (partials_dir / "include-partials.js").write_text(
+        """
+document.addEventListener('DOMContentLoaded', async function(){
+  const nodes = Array.from(document.querySelectorAll('[data-wb-include]'));
+  for (const node of nodes) {
+    const rel = node.getAttribute('data-wb-include');
+    if (!rel) continue;
+    try {
+      const r = await fetch(rel, { cache: 'no-store' });
+      if (!r.ok) continue;
+      node.innerHTML = await r.text();
+    } catch (_) {}
+  }
+});
+        """.strip(),
+        encoding="utf-8",
+    )
+
+
+def _next_duplicate_path(root: Path, rel_entry_path: str) -> str:
+    rel = Path(rel_entry_path)
+    stem = rel.stem
+    suffix = rel.suffix or ".html"
+    parent = rel.parent
+    n = 1
+    while True:
+        tail = f"{stem}-copy" if n == 1 else f"{stem}-copy-{n}"
+        candidate = (parent / f"{tail}{suffix}").as_posix()
+        if not (root / candidate).exists():
+            return candidate
+        n += 1
+
+
 def _read_index_html(local_path: str) -> str:
     try:
         if not local_path:
@@ -155,6 +442,34 @@ def _read_index_html(local_path: str) -> str:
     except OSError as exc:
         logger.debug("Failed to read index.html from %s: %s", local_path, exc)
         return ""
+
+
+WEBSITE_LIST_COLUMNS = (
+    "website_id, name, title, theme, classification, classification_label, classification_group, "
+    "build_mode, output_target, status, domain, s3_url, cart_features, image_storage_backend, "
+    "image_storage_config, enable_chatbot, enable_blog, enable_livestream, local_path, build_status, "
+    "created_at, updated_at"
+)
+
+
+def _fetch_visible_website(website_id: str, current_user: dict, columns: str = "*") -> Optional[dict]:
+    if has_global_website_access(current_user):
+        return db.fetchone(f"SELECT {columns} FROM websites WHERE website_id = ?", (website_id,))
+
+    user_id = current_user["sub"]
+    role = current_user.get("role", "app_user")
+    if role == "client":
+        u = db.fetchone("SELECT client_website_id FROM users WHERE user_id = ?", (user_id,))
+        if not u or u.get("client_website_id") != website_id:
+            return None
+        return db.fetchone(f"SELECT {columns} FROM websites WHERE website_id = ?", (website_id,))
+
+    owner_row = db.fetchone("SELECT owner_id FROM users WHERE user_id = ?", (user_id,))
+    effective_id = owner_row.get("owner_id") if owner_row and owner_row.get("owner_id") else user_id
+    return db.fetchone(
+        f"SELECT {columns} FROM websites WHERE website_id = %s AND user_id = %s",
+        (website_id, effective_id),
+    )
 
 
 def _generate_build_narrative(
@@ -398,6 +713,19 @@ class ScrapeUrlRequest(BaseModel):
 class StagedHtmlRequest(BaseModel):
     html: str
     entry_path: Optional[str] = None
+
+
+class StagedHomeRequest(BaseModel):
+    entry_path: str
+
+
+class CreatePageFromTemplateRequest(BaseModel):
+    entry_path: str
+    template_key: str
+    conflict_mode: str = "overwrite"  # overwrite | duplicate
+    retain_header: bool = True
+    retain_menu: bool = True
+    retain_footer: bool = True
 
 
 ALLOWED_BUILD_MODES = {"combined", "agentic_only"}
@@ -711,10 +1039,7 @@ async def build_website_pages(
                 trace_id, website_id, user_id,
                 body.categories, body.use_web_search, body.use_social_search)
 
-    site = db.fetchone(
-        "SELECT * FROM websites WHERE website_id = %s AND user_id = %s",
-        (website_id, user_id),
-    )
+    site = _fetch_visible_website(website_id, current_user)
     if not site:
         logger.warning("[%s] 404 website_id=%s not found for user=%s", trace_id, website_id, user_id)
         raise HTTPException(status_code=404, detail="Website not found")
@@ -1108,15 +1433,14 @@ async def get_build_status(
       • queued   — job accepted, worker not yet started
       • running  — agent pipeline actively executing
       • built    — completed successfully
+            • fallback — completed with static fallback output
       • error    — build failed; see build_error for detail
     """
     user_id = current_user["sub"]
-    site = db.fetchone(
-        """SELECT website_id, name, status, build_status, build_job_id,
-                  build_started_at, build_error
-           FROM websites
-           WHERE website_id = %s AND user_id = %s""",
-        (website_id, user_id),
+    site = _fetch_visible_website(
+        website_id,
+        current_user,
+        "website_id, name, status, build_status, build_job_id, build_started_at, build_error",
     )
     if not site:
         raise HTTPException(status_code=404, detail="Website not found")
@@ -1128,8 +1452,8 @@ async def get_build_status(
         "build_status":    build_status,
         "job_id":          site.get("build_job_id"),
         "started_at":      str(site.get("build_started_at") or ""),
-        "complete":        build_status in ("built", "error"),
-        "success":         build_status == "built",
+        "complete":        build_status in ("built", "fallback", "error"),
+        "success":         build_status in ("built", "fallback"),
     }
     if build_status == "error":
         response["error"] = site.get("build_error")
@@ -1144,11 +1468,10 @@ async def get_build_narrative(
 ):
     """Return a concrete post-build narrative explaining what happened and why."""
     user_id = current_user["sub"]
-    site = db.fetchone(
-        """SELECT website_id, name, build_status, local_path, input_snapshot_json, source_context_json
-           FROM websites
-           WHERE website_id = %s AND user_id = %s""",
-        (website_id, user_id),
+    site = _fetch_visible_website(
+        website_id,
+        current_user,
+        "website_id, name, build_status, local_path, input_snapshot_json, source_context_json",
     )
     if not site:
         raise HTTPException(status_code=404, detail="Website not found")
@@ -1189,7 +1512,7 @@ async def build_status_stream(
     Server-Sent Events stream for real-time build progress.
 
     Auth: pass JWT as ?token=<bearer> (EventSource can't set headers).
-        Emits JSON events every 2 seconds until build_status is 'built' or 'error'.
+        Emits JSON events every 2 seconds until build_status is terminal.
         Connection guardrails:
             - Max stream duration: 5 minutes
             - Cleanup on client disconnect via generator finalizer
@@ -1203,6 +1526,7 @@ async def build_status_stream(
         return StreamingResponse(_auth_error(), media_type="text/event-stream")
 
     user_id = payload.get("sub")
+    can_view_all = has_global_website_access(payload)
 
     async def _event_generator():
         poll_interval_sec = 2
@@ -1215,11 +1539,18 @@ async def build_status_stream(
                     logger.info("SSE build-stream client disconnected: website_id=%s user_id=%s", website_id, user_id)
                     return
 
-                site = db.fetchone(
-                    """SELECT build_status, build_error FROM websites
-                       WHERE website_id = %s AND user_id = %s""",
-                    (website_id, user_id),
-                )
+                if can_view_all:
+                    site = db.fetchone(
+                        """SELECT build_status, build_error FROM websites
+                           WHERE website_id = %s""",
+                        (website_id,),
+                    )
+                else:
+                    site = db.fetchone(
+                        """SELECT build_status, build_error FROM websites
+                           WHERE website_id = %s AND user_id = %s""",
+                        (website_id, user_id),
+                    )
                 if not site:
                     yield f"data: {json.dumps({'build_status': 'not_found'})}\n\n"
                     return
@@ -1228,7 +1559,7 @@ async def build_status_stream(
                 payload_data = json.dumps({"build_status": status, "error": site.get("build_error")})
                 yield f"data: {payload_data}\n\n"
 
-                if status in ("built", "error"):
+                if status in ("built", "fallback", "error"):
                     return
 
                 await asyncio.sleep(poll_interval_sec)
@@ -1255,10 +1586,7 @@ async def get_staged_html(
 ):
     """Return the raw HTML of the staged entry page plus artifact metadata."""
     user_id = current_user["sub"]
-    site = db.fetchone(
-        "SELECT local_path FROM websites WHERE website_id = %s AND user_id = %s",
-        (website_id, user_id),
-    )
+    site = _fetch_visible_website(website_id, current_user, "local_path")
     if not site:
         raise HTTPException(status_code=404, detail="Website not found")
     local_path = site.get("local_path") or ""
@@ -1285,10 +1613,7 @@ async def put_staged_html(
 ):
     """Overwrite the staged entry page and refresh the artifact manifest."""
     user_id = current_user["sub"]
-    site = db.fetchone(
-        "SELECT local_path FROM websites WHERE website_id = %s AND user_id = %s",
-        (website_id, user_id),
-    )
+    site = _fetch_visible_website(website_id, current_user, "local_path")
     if not site:
         raise HTTPException(status_code=404, detail="Website not found")
     local_path = site.get("local_path") or ""
@@ -1308,16 +1633,192 @@ async def put_staged_html(
     return {"saved": True, "path": index_file, "staging": manifest}
 
 
+@router.post("/{website_id}/staged-home")
+async def set_staged_home_entry(
+    website_id: str,
+    body: StagedHomeRequest,
+    current_user: dict = Depends(require_app_user_or_above),
+):
+    """Set the staging home/entry HTML page without changing file contents."""
+    site = _fetch_visible_website(website_id, current_user, "local_path")
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+    local_path = site.get("local_path") or ""
+    if not local_path:
+        raise HTTPException(status_code=404, detail="Website has not been built yet")
+
+    entry_path = (body.entry_path or "").strip().lstrip("/\\")
+    if not entry_path:
+        raise HTTPException(status_code=400, detail="entry_path is required")
+    if not entry_path.lower().endswith((".html", ".htm")):
+        raise HTTPException(status_code=400, detail="entry_path must be an HTML file")
+    if any(part in ("..", "") for part in Path(entry_path).parts):
+        raise HTTPException(status_code=400, detail="Invalid entry_path")
+
+    root = Path(local_path).resolve()
+    target = Path(_staged_entry_file(local_path, entry_path)).resolve()
+    if root not in [target, *target.parents]:
+        raise HTTPException(status_code=400, detail="Invalid entry_path")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="Selected page file does not exist")
+
+    rel_entry = target.relative_to(root).as_posix()
+    manifest = _write_staged_manifest(local_path, rel_entry)
+    db.execute(
+        "UPDATE websites SET build_status = 'staged', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+        (website_id,),
+    )
+    return {"saved": True, "staging": manifest}
+
+
+@router.get("/{website_id}/page-templates")
+async def get_page_templates(
+    website_id: str,
+    current_user: dict = Depends(require_app_user_or_above),
+):
+    """Return classification-scoped recommended templates and global template library."""
+    site = _fetch_visible_website(website_id, current_user, "website_id, classification")
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+
+    _ensure_template_catalog_seeded()
+    class_key = (site.get("classification") or "generic").strip()
+
+    recommended = db.fetchall(
+        """
+        SELECT pt.template_key, pt.template_name, pt.classification_key, pt.base_type,
+               pt.description, pt.template_dir, pt.preview_html_path, pt.thumbnail_path,
+               ctm.priority
+        FROM page_templates pt
+        JOIN classification_template_map ctm ON ctm.template_id = pt.template_id
+        WHERE ctm.classification_key = %s AND pt.is_active = 1
+        ORDER BY ctm.priority ASC, pt.template_name ASC
+        """,
+        (class_key,),
+    )
+    all_templates = db.fetchall(
+        """
+        SELECT template_key, template_name, classification_key, base_type,
+               description, template_dir, preview_html_path, thumbnail_path, sort_order
+        FROM page_templates
+        WHERE is_active = 1
+        ORDER BY classification_key ASC, sort_order ASC, template_name ASC
+        """
+    )
+
+    blank = {
+        "template_key": "blank",
+        "template_name": "Blank Starter Page",
+        "classification_key": class_key,
+        "base_type": "blank",
+        "description": "Start with a simple hero/title block and build freely.",
+        "template_dir": "",
+        "preview_html_path": "",
+        "thumbnail_path": "",
+    }
+    return {
+        "classification": class_key,
+        "recommended": recommended,
+        "all_templates": all_templates,
+        "blank_template": blank,
+    }
+
+
+@router.post("/{website_id}/pages/create")
+async def create_page_from_template(
+    website_id: str,
+    body: CreatePageFromTemplateRequest,
+    current_user: dict = Depends(require_app_user_or_above),
+):
+    """Create a new staged page from template disk files and optional shared shell includes."""
+    site = _fetch_visible_website(website_id, current_user, "website_id, name, local_path")
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found")
+    local_path = site.get("local_path") or ""
+    if not local_path:
+        raise HTTPException(status_code=404, detail="Website has not been built yet")
+
+    _ensure_template_catalog_seeded()
+
+    root = Path(local_path).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    conflict_mode = (body.conflict_mode or "overwrite").strip().lower()
+    if conflict_mode not in {"overwrite", "duplicate"}:
+        conflict_mode = "overwrite"
+
+    rel_entry = _normalize_entry_path(body.entry_path)
+    if conflict_mode == "duplicate" and (root / rel_entry).exists():
+        rel_entry = _next_duplicate_path(root, rel_entry)
+    target = (root / rel_entry).resolve()
+    if root not in [target, *target.parents]:
+        raise HTTPException(status_code=400, detail="Invalid page path")
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    template_key = (body.template_key or "blank").strip()
+    frag_html = _default_blank_template_html()
+    if template_key and template_key != "blank":
+        rec = db.fetchone(
+            "SELECT preview_html_path FROM page_templates WHERE template_key = %s AND is_active = 1",
+            (template_key,),
+        )
+        if not rec:
+            raise HTTPException(status_code=404, detail="Template not found")
+        preview_path = str(rec.get("preview_html_path") or "").strip()
+        preview_file = (_APP_ROOT / preview_path).resolve() if preview_path else None
+        if not preview_file or not preview_file.is_file():
+            raise HTTPException(status_code=404, detail="Template preview file missing")
+        frag_html = _read_text_file(preview_file, _default_blank_template_html())
+
+    manifest = _read_staged_manifest(local_path)
+    home_entry = (manifest.get("entry_html") or STAGING_CONTRACT.entry_html).strip().lstrip("/\\") or STAGING_CONTRACT.entry_html
+    home_html = _read_text_file((root / home_entry), "")
+    head_html = _extract_head_html(home_html)
+
+    retain_header = bool(body.retain_header)
+    retain_menu = bool(body.retain_menu)
+    retain_footer = bool(body.retain_footer)
+    if retain_menu:
+        retain_header = True
+
+    shell_chunks = []
+    if retain_header or retain_menu or retain_footer:
+        _ensure_site_partials(local_path, home_entry, fallback_title=(site.get("name") or "Website"))
+        if retain_header:
+            shell_chunks.append('<div data-wb-include="partials/header.html"></div>')
+        if retain_menu:
+            shell_chunks.append('<div data-wb-include="partials/menu.html"></div>')
+
+    shell_chunks.append(frag_html)
+
+    if retain_footer:
+        shell_chunks.append('<div data-wb-include="partials/footer.html"></div>')
+
+    body_html = "\n".join(shell_chunks)
+    include_loader = "<script src=\"partials/include-partials.js\"></script>" if (retain_header or retain_menu or retain_footer) else ""
+    final_html = f"<!doctype html><html>{head_html}<body>{body_html}{include_loader}</body></html>"
+
+    target.write_text(final_html, encoding="utf-8")
+
+    refreshed = _write_staged_manifest(local_path, home_entry)
+    db.execute(
+        "UPDATE websites SET build_status = 'staged', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
+        (website_id,),
+    )
+    return {
+        "saved": True,
+        "entry_path": rel_entry,
+        "path": str(target),
+        "staging": refreshed,
+    }
+
+
 @router.post("/{website_id}/deploy")
 async def deploy_website(website_id: str, request: Request,
                          current_user: dict = Depends(require_app_user_or_above)):
     import datetime
     user_id = current_user["sub"]
     print(f"[deploy] {datetime.datetime.now().isoformat()} user={user_id} website_id={website_id} from={request.client.host}")
-    site = db.fetchone(
-        "SELECT * FROM websites WHERE website_id = %s AND user_id = %s",
-        (website_id, user_id),
-    )
+    site = _fetch_visible_website(website_id, current_user)
     if not site:
         raise HTTPException(status_code=404, detail="Website not found")
 
@@ -1507,10 +2008,7 @@ async def delete_website(website_id: str, current_user: dict = Depends(require_a
 
 @router.get("/{website_id}/domain-instructions")
 async def domain_instructions(website_id: str, current_user: dict = Depends(get_current_user)):
-    site = db.fetchone(
-        "SELECT domain, s3_bucket FROM websites WHERE website_id = %s AND user_id = %s",
-        (website_id, current_user["sub"]),
-    )
+    site = _fetch_visible_website(website_id, current_user, "domain, s3_bucket")
     if not site or not site["domain"]:
         raise HTTPException(status_code=400, detail="No custom domain set for this website")
     return {
@@ -1556,15 +2054,20 @@ async def list_my_websites(
     owner_id = u.get("owner_id") if u else None
     effective_id = owner_id if owner_id else user_id
 
-    total_row = db.fetchone("SELECT COUNT(*) AS cnt FROM websites WHERE user_id = ?", (effective_id,))
-    total = total_row["cnt"] if total_row else 0
-
-    items = db.fetchall(
-        "SELECT website_id, name, title, theme, classification, classification_label, classification_group, build_mode, output_target, "
-        "status, domain, s3_url, cart_features, image_storage_backend, image_storage_config, enable_chatbot, enable_blog, enable_livestream, local_path, build_status, created_at, updated_at "
-        "FROM websites WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        (effective_id, limit, offset),
-    ) or []
+    if has_global_website_access(current_user):
+        total_row = db.fetchone("SELECT COUNT(*) AS cnt FROM websites")
+        total = total_row["cnt"] if total_row else 0
+        items = db.fetchall(
+            f"SELECT {WEBSITE_LIST_COLUMNS} FROM websites ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ) or []
+    else:
+        total_row = db.fetchone("SELECT COUNT(*) AS cnt FROM websites WHERE user_id = ?", (effective_id,))
+        total = total_row["cnt"] if total_row else 0
+        items = db.fetchall(
+            f"SELECT {WEBSITE_LIST_COLUMNS} FROM websites WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (effective_id, limit, offset),
+        ) or []
     return {"items": items, "total": total, "page": page, "pages": max(1, -(-total // limit))}
 
 
@@ -1577,17 +2080,23 @@ async def list_websites(
     user_id = current_user["sub"]
     offset  = (page - 1) * limit
 
-    total_row = db.fetchone(
-        "SELECT COUNT(*) AS cnt FROM websites WHERE user_id = %s",
-        (user_id,),
-    )
-    total = total_row["cnt"] if total_row else 0
-
-    items = db.fetchall(
-        "SELECT website_id, name, title, theme, classification, classification_label, classification_group, build_mode, output_target, status, domain, s3_url, image_storage_backend, image_storage_config, local_path, build_status, created_at"
-        " FROM websites WHERE user_id = %s ORDER BY created_at DESC LIMIT %s OFFSET %s",
-        (user_id, limit, offset),
-    ) or []
+    if has_global_website_access(current_user):
+        total_row = db.fetchone("SELECT COUNT(*) AS cnt FROM websites")
+        total = total_row["cnt"] if total_row else 0
+        items = db.fetchall(
+            f"SELECT {WEBSITE_LIST_COLUMNS} FROM websites ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            (limit, offset),
+        ) or []
+    else:
+        total_row = db.fetchone(
+            "SELECT COUNT(*) AS cnt FROM websites WHERE user_id = %s",
+            (user_id,),
+        )
+        total = total_row["cnt"] if total_row else 0
+        items = db.fetchall(
+            f"SELECT {WEBSITE_LIST_COLUMNS} FROM websites WHERE user_id = %s ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            (user_id, limit, offset),
+        ) or []
     return {
         "items": items,
         "total": total,

@@ -165,6 +165,69 @@ async def docs_index():
     return HTMLResponse(html)
 
 
+@app.get("/output-browser", response_class=HTMLResponse, include_in_schema=False)
+async def output_browser(request: Request):
+    """Browser-accessible listing of files under the output/ directory."""
+    if not _output_dir.exists():
+        _output_dir.mkdir(parents=True, exist_ok=True)
+
+    requested_rel = request.query_params.get("path", "").strip()
+    current_dir = _output_dir
+    if requested_rel:
+        candidate = (_output_dir / requested_rel).resolve()
+        try:
+            candidate.relative_to(_output_dir.resolve())
+            if candidate.is_dir():
+                current_dir = candidate
+        except ValueError:
+            current_dir = _output_dir
+
+    breadcrumb_parts = []
+    current = current_dir
+    while current != _output_dir.resolve() and current != current.parent:
+        breadcrumb_parts.append(current.name)
+        current = current.parent
+    breadcrumb_parts.reverse()
+
+    breadcrumb_links = []
+    cursor = _output_dir.resolve()
+    for part in breadcrumb_parts:
+        cursor = cursor / part
+        breadcrumb_links.append(
+            f'<a href="/output-browser?path={cursor.relative_to(_output_dir.resolve()).as_posix()}">{part}</a>'
+        )
+
+    entries = []
+    for entry in sorted(current_dir.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())) if current_dir.exists() else []:
+        rel_path = entry.relative_to(_output_dir.resolve()).as_posix()
+        href = f"/output/{rel_path}" if entry.is_file() else f"/output-browser?path={rel_path}"
+        kind = "📁" if entry.is_dir() else "📄"
+        entries.append(f'<tr><td>{kind}</td><td><a href="{href}">{entry.name}</a></td></tr>')
+
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Output Browser — Website Builder</title>
+    <style>
+      body{{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 20px 40px;background:#f9fafb;color:#111827}}
+      h1{{font-size:1.4rem;color:#4f46e5;margin-bottom:8px}}
+      .meta{{color:#6b7280;margin-bottom:16px}}
+      .crumbs{{margin-bottom:16px}}
+      table{{width:100%;border-collapse:collapse;background:white;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}}
+      th,td{{padding:12px 14px;border-bottom:1px solid #e5e7eb;text-align:left}}
+      th{{background:#f3f4f6;font-size:.85rem;text-transform:uppercase;letter-spacing:.04em}}
+      a{{color:#4f46e5;text-decoration:none;font-weight:600}}
+      a:hover{{text-decoration:underline}}
+    </style></head><body>
+    <h1>📁 Output Browser</h1>
+    <div class="meta">Browsing {current_dir.relative_to(_output_dir.resolve()).as_posix() if current_dir != _output_dir.resolve() else 'output/'}</div>
+    <div class="crumbs"><a href="/output-browser">output/</a>{' / '.join(breadcrumb_links)}</div>
+    <table>
+      <thead><tr><th>Type</th><th>Name</th></tr></thead>
+      <tbody>{''.join(entries)}</tbody>
+    </table>
+    </body></html>"""
+    return HTMLResponse(html)
+
+
 @app.get("/health", include_in_schema=False)
 async def health_check():
     """Returns DB reachability, disk usage, and service configuration status."""

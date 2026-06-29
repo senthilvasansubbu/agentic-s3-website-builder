@@ -756,6 +756,16 @@
           <option value="">— Choose a website —</option>
         </select>
       </div>
+      <div style="min-width:220px;max-width:320px;flex:1">
+        <label style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">Page</label>
+        <div style="display:flex;gap:6px">
+          <select id="stagingPageSelect" onchange="onStagingPageChange()" style="width:100%" disabled>
+            <option value="">— Select page —</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="stagingAddPageBtn" onclick="openCreatePageModal()" disabled title="Create a new editable HTML page">＋ Page</button>
+          <button class="btn btn-secondary btn-sm" id="stagingSetHomeBtn" onclick="setStagingHomePage()" disabled title="Set selected page as default home page">🏠 Set Home</button>
+        </div>
+      </div>
       <div id="stagingStatusBadge" style="padding-bottom:4px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:2px">
         <button class="btn btn-secondary btn-sm" onclick="toggleStagingOverlay()" id="stagingEditBtn" disabled title="Toggle numbered section markers">🔢 Section Numbers</button>
@@ -923,6 +933,62 @@
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-secondary btn-sm" onclick="closeAddSectionModal()">Cancel</button>
         <button class="btn btn-primary btn-sm" onclick="insertNewSection()">＋ Insert Section</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Create Page Modal ── -->
+  <div id="createPageModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.65);align-items:center;justify-content:center">
+    <div style="width:min(980px,94vw);max-height:min(90vh,900px);overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 16px 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+        <div>
+          <h3 style="margin:0;font-size:1.02rem">Create New Page</h3>
+          <p style="margin:4px 0 0;color:var(--muted);font-size:.8rem">Choose a template and create a page under pages/.</p>
+        </div>
+        <button onclick="closeCreatePageModal()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">New Page Path</label>
+          <input id="createPagePath" type="text" placeholder="pages/about.html" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Classification (fixed)</label>
+          <input id="createPageClassification" type="text" disabled style="width:100%;opacity:.9">
+        </div>
+        <div>
+          <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">If page already exists</label>
+          <select id="createPageConflictMode" style="width:100%">
+            <option value="overwrite">Overwrite</option>
+            <option value="duplicate">Create duplicate</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:rgba(99,102,241,.05)">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text)"><input type="checkbox" id="createPageRetainHeader" checked> Retain header/logo</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text)"><input type="checkbox" id="createPageRetainMenu" checked> Retain top menu</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text)"><input type="checkbox" id="createPageRetainFooter" checked> Retain footer</label>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="border:1px solid var(--border);border-radius:10px;padding:10px;min-height:280px">
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Recommended Templates</div>
+          <div id="createPageRecommendedTemplates" style="display:grid;grid-template-columns:1fr;gap:8px"></div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:10px;padding:10px;min-height:280px">
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">All Templates + Blank</div>
+          <div id="createPageAllTemplates" style="display:grid;grid-template-columns:1fr;gap:8px;max-height:360px;overflow:auto"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px">
+        <div id="createPageTemplateHint" style="font-size:.76rem;color:var(--muted)">Select a template to continue.</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="closeCreatePageModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" id="createPageSubmitBtn" onclick="submitCreatePage()" disabled>Create Page</button>
+        </div>
       </div>
     </div>
   </div>

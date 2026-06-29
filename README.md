@@ -79,6 +79,7 @@ uvicorn app:app --reload --port 8000
 - App root: http://localhost:8000
 - Login page: http://localhost:8000/login
 - Dashboard: http://localhost:8000/dashboard
+- Output browser: http://localhost:8000/output-browser
 - Health endpoint: http://localhost:8000/health
 - OpenAPI docs: http://localhost:8000/docs
 

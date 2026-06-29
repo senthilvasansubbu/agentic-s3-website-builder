@@ -311,6 +311,39 @@ TABLES = [
         PRIMARY KEY (plan, feature)
     )
     """,
+
+    # ── Page Templates (filesystem-backed metadata) ─────────────────────────
+    """
+    CREATE TABLE IF NOT EXISTS page_templates (
+        template_id        VARCHAR(36) PRIMARY KEY DEFAULT UUID_STRING(),
+        template_key       VARCHAR(200) NOT NULL UNIQUE,
+        template_name      VARCHAR(200) NOT NULL,
+        classification_key VARCHAR(120) NOT NULL,
+        base_type          VARCHAR(60)  NOT NULL,
+        description        VARCHAR(300) DEFAULT '',
+        template_dir       VARCHAR(500) NOT NULL,
+        thumbnail_path     VARCHAR(500),
+        preview_html_path  VARCHAR(500),
+        template_json_path VARCHAR(500),
+        is_blank           BOOLEAN DEFAULT FALSE,
+        is_active          BOOLEAN DEFAULT TRUE,
+        sort_order         INTEGER DEFAULT 0,
+        created_at         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+        updated_at         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
+
+    # ── Classification → template mapping (recommendation ordering) ─────────
+    """
+    CREATE TABLE IF NOT EXISTS classification_template_map (
+        id                 VARCHAR(36) PRIMARY KEY DEFAULT UUID_STRING(),
+        classification_key VARCHAR(120) NOT NULL,
+        template_id        VARCHAR(36) NOT NULL,
+        is_recommended     BOOLEAN DEFAULT TRUE,
+        priority           INTEGER DEFAULT 0,
+        created_at         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    """,
 ]
 
 

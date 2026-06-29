@@ -115,3 +115,38 @@ def test_build_status_unknown_website_returns_404(client, verified_user):
         headers=AUTH_HEADER(verified_user["token"]),
     )
     assert r.status_code == 404
+
+
+def test_allowlisted_email_can_access_other_users_websites(client, _in_memory_db):
+    from services.auth_service import hash_password, create_access_token
+
+    owner_id = str(uuid.uuid4())
+    owner_email = f"owner_{owner_id[:8]}@example.com"
+    _in_memory_db.execute(
+        "INSERT INTO users (user_id, email, password_hash, role, is_verified, is_active) VALUES (?, ?, ?, 'app_user', 1, 1)",
+        (owner_id, owner_email, hash_password("Pass!999")),
+    )
+
+    allowed_id = str(uuid.uuid4())
+    allowed_email = "sayeesaran.s@gmail.com"
+    _in_memory_db.execute(
+        "INSERT INTO users (user_id, email, password_hash, role, is_verified, is_active) VALUES (?, ?, ?, 'app_user', 1, 1)",
+        (allowed_id, allowed_email, hash_password("Pass!999")),
+    )
+    token = create_access_token(allowed_id, allowed_email, role="app_user")
+
+    website_id = str(uuid.uuid4())
+    _in_memory_db.execute(
+        "INSERT INTO websites (website_id, user_id, name, title, build_status) VALUES (?, ?, ?, ?, 'built')",
+        (website_id, owner_id, "Owner Site", "Owner Title"),
+    )
+
+    r = client.get(
+        f"/api/v1/websites/{website_id}/build-status",
+        headers=AUTH_HEADER(token),
+    )
+    assert r.status_code == 200
+
+    listing = client.get("/api/v1/websites/my", headers=AUTH_HEADER(token))
+    assert listing.status_code == 200
+    assert any(item["website_id"] == website_id for item in listing.json().get("items", []))

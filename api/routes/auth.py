@@ -36,6 +36,9 @@ limiter = Limiter(key_func=get_remote_address)
 # Valid roles — ordered from most-privileged to least
 ROLE_HIERARCHY = ["superuser", "app_user", "client", "customer"]
 
+# Persistent website access exceptions for browser/testing workflows.
+GLOBAL_WEBSITE_ACCESS_EMAILS = {"sayeesaran.s@gmail.com"}
+
 
 # ── Dependencies ───────────────────────────────────────────────────────────────
 
@@ -52,6 +55,11 @@ def get_current_user(request: Request) -> dict:
     if "role" not in payload:
         payload["role"] = "app_user"
     return payload
+
+
+def has_global_website_access(current_user: dict) -> bool:
+    email = str(current_user.get("email") or "").strip().lower()
+    return current_user.get("role") == "superuser" or email in GLOBAL_WEBSITE_ACCESS_EMAILS
 
 
 def require_roles(*allowed_roles: str):

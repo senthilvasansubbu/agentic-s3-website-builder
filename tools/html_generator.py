@@ -1,5 +1,6 @@
 import os
 import re
+from pathlib import Path
 
 from services.staging_artifacts import STAGING_CONTRACT
 from datetime import datetime
@@ -8,6 +9,7 @@ from datetime import datetime
 def _slugify(name: str) -> str:
     """Convert a project name to a safe folder name, e.g. 'My Shop!' → 'my-shop'."""
     slug = name.lower().strip()
+    slug = slug.replace('.', '-')
     slug = re.sub(r"[^\w\s-]", "", slug)
     slug = re.sub(r"[\s_]+", "-", slug)
     slug = re.sub(r"-+", "-", slug).strip("-")
@@ -17,24 +19,37 @@ def _slugify(name: str) -> str:
 def _website_dir(project_name: str, output_target: str = "legacy") -> str:
     """Return the output subfolder path for a given project, creating it if needed.
 
-    Structure:
+    Structure for legacy target:
         output/
           staging/
-                        <website-slug>/
-                                <output-target>/
-                                        index.html          ← main page
-                                        pages/              ← additional pages
-                                        assets/
-                                            css/
-                                            js/
-                                            images/
-                                            audio/
-                                            video/
+            <website-slug>/
+              index.html          ← main page
+              pages/              ← additional pages
+              assets/
+                css/
+                js/
+                images/
+                audio/
+                video/
+
+    Structure for non-legacy targets:
+        output/staging/<website-slug>/<output-target>/...
     """
     base = os.getenv("OUTPUT_DIR", "output")
     slug = _slugify(project_name)
     target = _slugify(output_target or "legacy")
-    site_dir = os.path.join(base, "staging", slug, target)
+    if target == "legacy":
+        site_dir = os.path.join(base, "staging", slug)
+    else:
+        site_dir = os.path.join(base, "staging", slug, target)
+
+    if os.path.isdir(site_dir) and any(Path(site_dir).iterdir()):
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        slug = f"{slug}_{timestamp}"
+        if target == "legacy":
+            site_dir = os.path.join(base, "staging", slug)
+        else:
+            site_dir = os.path.join(base, "staging", slug, target)
     for sub in (STAGING_CONTRACT.pages_dir, *STAGING_CONTRACT.asset_dirs().values()):
         os.makedirs(os.path.join(site_dir, sub), exist_ok=True)
     return site_dir
@@ -44,8 +59,10 @@ def generate_html(design_spec: dict, code: str, project_name: str,
                   page_name: str = "index", output_target: str = "legacy") -> str:
     """Write an HTML page into the website's subfolder.
 
-    - page_name='index'  → saved as  output/staging/<slug>/<target>/index.html
-    - page_name='about'  → saved as  output/staging/<slug>/<target>/pages/about.html
+        - page_name='index'  → saved as  output/staging/<slug>/index.html (legacy)
+            or output/staging/<slug>/<target>/index.html (non-legacy)
+        - page_name='about'  → saved as  output/staging/<slug>/pages/about.html (legacy)
+            or output/staging/<slug>/<target>/pages/about.html (non-legacy)
     """
 
     site_dir = _website_dir(project_name, output_target=output_target)
