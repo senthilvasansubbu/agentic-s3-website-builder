@@ -1,0 +1,18 @@
+2026-06-29 12:43:13  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 12:43:13  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 12:43:13  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
+2026-06-29 12:43:13  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
+2026-06-29 12:43:13  INFO      apscheduler.scheduler  Scheduler started
+✅ Scheduler started — monitoring every 5min | reminders daily
+[analytics] log_event failed silently: no such table: activity_log
+2026-06-29 12:43:13  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites "HTTP/1.1 200 OK"
+2026-06-29 12:43:13  INFO      website_builder.api  [c8f04838] ▶ BUILD REQUEST  website_id=acfb134f-a2dc-4c23-bdc4-2b22a13d654c  user=7701bc04-47fc-472f-a03e-593e9886d386  cart=None  web_search=False  social_search=False
+2026-06-29 12:43:13  INFO      website_builder.api  [c8f04838] 🔍 website found: name='wave-build-site'  theme=modern  cart_features=[]  chatbot=0
+2026-06-29 12:43:13  DEBUG     website_builder.requirements_analyst  build_prompt complete — 4925 chars, 0 cart_features, cats=[], nav_links=[]
+2026-06-29 12:43:13  INFO      website_builder.api  [c8f04838] 🏗  Prompt ready (4925 chars, 0 cart features, chatbot=False) — queuing build
+2026-06-29 12:43:13  INFO      website_builder.api  [c8f04838] 🏷️  Classification context for CrewAI: key=generic label='generic' group='general'
+2026-06-29 12:43:13  INFO      website_builder.api  [acfb134f-a2dc-4c23-bdc4-2b22a13d654c] 📝 build narrative logged
+[analytics] log_event failed silently: no such table: activity_log
+2026-06-29 12:43:13  INFO      website_builder.api  [c8f04838] 🎉 BUILD COMPLETE  website_id=acfb134f-a2dc-4c23-bdc4-2b22a13d654c  total=0.0s
+2026-06-29 12:43:13  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites/acfb134f-a2dc-4c23-bdc4-2b22a13d654c/build "HTTP/1.1 200 OK"
+2026-06-29 12:43:13  INFO      httpx  HTTP Request: GET http://testserver/api/v1/websites/acfb134f-a2dc-4c23-bdc4-2b22a13d654c/build-status "HTTP/1.1 200 OK"
