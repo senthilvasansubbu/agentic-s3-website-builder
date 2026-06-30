@@ -1,0 +1,8 @@
+2026-06-30 08:46:40  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-30 08:46:40  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-30 08:46:40  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
+2026-06-30 08:46:40  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
+2026-06-30 08:46:40  INFO      apscheduler.scheduler  Scheduler started
+✅ Scheduler started — monitoring every 5min | reminders daily
+2026-06-30 08:46:40  INFO      httpx  HTTP Request: PATCH http://testserver/api/v1/commerce/coupons/92898ddb-5241-4b0c-8b67-af62ca9d9c6e "HTTP/1.1 200 OK"
+2026-06-30 08:46:40  INFO      apscheduler.scheduler  Scheduler has been shut down
