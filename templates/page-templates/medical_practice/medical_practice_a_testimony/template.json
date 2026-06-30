@@ -1,0 +1,19 @@
+{
+  "classification": "medical_practice",
+  "base_type": "testimony",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Medical Practice Testimony"
+    },
+    {
+      "kind": "testimony",
+      "title": "Testimony Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "classification": "training_institute",
+  "base_type": "product_list",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Training Institute Product List"
+    },
+    {
+      "kind": "product_list",
+      "title": "Product List Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

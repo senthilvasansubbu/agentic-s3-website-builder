@@ -1,0 +1,8 @@
+{
+  "template_key": "manufacturer_distributor_a_catalogue",
+  "template_name": "Manufacturer Distributor Template A",
+  "classification_key": "manufacturer_distributor",
+  "base_type": "catalogue",
+  "description": "Template A: Structured catalogue layout for offerings and highlights.",
+  "variant": "a"
+}

@@ -1,0 +1,8 @@
+{
+  "template_key": "community_club_b_product_list",
+  "template_name": "Community Club Template B",
+  "classification_key": "community_club",
+  "base_type": "product_list",
+  "description": "Template B: Clean product list section for scannable comparisons.",
+  "variant": "b"
+}

@@ -1,0 +1,8 @@
+{
+  "template_key": "freelancer_b_booking_form",
+  "template_name": "Freelancer Template B",
+  "classification_key": "freelancer",
+  "base_type": "booking_form",
+  "description": "Template B: Action-oriented booking and enquiry capture form.",
+  "variant": "b"
+}

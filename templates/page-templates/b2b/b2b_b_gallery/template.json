@@ -1,0 +1,19 @@
+{
+  "classification": "b2b",
+  "base_type": "gallery",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "B2B Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

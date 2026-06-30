@@ -1,0 +1,8 @@
+{
+  "template_key": "medical_practice_b_catalogue",
+  "template_name": "Medical Practice Template B",
+  "classification_key": "medical_practice",
+  "base_type": "catalogue",
+  "description": "Template B: Structured catalogue layout for offerings and highlights.",
+  "variant": "b"
+}

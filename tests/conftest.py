@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 # ── Point the app at an in-memory SQLite DB before anything imports ──────────
-os.environ.setdefault("JWT_SECRET", "test-secret-key-for-pytest-only")
+os.environ.setdefault("JWT_SECRET", "test-secret-key-for-pytest-only-32bytes")
 os.environ.setdefault("STRIPE_SECRET_KEY", "")
 os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "")
 os.environ.setdefault("OPENAI_API_KEY", "")

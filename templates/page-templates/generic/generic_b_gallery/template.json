@@ -1,0 +1,19 @@
+{
+  "classification": "generic",
+  "base_type": "gallery",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Generic Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

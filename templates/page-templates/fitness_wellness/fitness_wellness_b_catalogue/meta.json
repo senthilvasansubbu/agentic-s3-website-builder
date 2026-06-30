@@ -1,0 +1,8 @@
+{
+  "template_key": "fitness_wellness_b_catalogue",
+  "template_name": "Fitness Wellness Template B",
+  "classification_key": "fitness_wellness",
+  "base_type": "catalogue",
+  "description": "Template B: Structured catalogue layout for offerings and highlights.",
+  "variant": "b"
+}

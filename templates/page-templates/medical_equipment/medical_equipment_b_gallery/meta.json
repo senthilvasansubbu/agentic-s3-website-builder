@@ -1,0 +1,8 @@
+{
+  "template_key": "medical_equipment_b_gallery",
+  "template_name": "Medical Equipment Template B",
+  "classification_key": "medical_equipment",
+  "base_type": "gallery",
+  "description": "Template B: Photo and video gallery blocks for visual storytelling.",
+  "variant": "b"
+}

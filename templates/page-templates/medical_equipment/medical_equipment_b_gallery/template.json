@@ -1,0 +1,19 @@
+{
+  "classification": "medical_equipment",
+  "base_type": "gallery",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Medical Equipment Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

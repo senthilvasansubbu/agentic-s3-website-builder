@@ -1,0 +1,8 @@
+{
+  "template_key": "charity_foundation_a_testimony",
+  "template_name": "Charity Foundation Template A",
+  "classification_key": "charity_foundation",
+  "base_type": "testimony",
+  "description": "Template A: Trust-first customer testimony and proof section.",
+  "variant": "a"
+}

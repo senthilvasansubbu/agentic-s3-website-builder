@@ -1,0 +1,8 @@
+{
+  "template_key": "research_lab_a_catalogue",
+  "template_name": "Research Lab Template A",
+  "classification_key": "research_lab",
+  "base_type": "catalogue",
+  "description": "Template A: Structured catalogue layout for offerings and highlights.",
+  "variant": "a"
+}

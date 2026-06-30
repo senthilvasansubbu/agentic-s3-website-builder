@@ -1,0 +1,8 @@
+{
+  "template_key": "startup_saas_b_product_list",
+  "template_name": "Startup Saas Template B",
+  "classification_key": "startup_saas",
+  "base_type": "product_list",
+  "description": "Template B: Clean product list section for scannable comparisons.",
+  "variant": "b"
+}

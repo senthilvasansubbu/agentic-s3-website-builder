@@ -1,0 +1,8 @@
+{
+  "template_key": "pharmacy_wellness_a_product_list",
+  "template_name": "Pharmacy Wellness Template A",
+  "classification_key": "pharmacy_wellness",
+  "base_type": "product_list",
+  "description": "Template A: Clean product list section for scannable comparisons.",
+  "variant": "a"
+}

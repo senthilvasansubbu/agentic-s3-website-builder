@@ -1,0 +1,8 @@
+{
+  "template_key": "law_firm_b_testimony",
+  "template_name": "Law Firm Template B",
+  "classification_key": "law_firm",
+  "base_type": "testimony",
+  "description": "Template B: Trust-first customer testimony and proof section.",
+  "variant": "b"
+}

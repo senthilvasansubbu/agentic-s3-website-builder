@@ -1,0 +1,19 @@
+{
+  "classification": "research_lab",
+  "base_type": "gallery",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Research Lab Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

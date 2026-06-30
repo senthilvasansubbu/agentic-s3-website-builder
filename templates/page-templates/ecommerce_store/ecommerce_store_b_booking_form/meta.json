@@ -1,0 +1,8 @@
+{
+  "template_key": "ecommerce_store_b_booking_form",
+  "template_name": "Ecommerce Store Template B",
+  "classification_key": "ecommerce_store",
+  "base_type": "booking_form",
+  "description": "Template B: Action-oriented booking and enquiry capture form.",
+  "variant": "b"
+}

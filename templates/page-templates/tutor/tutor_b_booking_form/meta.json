@@ -1,0 +1,8 @@
+{
+  "template_key": "tutor_b_booking_form",
+  "template_name": "Tutor Template B",
+  "classification_key": "tutor",
+  "base_type": "booking_form",
+  "description": "Template B: Action-oriented booking and enquiry capture form.",
+  "variant": "b"
+}

@@ -1,0 +1,8 @@
+{
+  "template_key": "charity_foundation_b_catalogue",
+  "template_name": "Charity Foundation Template B",
+  "classification_key": "charity_foundation",
+  "base_type": "catalogue",
+  "description": "Template B: Structured catalogue layout for offerings and highlights.",
+  "variant": "b"
+}

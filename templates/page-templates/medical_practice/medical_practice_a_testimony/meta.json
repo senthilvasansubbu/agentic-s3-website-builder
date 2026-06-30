@@ -1,0 +1,8 @@
+{
+  "template_key": "medical_practice_a_testimony",
+  "template_name": "Medical Practice Template A",
+  "classification_key": "medical_practice",
+  "base_type": "testimony",
+  "description": "Template A: Trust-first customer testimony and proof section.",
+  "variant": "a"
+}

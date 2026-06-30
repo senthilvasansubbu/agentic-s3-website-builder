@@ -346,11 +346,21 @@ def _start_scheduler():
     print(f"✅ Scheduler started — monitoring every {check_interval}min | reminders daily")
     return scheduler
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
     _validate_startup_configuration()
     run_migrations()
-    _start_scheduler()
+    scheduler = _start_scheduler()
+    try:
+        yield
+    finally:
+        try:
+            scheduler.shutdown(wait=False)
+        except Exception:
+            pass
+
+
+app.router.lifespan_context = _lifespan
 
 # ── Global exception handler ───────────────────────────────────────────────────
 @app.exception_handler(Exception)

@@ -1,0 +1,8 @@
+{
+  "template_key": "restaurant_a_product_list",
+  "template_name": "Restaurant Template A",
+  "classification_key": "restaurant",
+  "base_type": "product_list",
+  "description": "Template A: Clean product list section for scannable comparisons.",
+  "variant": "a"
+}

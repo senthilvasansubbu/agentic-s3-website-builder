@@ -13,6 +13,7 @@ import re
 import shutil
 import datetime
 import html
+import hashlib
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Query
@@ -132,17 +133,34 @@ def _staged_artifacts_snapshot(local_path: str, entry_path: str) -> dict:
     }
 
 
+def _manifest_etag(data: dict) -> str:
+    payload = dict(data or {})
+    payload.pop("manifest_etag", None)
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def _write_staged_manifest(local_path: str, entry_path: str) -> dict:
     snapshot = _staged_artifacts_snapshot(local_path, entry_path)
     snapshot.update({
-        "saved_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "saved_at": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
         "staging_root": local_path,
     })
+    snapshot["manifest_etag"] = _manifest_etag(snapshot)
     manifest_file = _staged_manifest_file(local_path)
     os.makedirs(os.path.dirname(manifest_file), exist_ok=True)
     with open(manifest_file, "w", encoding="utf-8") as f:
         json.dump(snapshot, f, indent=2, sort_keys=True)
     return snapshot
+
+
+def _current_manifest_etag(local_path: str) -> str:
+    manifest = _read_staged_manifest(local_path)
+    if manifest:
+        return _manifest_etag(manifest)
+    entry = STAGING_CONTRACT.entry_html
+    snapshot = _staged_artifacts_snapshot(local_path, entry)
+    return _manifest_etag(snapshot)
 
 
 _APP_ROOT = Path(__file__).resolve().parents[2]
@@ -444,6 +462,10 @@ def _read_index_html(local_path: str) -> str:
         return ""
 
 
+def _html_sha256(content: str) -> str:
+    return hashlib.sha256((content or "").encode("utf-8")).hexdigest()
+
+
 WEBSITE_LIST_COLUMNS = (
     "website_id, name, title, theme, classification, classification_label, classification_group, "
     "build_mode, output_target, status, domain, s3_url, cart_features, image_storage_backend, "
@@ -605,7 +627,7 @@ def _generate_build_narrative(
 
     return {
         "website_id": website_id,
-        "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
         "summary": summary,
         "inputs_used": {
             "requirements": req,
@@ -632,7 +654,7 @@ def _log_build_narrative(website_id: str, narrative: dict) -> None:
     try:
         os.makedirs("logs", exist_ok=True)
         payload = {
-            "ts": datetime.datetime.utcnow().isoformat() + "Z",
+            "ts": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
             "website_id": website_id,
             "narrative": narrative,
         }
@@ -713,10 +735,12 @@ class ScrapeUrlRequest(BaseModel):
 class StagedHtmlRequest(BaseModel):
     html: str
     entry_path: Optional[str] = None
+    expected_hash: Optional[str] = None
 
 
 class StagedHomeRequest(BaseModel):
     entry_path: str
+    expected_manifest_etag: Optional[str] = None
 
 
 class CreatePageFromTemplateRequest(BaseModel):
@@ -726,6 +750,7 @@ class CreatePageFromTemplateRequest(BaseModel):
     retain_header: bool = True
     retain_menu: bool = True
     retain_footer: bool = True
+    expected_manifest_etag: Optional[str] = None
 
 
 ALLOWED_BUILD_MODES = {"combined", "agentic_only"}
@@ -1598,11 +1623,13 @@ async def get_staged_html(
         raise HTTPException(status_code=404, detail=f"{STAGING_CONTRACT.entry_html} not found in staging area")
     with open(index_file, "r", encoding="utf-8") as f:
         html = f.read()
+    html_hash = _html_sha256(html)
     rel_entry = Path(index_file).relative_to(Path(local_path)).as_posix()
     snapshot = _staged_artifacts_snapshot(local_path, rel_entry)
     if manifest:
         snapshot.update({"manifest": manifest})
-    return {"html": html, "path": index_file, "staging": snapshot}
+    snapshot["manifest_etag"] = _current_manifest_etag(local_path)
+    return {"html": html, "html_hash": html_hash, "path": index_file, "staging": snapshot}
 
 
 @router.put("/{website_id}/staged-html")
@@ -1622,15 +1649,29 @@ async def put_staged_html(
     os.makedirs(local_path, exist_ok=True)
     entry_path = (body.entry_path or STAGING_CONTRACT.entry_html).strip().lstrip("/\\") or STAGING_CONTRACT.entry_html
     index_file = _staged_entry_file(local_path, entry_path)
+    expected_hash = (body.expected_hash or "").strip().lower()
+    if expected_hash:
+        current_html = ""
+        if os.path.isfile(index_file):
+            with open(index_file, "r", encoding="utf-8") as f:
+                current_html = f.read()
+        current_hash = _html_sha256(current_html)
+        if expected_hash != current_hash:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Staging page changed since last load. Refresh and retry. current_hash={current_hash}",
+            )
+
     os.makedirs(os.path.dirname(index_file), exist_ok=True)
     with open(index_file, "w", encoding="utf-8") as f:
         f.write(body.html)
+    html_hash = _html_sha256(body.html)
     manifest = _write_staged_manifest(local_path, entry_path)
     db.execute(
         "UPDATE websites SET build_status = 'staged', updated_at = CURRENT_TIMESTAMP() WHERE website_id = %s",
         (website_id,),
     )
-    return {"saved": True, "path": index_file, "staging": manifest}
+    return {"saved": True, "path": index_file, "html_hash": html_hash, "staging": manifest}
 
 
 @router.post("/{website_id}/staged-home")
@@ -1646,6 +1687,15 @@ async def set_staged_home_entry(
     local_path = site.get("local_path") or ""
     if not local_path:
         raise HTTPException(status_code=404, detail="Website has not been built yet")
+
+    expected_manifest_etag = (body.expected_manifest_etag or "").strip().lower()
+    if expected_manifest_etag:
+        current_manifest_etag = _current_manifest_etag(local_path)
+        if expected_manifest_etag != current_manifest_etag:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Staging manifest changed since last load. Refresh and retry. current_manifest_etag={current_manifest_etag}",
+            )
 
     entry_path = (body.entry_path or "").strip().lstrip("/\\")
     if not entry_path:
@@ -1738,6 +1788,15 @@ async def create_page_from_template(
     if not local_path:
         raise HTTPException(status_code=404, detail="Website has not been built yet")
 
+    expected_manifest_etag = (body.expected_manifest_etag or "").strip().lower()
+    if expected_manifest_etag:
+        current_manifest_etag = _current_manifest_etag(local_path)
+        if expected_manifest_etag != current_manifest_etag:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Staging manifest changed since last load. Refresh and retry. current_manifest_etag={current_manifest_etag}",
+            )
+
     _ensure_template_catalog_seeded()
 
     root = Path(local_path).resolve()
@@ -1780,21 +1839,30 @@ async def create_page_from_template(
     if retain_menu:
         retain_header = True
 
+    partials_dir = root / "partials"
+    include_base = Path(os.path.relpath(partials_dir, target.parent)).as_posix()
+    if include_base == ".":
+        include_base = "partials"
+    include_header = f"{include_base}/header.html"
+    include_menu = f"{include_base}/menu.html"
+    include_footer = f"{include_base}/footer.html"
+    include_loader_src = f"{include_base}/include-partials.js"
+
     shell_chunks = []
     if retain_header or retain_menu or retain_footer:
         _ensure_site_partials(local_path, home_entry, fallback_title=(site.get("name") or "Website"))
         if retain_header:
-            shell_chunks.append('<div data-wb-include="partials/header.html"></div>')
+            shell_chunks.append(f'<div data-wb-include="{include_header}"></div>')
         if retain_menu:
-            shell_chunks.append('<div data-wb-include="partials/menu.html"></div>')
+            shell_chunks.append(f'<div data-wb-include="{include_menu}"></div>')
 
     shell_chunks.append(frag_html)
 
     if retain_footer:
-        shell_chunks.append('<div data-wb-include="partials/footer.html"></div>')
+        shell_chunks.append(f'<div data-wb-include="{include_footer}"></div>')
 
     body_html = "\n".join(shell_chunks)
-    include_loader = "<script src=\"partials/include-partials.js\"></script>" if (retain_header or retain_menu or retain_footer) else ""
+    include_loader = f"<script src=\"{include_loader_src}\"></script>" if (retain_header or retain_menu or retain_footer) else ""
     final_html = f"<!doctype html><html>{head_html}<body>{body_html}{include_loader}</body></html>"
 
     target.write_text(final_html, encoding="utf-8")

@@ -1,0 +1,19 @@
+{
+  "classification": "diagnostics_lab",
+  "base_type": "booking_form",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Diagnostics Lab Booking Form"
+    },
+    {
+      "kind": "booking_form",
+      "title": "Booking Form Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

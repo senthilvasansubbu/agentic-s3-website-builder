@@ -1,0 +1,8 @@
+{
+  "template_key": "b2b_a_catalogue",
+  "template_name": "B2B Template A",
+  "classification_key": "b2b",
+  "base_type": "catalogue",
+  "description": "Template A: Structured catalogue layout for offerings and highlights.",
+  "variant": "a"
+}

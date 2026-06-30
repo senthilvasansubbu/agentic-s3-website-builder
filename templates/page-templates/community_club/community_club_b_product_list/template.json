@@ -1,0 +1,19 @@
+{
+  "classification": "community_club",
+  "base_type": "product_list",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Community Club Product List"
+    },
+    {
+      "kind": "product_list",
+      "title": "Product List Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

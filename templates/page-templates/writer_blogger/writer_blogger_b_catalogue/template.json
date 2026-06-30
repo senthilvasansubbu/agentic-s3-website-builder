@@ -1,0 +1,19 @@
+{
+  "classification": "writer_blogger",
+  "base_type": "catalogue",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Writer Blogger Catalogue"
+    },
+    {
+      "kind": "catalogue",
+      "title": "Catalogue Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "template_key": "photographer_b_gallery",
+  "template_name": "Photographer Template B",
+  "classification_key": "photographer",
+  "base_type": "gallery",
+  "description": "Template B: Photo and video gallery blocks for visual storytelling.",
+  "variant": "b"
+}

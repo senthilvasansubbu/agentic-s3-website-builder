@@ -1,0 +1,8 @@
+{
+  "template_key": "community_club_a_booking_form",
+  "template_name": "Community Club Template A",
+  "classification_key": "community_club",
+  "base_type": "booking_form",
+  "description": "Template A: Action-oriented booking and enquiry capture form.",
+  "variant": "a"
+}

@@ -1,0 +1,19 @@
+{
+  "classification": "startup_saas",
+  "base_type": "product_list",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Startup Saas Product List"
+    },
+    {
+      "kind": "product_list",
+      "title": "Product List Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

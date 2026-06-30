@@ -1,0 +1,8 @@
+{
+  "template_key": "ngo_b_gallery",
+  "template_name": "Ngo Template B",
+  "classification_key": "ngo",
+  "base_type": "gallery",
+  "description": "Template B: Photo and video gallery blocks for visual storytelling.",
+  "variant": "b"
+}

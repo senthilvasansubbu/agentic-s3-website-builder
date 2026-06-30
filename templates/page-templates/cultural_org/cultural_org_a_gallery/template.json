@@ -1,0 +1,19 @@
+{
+  "classification": "cultural_org",
+  "base_type": "gallery",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Cultural Org Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

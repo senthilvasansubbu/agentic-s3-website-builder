@@ -1,0 +1,19 @@
+{
+  "classification": "school",
+  "base_type": "testimony",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "School Testimony"
+    },
+    {
+      "kind": "testimony",
+      "title": "Testimony Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

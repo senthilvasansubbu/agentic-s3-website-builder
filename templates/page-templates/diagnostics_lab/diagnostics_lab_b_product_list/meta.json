@@ -1,0 +1,8 @@
+{
+  "template_key": "diagnostics_lab_b_product_list",
+  "template_name": "Diagnostics Lab Template B",
+  "classification_key": "diagnostics_lab",
+  "base_type": "product_list",
+  "description": "Template B: Clean product list section for scannable comparisons.",
+  "variant": "b"
+}

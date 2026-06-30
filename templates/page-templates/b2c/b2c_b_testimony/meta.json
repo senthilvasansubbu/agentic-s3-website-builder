@@ -1,0 +1,8 @@
+{
+  "template_key": "b2c_b_testimony",
+  "template_name": "B2C Template B",
+  "classification_key": "b2c",
+  "base_type": "testimony",
+  "description": "Template B: Trust-first customer testimony and proof section.",
+  "variant": "b"
+}

@@ -1,0 +1,19 @@
+{
+  "classification": "salon_spa",
+  "base_type": "booking_form",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Salon Spa Booking Form"
+    },
+    {
+      "kind": "booking_form",
+      "title": "Booking Form Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

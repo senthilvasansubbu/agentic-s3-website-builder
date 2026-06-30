@@ -1,0 +1,8 @@
+{
+  "template_key": "engineering_services_a_gallery",
+  "template_name": "Engineering Services Template A",
+  "classification_key": "engineering_services",
+  "base_type": "gallery",
+  "description": "Template A: Photo and video gallery blocks for visual storytelling.",
+  "variant": "a"
+}

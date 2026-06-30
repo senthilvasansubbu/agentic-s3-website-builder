@@ -1,0 +1,8 @@
+{
+  "template_key": "training_institute_b_product_list",
+  "template_name": "Training Institute Template B",
+  "classification_key": "training_institute",
+  "base_type": "product_list",
+  "description": "Template B: Clean product list section for scannable comparisons.",
+  "variant": "b"
+}

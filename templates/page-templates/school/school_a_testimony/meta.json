@@ -1,0 +1,8 @@
+{
+  "template_key": "school_a_testimony",
+  "template_name": "School Template A",
+  "classification_key": "school",
+  "base_type": "testimony",
+  "description": "Template A: Trust-first customer testimony and proof section.",
+  "variant": "a"
+}

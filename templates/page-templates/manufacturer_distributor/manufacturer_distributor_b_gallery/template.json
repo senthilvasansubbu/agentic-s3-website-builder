@@ -1,0 +1,19 @@
+{
+  "classification": "manufacturer_distributor",
+  "base_type": "gallery",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Manufacturer Distributor Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

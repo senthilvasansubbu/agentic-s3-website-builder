@@ -1,0 +1,19 @@
+{
+  "classification": "community_club",
+  "base_type": "booking_form",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Community Club Booking Form"
+    },
+    {
+      "kind": "booking_form",
+      "title": "Booking Form Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "template_key": "salon_spa_a_gallery",
+  "template_name": "Salon Spa Template A",
+  "classification_key": "salon_spa",
+  "base_type": "gallery",
+  "description": "Template A: Photo and video gallery blocks for visual storytelling.",
+  "variant": "a"
+}

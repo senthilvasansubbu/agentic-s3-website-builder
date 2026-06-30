@@ -1,0 +1,8 @@
+{
+  "template_key": "school_b_catalogue",
+  "template_name": "School Template B",
+  "classification_key": "school",
+  "base_type": "catalogue",
+  "description": "Template B: Structured catalogue layout for offerings and highlights.",
+  "variant": "b"
+}

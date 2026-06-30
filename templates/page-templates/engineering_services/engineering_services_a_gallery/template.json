@@ -1,0 +1,19 @@
+{
+  "classification": "engineering_services",
+  "base_type": "gallery",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Engineering Services Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

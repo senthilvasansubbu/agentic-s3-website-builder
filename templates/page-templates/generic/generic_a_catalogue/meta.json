@@ -1,0 +1,8 @@
+{
+  "template_key": "generic_a_catalogue",
+  "template_name": "Generic Template A",
+  "classification_key": "generic",
+  "base_type": "catalogue",
+  "description": "Template A: Structured catalogue layout for offerings and highlights.",
+  "variant": "a"
+}

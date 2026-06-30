@@ -1,0 +1,8 @@
+{
+  "template_key": "b2c_a_product_list",
+  "template_name": "B2C Template A",
+  "classification_key": "b2c",
+  "base_type": "product_list",
+  "description": "Template A: Clean product list section for scannable comparisons.",
+  "variant": "a"
+}

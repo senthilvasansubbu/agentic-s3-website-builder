@@ -1,0 +1,8 @@
+{
+  "template_key": "writer_blogger_b_catalogue",
+  "template_name": "Writer Blogger Template B",
+  "classification_key": "writer_blogger",
+  "base_type": "catalogue",
+  "description": "Template B: Structured catalogue layout for offerings and highlights.",
+  "variant": "b"
+}

@@ -1,0 +1,8 @@
+{
+  "template_key": "musician_band_b_testimony",
+  "template_name": "Musician Band Template B",
+  "classification_key": "musician_band",
+  "base_type": "testimony",
+  "description": "Template B: Trust-first customer testimony and proof section.",
+  "variant": "b"
+}

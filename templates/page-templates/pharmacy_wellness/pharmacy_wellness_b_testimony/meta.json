@@ -1,0 +1,8 @@
+{
+  "template_key": "pharmacy_wellness_b_testimony",
+  "template_name": "Pharmacy Wellness Template B",
+  "classification_key": "pharmacy_wellness",
+  "base_type": "testimony",
+  "description": "Template B: Trust-first customer testimony and proof section.",
+  "variant": "b"
+}

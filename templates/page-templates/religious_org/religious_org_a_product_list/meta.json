@@ -1,0 +1,8 @@
+{
+  "template_key": "religious_org_a_product_list",
+  "template_name": "Religious Org Template A",
+  "classification_key": "religious_org",
+  "base_type": "product_list",
+  "description": "Template A: Clean product list section for scannable comparisons.",
+  "variant": "a"
+}

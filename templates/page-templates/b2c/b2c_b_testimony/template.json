@@ -1,0 +1,19 @@
+{
+  "classification": "b2c",
+  "base_type": "testimony",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "B2C Testimony"
+    },
+    {
+      "kind": "testimony",
+      "title": "Testimony Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

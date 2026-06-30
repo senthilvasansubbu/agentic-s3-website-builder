@@ -1,0 +1,19 @@
+{
+  "classification": "ecommerce_store",
+  "base_type": "gallery",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Ecommerce Store Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

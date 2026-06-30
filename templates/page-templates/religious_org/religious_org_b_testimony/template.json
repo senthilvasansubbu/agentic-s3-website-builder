@@ -1,0 +1,19 @@
+{
+  "classification": "religious_org",
+  "base_type": "testimony",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Religious Org Testimony"
+    },
+    {
+      "kind": "testimony",
+      "title": "Testimony Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

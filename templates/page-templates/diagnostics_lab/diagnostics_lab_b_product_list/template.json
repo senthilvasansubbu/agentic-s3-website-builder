@@ -1,0 +1,19 @@
+{
+  "classification": "diagnostics_lab",
+  "base_type": "product_list",
+  "variant": "b",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Diagnostics Lab Product List"
+    },
+    {
+      "kind": "product_list",
+      "title": "Product List Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

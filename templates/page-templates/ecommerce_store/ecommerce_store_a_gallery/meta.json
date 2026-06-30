@@ -1,0 +1,8 @@
+{
+  "template_key": "ecommerce_store_a_gallery",
+  "template_name": "Ecommerce Store Template A",
+  "classification_key": "ecommerce_store",
+  "base_type": "gallery",
+  "description": "Template A: Photo and video gallery blocks for visual storytelling.",
+  "variant": "a"
+}

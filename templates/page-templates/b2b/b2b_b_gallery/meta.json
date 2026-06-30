@@ -1,0 +1,8 @@
+{
+  "template_key": "b2b_b_gallery",
+  "template_name": "B2B Template B",
+  "classification_key": "b2b",
+  "base_type": "gallery",
+  "description": "Template B: Photo and video gallery blocks for visual storytelling.",
+  "variant": "b"
+}

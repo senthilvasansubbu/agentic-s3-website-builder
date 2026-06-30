@@ -1,0 +1,8 @@
+{
+  "template_key": "real_estate_agency_b_catalogue",
+  "template_name": "Real Estate Agency Template B",
+  "classification_key": "real_estate_agency",
+  "base_type": "catalogue",
+  "description": "Template B: Structured catalogue layout for offerings and highlights.",
+  "variant": "b"
+}

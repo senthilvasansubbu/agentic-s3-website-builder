@@ -1,0 +1,8 @@
+{
+  "template_key": "generic_b_gallery",
+  "template_name": "Generic Template B",
+  "classification_key": "generic",
+  "base_type": "gallery",
+  "description": "Template B: Photo and video gallery blocks for visual storytelling.",
+  "variant": "b"
+}

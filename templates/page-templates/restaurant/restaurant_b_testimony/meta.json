@@ -1,0 +1,8 @@
+{
+  "template_key": "restaurant_b_testimony",
+  "template_name": "Restaurant Template B",
+  "classification_key": "restaurant",
+  "base_type": "testimony",
+  "description": "Template B: Trust-first customer testimony and proof section.",
+  "variant": "b"
+}

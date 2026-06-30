@@ -1,0 +1,19 @@
+{
+  "classification": "generic",
+  "base_type": "catalogue",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Generic Catalogue"
+    },
+    {
+      "kind": "catalogue",
+      "title": "Catalogue Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

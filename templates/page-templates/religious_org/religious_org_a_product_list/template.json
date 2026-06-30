@@ -1,0 +1,19 @@
+{
+  "classification": "religious_org",
+  "base_type": "product_list",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Religious Org Product List"
+    },
+    {
+      "kind": "product_list",
+      "title": "Product List Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

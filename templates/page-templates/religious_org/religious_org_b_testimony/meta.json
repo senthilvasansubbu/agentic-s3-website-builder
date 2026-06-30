@@ -1,0 +1,8 @@
+{
+  "template_key": "religious_org_b_testimony",
+  "template_name": "Religious Org Template B",
+  "classification_key": "religious_org",
+  "base_type": "testimony",
+  "description": "Template B: Trust-first customer testimony and proof section.",
+  "variant": "b"
+}

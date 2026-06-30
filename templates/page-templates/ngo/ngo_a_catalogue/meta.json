@@ -1,0 +1,8 @@
+{
+  "template_key": "ngo_a_catalogue",
+  "template_name": "Ngo Template A",
+  "classification_key": "ngo",
+  "base_type": "catalogue",
+  "description": "Template A: Structured catalogue layout for offerings and highlights.",
+  "variant": "a"
+}

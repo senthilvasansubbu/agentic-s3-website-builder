@@ -1,0 +1,19 @@
+{
+  "classification": "tutor",
+  "base_type": "gallery",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Tutor Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

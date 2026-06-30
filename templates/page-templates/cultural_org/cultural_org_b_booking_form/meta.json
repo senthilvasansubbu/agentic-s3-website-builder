@@ -1,0 +1,8 @@
+{
+  "template_key": "cultural_org_b_booking_form",
+  "template_name": "Cultural Org Template B",
+  "classification_key": "cultural_org",
+  "base_type": "booking_form",
+  "description": "Template B: Action-oriented booking and enquiry capture form.",
+  "variant": "b"
+}

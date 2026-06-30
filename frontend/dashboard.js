@@ -3210,6 +3210,8 @@ let stagedWebsiteId = null;
 let currentStagingUrl = null;
 let currentStagingEntryPath = 'index.html';
 let currentStagingHomeEntryPath = 'index.html';
+let currentStagingHtmlHash = '';
+let currentStagingManifestEtag = '';
 let currentStagingArtifactCount = 0;
 let currentStagingArtifacts = [];
 
@@ -3229,11 +3231,35 @@ function _normalizeStagingPagePath(rawPath) {
   return p;
 }
 
+function _pageDisplayNameFromPath(pagePath) {
+  const p = String(pagePath || '').trim().replace(/^\/+/, '');
+  if (!p) return 'Page';
+  if (p.toLowerCase() === 'index.html') return 'Home';
+  const tail = p.split('/').pop() || p;
+  const stem = tail.replace(/\.html?$/i, '');
+  const pretty = stem.replace(/[-_]+/g, ' ').trim();
+  if (!pretty) return 'Page';
+  return pretty.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function _entryPathFromPageName(rawName) {
+  let name = String(rawName || '').trim();
+  name = name.replace(/\.html?$/i, '');
+  name = name.replace(/[\\/]+/g, ' ');
+  name = name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-');
+  name = name.replace(/^-+|-+$/g, '');
+  if (!name) name = 'new-page';
+  return `pages/${name}.html`;
+}
+
 function _stagingHtmlPages(artifacts, fallbackEntry = 'index.html') {
   const pages = new Set();
   (artifacts || []).forEach(a => {
     const p = String(a || '').trim().replace(/^\/+/, '');
-    if (/\.html?$/i.test(p)) pages.add(p);
+    if (!/\.html?$/i.test(p)) return;
+    // Partials are shared include fragments, not top-level editable pages.
+    if (/^partials\//i.test(p) || /\/partials\//i.test(p)) return;
+    pages.add(p);
   });
   const fallback = String(fallbackEntry || '').trim().replace(/^\/+/, '');
   if (fallback && /\.html?$/i.test(fallback)) pages.add(fallback);
@@ -3250,7 +3276,7 @@ function _renderStagingPagePicker(selectedPath) {
   const pages = _stagingHtmlPages(currentStagingArtifacts, currentStagingEntryPath);
   const selected = String(selectedPath || currentStagingEntryPath || pages[0] || 'index.html').trim();
   const home = String(currentStagingHomeEntryPath || '').trim();
-  sel.innerHTML = pages.map(p => `<option value="${_esc(p)}">${_esc(p)}${p === home ? ' (home)' : ''}</option>`).join('');
+  sel.innerHTML = pages.map(p => `<option value="${_esc(p)}">${_esc(_pageDisplayNameFromPath(p))}${p === home ? ' (home)' : ''}</option>`).join('');
   if (selected) sel.value = selected;
   if (!sel.value && pages.length) sel.value = pages[0];
 
@@ -3330,13 +3356,13 @@ async function openCreatePageModal() {
   }
   createPageTemplateCatalog = catalog;
   createPageSelectedTemplateKey = '';
-  const pathEl = document.getElementById('createPagePath');
+  const nameEl = document.getElementById('createPageName');
   const classEl = document.getElementById('createPageClassification');
   const conflictEl = document.getElementById('createPageConflictMode');
   const keepHeader = document.getElementById('createPageRetainHeader');
   const keepMenu = document.getElementById('createPageRetainMenu');
   const keepFooter = document.getElementById('createPageRetainFooter');
-  if (pathEl) pathEl.value = 'pages/new-page.html';
+  if (nameEl) nameEl.value = 'New Page';
   if (classEl) classEl.value = String(catalog.classification || 'generic').replace(/_/g, ' ');
   if (conflictEl) conflictEl.value = 'overwrite';
   if (keepHeader) keepHeader.checked = true;
@@ -3356,10 +3382,10 @@ function closeCreatePageModal() {
 
 async function submitCreatePage() {
   if (!stagedWebsiteId) return;
-  const pathRaw = document.getElementById('createPagePath')?.value || '';
-  const entryPath = _normalizeStagingPagePath(pathRaw);
+  const pageNameRaw = document.getElementById('createPageName')?.value || '';
+  const entryPath = _entryPathFromPageName(pageNameRaw);
   if (!entryPath) {
-    toast('Enter a valid page path', false);
+    toast('Enter a valid page name', false);
     return;
   }
   if (!createPageSelectedTemplateKey) {
@@ -3386,6 +3412,7 @@ async function submitCreatePage() {
       retain_header: retainHeader,
       retain_menu: retainMenu,
       retain_footer: retainFooter,
+      expected_manifest_etag: currentStagingManifestEtag || undefined,
     }),
   });
 
@@ -3395,12 +3422,19 @@ async function submitCreatePage() {
   }
 
   if (r && r.saved) {
-    toast(`Page created: ${r.entry_path || entryPath}`);
+    const createdPath = r.entry_path || entryPath;
+    toast(`Page created: ${_pageDisplayNameFromPath(createdPath)}`);
+    currentStagingManifestEtag = String(r?.staging?.manifest_etag || '').trim();
     currentStagingArtifacts = Array.isArray(r?.staging?.artifacts) ? r.staging.artifacts : currentStagingArtifacts;
     closeCreatePageModal();
-    await loadStagedSite(stagedWebsiteId, r.entry_path || entryPath);
+    await loadStagedSite(stagedWebsiteId, createdPath);
   } else {
-    toast('Failed to create page', false);
+    const err = String(apiFetch._lastError || '');
+    if (err.toLowerCase().includes('manifest changed since last load')) {
+      toast('Staging changed elsewhere. Refresh and retry creating the page.', false);
+    } else {
+      toast('Failed to create page', false);
+    }
   }
 }
 
@@ -3411,12 +3445,13 @@ async function setStagingHomePage() {
   }
   const pageSel = document.getElementById('stagingPageSelect');
   const entryPath = String(pageSel?.value || '').trim();
+  const pageLabel = _pageDisplayNameFromPath(entryPath);
   if (!entryPath) {
     toast('Select a page first', false);
     return;
   }
 
-  if (!(await styledConfirm(`Set ${entryPath} as the default home page for this website?`, {
+  if (!(await styledConfirm(`Set ${pageLabel} as the default home page for this website?`, {
     title: 'Set Home Page?',
     icon: '🏠',
     okLabel: 'Set Home',
@@ -3425,18 +3460,27 @@ async function setStagingHomePage() {
 
   const r = await apiFetch(`/websites/${stagedWebsiteId}/staged-home`, {
     method: 'POST',
-    body: JSON.stringify({ entry_path: entryPath }),
+    body: JSON.stringify({
+      entry_path: entryPath,
+      expected_manifest_etag: currentStagingManifestEtag || undefined,
+    }),
   });
 
   if (r && r.saved) {
+    currentStagingManifestEtag = String(r?.staging?.manifest_etag || '').trim();
     currentStagingHomeEntryPath = (r?.staging?.entry_html || entryPath).trim();
     currentStagingArtifactCount = Number(r?.staging?.artifact_count) || currentStagingArtifactCount;
     currentStagingArtifacts = Array.isArray(r?.staging?.artifacts) ? r.staging.artifacts : currentStagingArtifacts;
     _renderStagingPagePicker(currentStagingEntryPath);
     _renderStagingSummary((websites || []).find(x => x.website_id === stagedWebsiteId), r?.staging || null, currentStagingUrl);
-    toast(`Home page set to ${currentStagingHomeEntryPath}`);
+    toast(`Home page set to ${_pageDisplayNameFromPath(currentStagingHomeEntryPath)}`);
   } else {
-    toast('Failed to set home page', false);
+    const err = String(apiFetch._lastError || '');
+    if (err.toLowerCase().includes('manifest changed since last load')) {
+      toast('Staging changed elsewhere. Refresh and retry setting home page.', false);
+    } else {
+      toast('Failed to set home page', false);
+    }
   }
 }
 
@@ -3588,9 +3632,8 @@ function _renderStagingSummary(w, staging, previewUrl) {
 
   const parts = [];
   if (previewUrl) parts.push(`Preview: ${previewUrl}`);
-  if (currentStagingEntryPath) parts.push(`Editing: ${currentStagingEntryPath}`);
-  if (currentStagingHomeEntryPath) parts.push(`Home: ${currentStagingHomeEntryPath}`);
-  if (staging && staging.entry_html) parts.push(`Entry: ${staging.entry_html}`);
+  if (currentStagingEntryPath) parts.push(`Editing: ${_pageDisplayNameFromPath(currentStagingEntryPath)}`);
+  if (currentStagingHomeEntryPath) parts.push(`Home: ${_pageDisplayNameFromPath(currentStagingHomeEntryPath)}`);
   if (Number.isFinite(Number(staging?.artifact_count))) {
     parts.push(`${Number(staging.artifact_count)} artifact(s)`);
   } else if (Number.isFinite(Number(currentStagingArtifactCount)) && currentStagingArtifactCount > 0) {
@@ -3628,6 +3671,8 @@ async function loadStagingWebsites() {
   if (!cur) {
     stagedWebsiteId = null;
     currentStagingHomeEntryPath = 'index.html';
+    currentStagingHtmlHash = '';
+    currentStagingManifestEtag = '';
     _renderStagingPagePicker('');
   }
 
@@ -3661,8 +3706,12 @@ async function loadStagedSite(preselect, entryPathOverride = null) {
   try {
     const stagedRes = await apiFetch(`/websites/${id}/staged-html`);
     staging = stagedRes && stagedRes.staging ? stagedRes.staging : null;
+    currentStagingHtmlHash = String(stagedRes?.html_hash || '').trim();
+    currentStagingManifestEtag = String(stagedRes?.staging?.manifest_etag || '').trim();
   } catch (_) {
     staging = null;
+    currentStagingHtmlHash = '';
+    currentStagingManifestEtag = '';
   }
 
   const homeEntry = ((staging && staging.entry_html) || 'index.html');
@@ -5473,16 +5522,30 @@ function _clickActionField(fid, init = {}) {
   const enabled = !!init.enabled;
   const mode = ['popup', 'newtab', 'same'].includes(init.mode) ? init.mode : 'popup';
   const url = _normalizeClickActionUrl(init.url || '');
+  const pages = _stagingHtmlPages(currentStagingArtifacts, currentStagingEntryPath);
+  const selectedInternal = _matchInternalClickActionPath(url, pages);
+  const badgeOn = enabled && !!url;
   const disabled = enabled ? '' : 'disabled';
   return `<div style="margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:rgba(99,102,241,.04)">
-    <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
-      <input type="checkbox" data-fid="${fid}-click-enabled" ${enabled ? 'checked' : ''} onchange="toggleClickActionInputs('${fid}')">
-      Enable click action
-    </label>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
+        <input type="checkbox" data-fid="${fid}-click-enabled" ${enabled ? 'checked' : ''} onchange="toggleClickActionInputs('${fid}')">
+        Enable click action
+      </label>
+      <span data-fid="${fid}-click-badge" style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;border:1px solid ${badgeOn ? 'rgba(34,197,94,.45)' : 'var(--border)'};background:${badgeOn ? 'rgba(34,197,94,.14)' : 'rgba(255,255,255,.02)'};color:${badgeOn ? 'var(--success)' : 'var(--muted)'};font-size:.66rem;font-weight:700;letter-spacing:.35px;text-transform:uppercase">${badgeOn ? 'Link On' : 'Link Off'}</span>
+    </div>
+    <div style="margin-top:6px">
+      <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Internal page</label>
+      <select data-fid="${fid}-click-page" ${disabled} onchange="onClickActionInternalPageChange('${fid}')"
+        style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+        <option value="">Custom / external URL</option>
+        ${pages.map((p) => `<option value="${_esc(p)}"${p === selectedInternal ? ' selected' : ''}>${_esc(_pageDisplayNameFromPath(p))}</option>`).join('')}
+      </select>
+    </div>
     <input type="text" data-fid="${fid}-click-url" value="${_esc(url)}" placeholder="https://example.com/page"
       ${disabled}
       style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-top:6px"
-      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="syncClickActionInternalPageSelection('${fid}');_refreshClickActionBadge('${fid}')" />
     <div style="margin-top:6px">
       <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Target action</label>
       <select data-fid="${fid}-click-mode" ${disabled}
@@ -5495,12 +5558,73 @@ function _clickActionField(fid, init = {}) {
   </div>`;
 }
 
+function _refreshClickActionBadge(fid) {
+  const enabled = !!document.querySelector(`[data-fid="${fid}-click-enabled"]`)?.checked;
+  const url = String(document.querySelector(`[data-fid="${fid}-click-url"]`)?.value || '').trim();
+  const badge = document.querySelector(`[data-fid="${fid}-click-badge"]`);
+  if (!badge) return;
+  const isOn = enabled && !!url;
+  badge.textContent = isOn ? 'Link On' : 'Link Off';
+  badge.style.borderColor = isOn ? 'rgba(34,197,94,.45)' : 'var(--border)';
+  badge.style.background = isOn ? 'rgba(34,197,94,.14)' : 'rgba(255,255,255,.02)';
+  badge.style.color = isOn ? 'var(--success)' : 'var(--muted)';
+}
+
+function _relativeHrefBetweenPages(fromEntryPath, toEntryPath) {
+  const from = _normalizeStagingPagePath(fromEntryPath || currentStagingEntryPath || 'index.html');
+  const to = _normalizeStagingPagePath(toEntryPath || '');
+  if (!from || !to) return '';
+  if (from === to) return '#';
+
+  const fromParts = from.split('/');
+  fromParts.pop();
+  const toParts = to.split('/');
+
+  while (fromParts.length && toParts.length && fromParts[0] === toParts[0]) {
+    fromParts.shift();
+    toParts.shift();
+  }
+  return `${'../'.repeat(fromParts.length)}${toParts.join('/')}` || '#';
+}
+
+function _matchInternalClickActionPath(rawUrl, pages) {
+  const clean = String(rawUrl || '').trim().split('#')[0].split('?')[0];
+  if (!clean) return '';
+  const list = Array.isArray(pages) ? pages : _stagingHtmlPages(currentStagingArtifacts, currentStagingEntryPath);
+  for (const p of list) {
+    const rel = _relativeHrefBetweenPages(currentStagingEntryPath, p);
+    if (clean === rel || clean === p || clean === `/${p}`) return p;
+  }
+  return '';
+}
+
+function onClickActionInternalPageChange(fid) {
+  const pageEl = document.querySelector(`[data-fid="${fid}-click-page"]`);
+  const urlEl = document.querySelector(`[data-fid="${fid}-click-url"]`);
+  if (!pageEl || !urlEl) return;
+  const pagePath = String(pageEl.value || '').trim();
+  if (!pagePath) return;
+  urlEl.value = _relativeHrefBetweenPages(currentStagingEntryPath, pagePath);
+  _refreshClickActionBadge(fid);
+}
+
+function syncClickActionInternalPageSelection(fid) {
+  const pageEl = document.querySelector(`[data-fid="${fid}-click-page"]`);
+  const urlEl = document.querySelector(`[data-fid="${fid}-click-url"]`);
+  if (!pageEl || !urlEl) return;
+  const pages = _stagingHtmlPages(currentStagingArtifacts, currentStagingEntryPath);
+  pageEl.value = _matchInternalClickActionPath(urlEl.value, pages) || '';
+}
+
 function toggleClickActionInputs(fid) {
   const enabled = !!document.querySelector(`[data-fid="${fid}-click-enabled"]`)?.checked;
+  const pageEl = document.querySelector(`[data-fid="${fid}-click-page"]`);
   const urlEl = document.querySelector(`[data-fid="${fid}-click-url"]`);
   const modeEl = document.querySelector(`[data-fid="${fid}-click-mode"]`);
+  if (pageEl) pageEl.disabled = !enabled;
   if (urlEl) urlEl.disabled = !enabled;
   if (modeEl) modeEl.disabled = !enabled;
+  _refreshClickActionBadge(fid);
 }
 
 function _ensureWbClickActionEngine(doc) {
@@ -5671,11 +5795,18 @@ function _applyClickActionFromField(fieldsEl, fid, domEl) {
     domEl.dataset.wbClickUrl = url;
     domEl.dataset.wbClickMode = ['popup','newtab','same'].includes(mode) ? mode : 'popup';
     domEl.style.setProperty('cursor', 'pointer', 'important');
+    // Some templates disable image pointer events; force-enable so click actions work on images too.
+    if (domEl.tagName === 'IMG') {
+      domEl.style.setProperty('pointer-events', 'auto', 'important');
+    }
   } else {
     delete domEl.dataset.wbClickEnabled;
     delete domEl.dataset.wbClickUrl;
     delete domEl.dataset.wbClickMode;
     domEl.style.removeProperty('cursor');
+    if (domEl.tagName === 'IMG') {
+      domEl.style.removeProperty('pointer-events');
+    }
     domEl.removeAttribute('tabindex');
     domEl.removeAttribute('role');
   }
@@ -6893,12 +7024,18 @@ async function saveStaged() {
 
   const r = await apiFetch(`/websites/${stagedWebsiteId}/staged-html`, {
     method: 'PUT',
-    body: JSON.stringify({ html, entry_path: currentStagingEntryPath }),
+    body: JSON.stringify({
+      html,
+      entry_path: currentStagingEntryPath,
+      expected_hash: currentStagingHtmlHash || undefined,
+    }),
   });
   btn.disabled = false; btn.textContent = '💾 Save Changes';
 
   if (r && r.saved) {
     toast('Changes saved ✅');
+    currentStagingHtmlHash = String(r?.html_hash || '').trim();
+    currentStagingManifestEtag = String(r?.staging?.manifest_etag || '').trim();
     // Force iframe reload to reflect saved changes
     const frame = document.getElementById('stagingIframe');
     const url = currentStagingUrl;
@@ -6916,7 +7053,12 @@ async function saveStaged() {
     const badge = document.getElementById('stagingStatusBadge');
     if (badge) badge.innerHTML = `<span class="tag draft" style="background:rgba(245,158,11,.15);color:var(--warn)">🔧 Staged</span>`;
   } else {
-    toast('Failed to save changes', false);
+    const err = String(apiFetch._lastError || '');
+    if (err.toLowerCase().includes('changed since last load')) {
+      toast('This page was updated elsewhere. Refresh staging and try again.', false);
+    } else {
+      toast('Failed to save changes', false);
+    }
   }
 }
 

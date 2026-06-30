@@ -1,0 +1,8 @@
+{
+  "template_key": "engineering_services_b_booking_form",
+  "template_name": "Engineering Services Template B",
+  "classification_key": "engineering_services",
+  "base_type": "booking_form",
+  "description": "Template B: Action-oriented booking and enquiry capture form.",
+  "variant": "b"
+}

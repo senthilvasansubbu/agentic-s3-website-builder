@@ -1,0 +1,19 @@
+{
+  "classification": "writer_blogger",
+  "base_type": "testimony",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Writer Blogger Testimony"
+    },
+    {
+      "kind": "testimony",
+      "title": "Testimony Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

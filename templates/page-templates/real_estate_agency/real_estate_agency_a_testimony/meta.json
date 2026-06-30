@@ -1,0 +1,8 @@
+{
+  "template_key": "real_estate_agency_a_testimony",
+  "template_name": "Real Estate Agency Template A",
+  "classification_key": "real_estate_agency",
+  "base_type": "testimony",
+  "description": "Template A: Trust-first customer testimony and proof section.",
+  "variant": "a"
+}

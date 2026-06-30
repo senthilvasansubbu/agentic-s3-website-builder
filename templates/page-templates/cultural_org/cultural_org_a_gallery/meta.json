@@ -1,0 +1,8 @@
+{
+  "template_key": "cultural_org_a_gallery",
+  "template_name": "Cultural Org Template A",
+  "classification_key": "cultural_org",
+  "base_type": "gallery",
+  "description": "Template A: Photo and video gallery blocks for visual storytelling.",
+  "variant": "a"
+}

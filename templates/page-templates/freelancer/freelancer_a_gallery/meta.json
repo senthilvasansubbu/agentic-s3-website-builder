@@ -1,0 +1,8 @@
+{
+  "template_key": "freelancer_a_gallery",
+  "template_name": "Freelancer Template A",
+  "classification_key": "freelancer",
+  "base_type": "gallery",
+  "description": "Template A: Photo and video gallery blocks for visual storytelling.",
+  "variant": "a"
+}

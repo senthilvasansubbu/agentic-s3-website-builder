@@ -44,6 +44,10 @@ def test_get_staged_html_returns_manifest_metadata(client, verified_user, _in_me
     assert response.status_code == 200
     body = response.json()
     assert body["path"].endswith("index.html")
+    assert isinstance(body.get("html_hash"), str)
+    assert len(body["html_hash"]) == 64
+    assert isinstance(body["staging"].get("manifest_etag"), str)
+    assert len(body["staging"]["manifest_etag"]) == 64
     assert body["staging"]["entry_html"] == "index.html"
     assert body["staging"]["artifact_count"] == 2
     assert "assets/css/main.css" in body["staging"]["artifacts"]
@@ -86,7 +90,33 @@ def test_put_staged_html_writes_manifest_and_entry_file(client, verified_user, _
     manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
     assert manifest["entry_html"] == "pages/home.html"
     assert manifest["artifact_count"] >= 1
+    assert isinstance(body.get("html_hash"), str)
+    assert len(body["html_hash"]) == 64
+    assert isinstance(body["staging"].get("manifest_etag"), str)
+    assert len(body["staging"]["manifest_etag"]) == 64
     assert body["staging"]["entry_html"] == "pages/home.html"
+
+
+def test_put_staged_html_rejects_stale_expected_hash(client, verified_user, _in_memory_db, tmp_path):
+    website_id = "staging-put-conflict"
+    local_path = tmp_path / "output" / "staging" / website_id
+    local_path.mkdir(parents=True)
+    (local_path / "index.html").write_text("<html><body><h1>Current</h1></body></html>", encoding="utf-8")
+    _insert_website(_in_memory_db, verified_user["user_id"], website_id, str(local_path))
+
+    response = client.put(
+        f"/api/v1/websites/{website_id}/staged-html",
+        headers=_auth_header(verified_user["token"]),
+        json={
+            "html": "<html><body><h1>New</h1></body></html>",
+            "entry_path": "index.html",
+            "expected_hash": "0" * 64,
+        },
+    )
+
+    assert response.status_code == 409
+    detail = str(response.json().get("detail") or "")
+    assert "changed since last load" in detail.lower()
 
 
 def test_output_static_files_are_served(client):

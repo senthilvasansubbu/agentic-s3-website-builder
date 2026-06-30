@@ -1,0 +1,8 @@
+{
+  "template_key": "medical_equipment_a_catalogue",
+  "template_name": "Medical Equipment Template A",
+  "classification_key": "medical_equipment",
+  "base_type": "catalogue",
+  "description": "Template A: Structured catalogue layout for offerings and highlights.",
+  "variant": "a"
+}

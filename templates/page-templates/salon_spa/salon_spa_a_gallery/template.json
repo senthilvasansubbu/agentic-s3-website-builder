@@ -1,0 +1,19 @@
+{
+  "classification": "salon_spa",
+  "base_type": "gallery",
+  "variant": "a",
+  "sections": [
+    {
+      "kind": "hero",
+      "title": "Salon Spa Gallery"
+    },
+    {
+      "kind": "gallery",
+      "title": "Gallery Block"
+    },
+    {
+      "kind": "cta",
+      "title": "Primary Action"
+    }
+  ]
+}

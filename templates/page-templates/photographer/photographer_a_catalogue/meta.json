@@ -1,0 +1,8 @@
+{
+  "template_key": "photographer_a_catalogue",
+  "template_name": "Photographer Template A",
+  "classification_key": "photographer",
+  "base_type": "catalogue",
+  "description": "Template A: Structured catalogue layout for offerings and highlights.",
+  "variant": "a"
+}

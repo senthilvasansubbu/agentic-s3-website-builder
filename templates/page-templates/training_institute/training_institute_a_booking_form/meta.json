@@ -1,0 +1,8 @@
+{
+  "template_key": "training_institute_a_booking_form",
+  "template_name": "Training Institute Template A",
+  "classification_key": "training_institute",
+  "base_type": "booking_form",
+  "description": "Template A: Action-oriented booking and enquiry capture form.",
+  "variant": "a"
+}

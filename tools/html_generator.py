@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 from services.staging_artifacts import STAGING_CONTRACT
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 def _slugify(name: str) -> str:
@@ -44,7 +44,7 @@ def _website_dir(project_name: str, output_target: str = "legacy") -> str:
         site_dir = os.path.join(base, "staging", slug, target)
 
     if os.path.isdir(site_dir) and any(Path(site_dir).iterdir()):
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         slug = f"{slug}_{timestamp}"
         if target == "legacy":
             site_dir = os.path.join(base, "staging", slug)
