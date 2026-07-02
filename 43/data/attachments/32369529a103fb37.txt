@@ -1,1 +1,0 @@
-2026-06-30 08:46:39  DEBUG     website_builder.requirements_analyst  build_prompt complete — 4953 chars, 0 cart_features, cats=[], nav_links=['Home', 'Services', 'About', 'Contact']

@@ -1,0 +1,9 @@
+INFO     apscheduler.scheduler:base.py:507 Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO     apscheduler.scheduler:base.py:507 Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO     apscheduler.scheduler:base.py:1092 Added job "run_all_checks" to job store "default"
+INFO     apscheduler.scheduler:base.py:1092 Added job "run_payment_reminders" to job store "default"
+INFO     apscheduler.scheduler:base.py:214 Scheduler started
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/websites "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/websites/bfa30ad3-bf27-4339-9e28-997467dace58/build "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/websites/bfa30ad3-bf27-4339-9e28-997467dace58/build-status "HTTP/1.1 200 OK"
+INFO     apscheduler.scheduler:base.py:245 Scheduler has been shut down

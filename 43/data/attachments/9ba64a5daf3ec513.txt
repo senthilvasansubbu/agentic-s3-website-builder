@@ -1,9 +1,0 @@
-2026-06-30 08:46:46  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-06-30 08:46:46  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-06-30 08:46:46  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
-2026-06-30 08:46:46  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
-2026-06-30 08:46:46  INFO      apscheduler.scheduler  Scheduler started
-✅ Scheduler started — monitoring every 5min | reminders daily
-2026-06-30 08:46:47  INFO      httpx  HTTP Request: GET http://testserver/api/v1/websites/5157098b-ecac-4b7b-88c3-32f9d41af696/build-status "HTTP/1.1 200 OK"
-2026-06-30 08:46:47  INFO      httpx  HTTP Request: GET http://testserver/api/v1/websites/my "HTTP/1.1 200 OK"
-2026-06-30 08:46:47  INFO      apscheduler.scheduler  Scheduler has been shut down
