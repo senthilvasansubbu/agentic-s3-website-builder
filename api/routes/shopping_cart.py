@@ -5,7 +5,7 @@ import uuid
 import json
 import re
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -13,8 +13,6 @@ from api.routes.auth import get_current_user, require_app_user_or_above, require
 from database.snowflake_client import db
 from services.analytics_service import log_event
 from services.currency_service import currency_from_ip
-from services.image_service import process_image, finalize_image, ALLOWED_MIME
-from services.secret_store import decrypt_json
 from tools.catalog_scraper import scrape_catalog, parse_file_catalog
 
 router = APIRouter(prefix="/shop", tags=["shop"])
@@ -71,12 +69,6 @@ class CartSessionItem(BaseModel):
     qty: int
 
 
-class FinalizeImageRequest(BaseModel):
-    website_id: str
-    site_slug: str
-    filename: str
-
-
 class CatalogImportRequest(BaseModel):
     website_id: str
     catalog_url: str          # JSON feed, CSV, or any product page
@@ -100,115 +92,6 @@ class CartItemUpdate(BaseModel):
 
 # Keep legacy alias
 ProductUpdate = CartItemUpdate
-
-
-# ── Image Upload ─────────────────────────────────────────────────────────────
-
-@router.post("/upload-image")
-async def upload_cart_item_image(
-    file: UploadFile = File(...),
-    website_id: Optional[str] = Form(None),
-    current_user: dict = Depends(require_client_or_above),
-):
-    """
-    Upload a cart item image.  Returns two variants:
-      • Thumbnail  400×400 px WebP @ 72 quality  — cart/grid cards  → thumb_url
-      • Full-size  800×800 px WebP @ 80 quality  — item detail view → full_url
-    """
-    content_type = (file.content_type or "").lower().split(";")[0].strip()
-    if content_type not in ALLOWED_MIME:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Unsupported image type {content_type!r}. "
-                   f"Allowed: JPEG, PNG, WebP, GIF, BMP, TIFF.",
-        )
-
-    raw = await file.read()
-    storage_override = None
-    if website_id:
-        _assert_website_access(website_id, current_user)
-        site = db.fetchone(
-            "SELECT image_storage_backend, image_storage_config, image_storage_secrets_enc FROM websites WHERE website_id = ?",
-            (website_id,),
-        )
-        if site:
-            cfg_raw = site.get("image_storage_config")
-            cfg = {}
-            if isinstance(cfg_raw, dict):
-                cfg = cfg_raw
-            elif isinstance(cfg_raw, str) and cfg_raw.strip():
-                try:
-                    cfg = json.loads(cfg_raw)
-                except (json.JSONDecodeError, TypeError, ValueError) as exc:
-                    logger.debug(
-                        "Invalid image_storage_config JSON for website_id=%s: %s",
-                        website_id,
-                        exc,
-                    )
-                    cfg = {}
-            secrets = decrypt_json(site.get("image_storage_secrets_enc"))
-            storage_override = {
-                "backend": (site.get("image_storage_backend") or "auto"),
-                "folder_id": cfg.get("folder_id") or "",
-                "gdrive_subfolder": cfg.get("gdrive_subfolder") or "",
-                "s3_bucket": cfg.get("s3_bucket") or "",
-                "s3_prefix": cfg.get("s3_prefix") or "",
-                "onedrive_folder": cfg.get("onedrive_folder") or "",
-                "onedrive_subfolder": cfg.get("onedrive_subfolder") or "",
-                "ftp_remote_dir": cfg.get("ftp_remote_dir") or "",
-                "ftp_public_base_url": cfg.get("ftp_public_base_url") or "",
-            }
-            storage_override.update(secrets)
-
-    try:
-        result = process_image(
-            raw,
-            original_filename=file.filename or "",
-            storage_override=storage_override,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    except Exception as exc:
-        logger.error("Image processing error: %s", exc)
-        raise HTTPException(status_code=500, detail="Image processing failed.")
-
-    compression = round(100 * (1 - result.full_size / max(result.original_size, 1)))
-    return {
-        "thumb_url":      result.thumb_url,
-        "full_url":       result.full_url,
-        "width":          result.width,
-        "height":         result.height,
-        "thumb_size_kb":  round(result.thumb_size / 1024, 1),
-        "full_size_kb":   round(result.full_size  / 1024, 1),
-        "original_size_kb": round(result.original_size / 1024, 1),
-        "compression_pct": compression,
-    }
-
-
-@router.post("/finalize-image")
-async def finalize_cart_item_image(
-    body: FinalizeImageRequest,
-    current_user: dict = Depends(require_client_or_above),
-):
-    _assert_website_access(body.website_id, current_user)
-
-    filename = (body.filename or "").strip()
-    site_slug = (body.site_slug or "").strip()
-    if not filename or not site_slug:
-        raise HTTPException(status_code=400, detail="site_slug and filename are required")
-    if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
-
-    try:
-        image_url = finalize_image(site_slug, filename)
-        return {"image_url": image_url}
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Image not found in uploads")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("Failed to finalize image for site_slug=%s: %s", site_slug, exc)
-        raise HTTPException(status_code=400, detail="Failed to finalize image")
 
 
 # ── Categories ───────────────────────────────────────────────────────────────
@@ -768,32 +651,6 @@ def _assert_cart_access(website_id: str, user: dict):
                 raise HTTPException(status_code=403, detail="Not your website")
 
 
-def _assert_website_access(website_id: str, user: dict):
-    """Access check for non-cart website operations (e.g. shared image upload endpoint)."""
-    site = db.fetchone(
-        "SELECT user_id FROM websites WHERE website_id = ?",
-        (website_id,),
-    )
-    if not site:
-        raise HTTPException(status_code=404, detail="Website not found")
-
-    role = user.get("role", "app_user")
-    user_id = user["sub"]
-
-    if role == "superuser":
-        return
-
-    if role == "client":
-        row = db.fetchone(
-            "SELECT client_website_id FROM users WHERE user_id = ?",
-            (user_id,),
-        )
-        if not row or row.get("client_website_id") != website_id:
-            raise HTTPException(status_code=403, detail="Clients can only access their linked website")
-        return
-
-    if site.get("user_id") != user_id:
-        raise HTTPException(status_code=403, detail="Not your website")
 
 
 def _assert_website_owner(website_id: str, user_id: str):

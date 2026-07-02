@@ -242,6 +242,115 @@
     .modal h3 { font-size: 1.1rem; margin-bottom: 16px; }
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
+    /* Existing background image picker */
+    #existingBgImageModal .modal {
+      max-width: 860px;
+      width: min(95vw, 860px);
+      max-height: 88vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 20px;
+    }
+    .existing-bg-toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .existing-bg-status {
+      font-size: .8rem;
+      color: var(--muted);
+    }
+    .existing-bg-grid {
+      flex: 1;
+      min-height: 220px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 10px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    .existing-bg-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color .18s ease, transform .18s ease;
+    }
+    .existing-bg-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+    .existing-bg-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .existing-bg-card img {
+      width: 100%;
+      height: 96px;
+      object-fit: cover;
+      display: block;
+      border-bottom: 1px solid var(--border);
+      background: #e5e7eb;
+    }
+    .existing-bg-card-body {
+      padding: 7px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .existing-bg-card-name {
+      font-size: .75rem;
+      color: var(--text);
+      line-height: 1.25;
+      min-height: 32px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-word;
+    }
+    .existing-bg-card-tag {
+      align-self: flex-start;
+      font-size: .66rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 7px;
+      color: var(--muted);
+      background: var(--bg);
+    }
+    .existing-bg-empty {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: .85rem;
+      padding: 18px;
+      text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      #existingBgImageModal .modal {
+        width: 96vw;
+        padding: 14px;
+      }
+      .existing-bg-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      }
+      .existing-bg-card img {
+        height: 82px;
+      }
+    }
+
     /* Toast */
     #toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: .88rem; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 300; }
     #toast.show { opacity: 1; }
@@ -450,6 +559,39 @@
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
         <button class="btn btn-secondary" onclick="closeModal('storageSiteModal')">Cancel</button>
         <button class="btn btn-primary" onclick="saveStorageSettings()">Save Storage</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="existingBgImageModal" onclick="if(event.target===this)closeModal('existingBgImageModal')">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h3 id="existingBgPickerTitle" style="margin:0">Media Library</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('existingBgImageModal')">Close</button>
+      </div>
+      <div class="existing-bg-toolbar">
+        <div id="existingBgPickerStatus" class="existing-bg-status">Loading images…</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="existingBgTypeFilter" onchange="onMediaTypeFilterChange()" style="min-width:128px;padding:5px 8px;font-size:.76rem">
+            <option value="all">All Media</option>
+            <option value="image">Images</option>
+            <option value="video">Videos</option>
+            <option value="social">Social Links</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="triggerMediaUploadFromPicker()">⬆ Upload Image</button>
+          <button class="btn btn-secondary btn-sm" onclick="triggerMediaVideoUploadFromPicker()">🎬 Upload Video</button>
+          <button class="btn btn-secondary btn-sm" onclick="addSocialLinkFromPicker()">🔗 Add Social Link</button>
+          <button class="btn btn-secondary btn-sm" onclick="loadExistingBgImages();renderExistingBgImagePicker()">↻ Refresh</button>
+        </div>
+      </div>
+      <input id="existingBgUploadInput" type="file" accept="image/*" style="display:none" onchange="uploadMediaImageFromPicker(this)">
+      <input id="existingBgVideoUploadInput" type="file" accept="video/*" style="display:none" onchange="uploadMediaVideoFromPicker(this)">
+      <div id="existingBgImageGrid" class="existing-bg-grid">
+        <div class="existing-bg-empty">Loading images…</div>
+      </div>
+      <div class="modal-actions" style="margin-top:0">
+        <button class="btn btn-secondary" onclick="deleteSelectedExistingBgImageFromPicker()">Delete Selected</button>
+        <button id="existingBgPickerActionBtn" class="btn btn-primary" onclick="addChosenExistingBgImageFromPicker()">Use Selected</button>
       </div>
     </div>
   </div>
@@ -771,6 +913,7 @@
         <button class="btn btn-secondary btn-sm" onclick="toggleStagingOverlay()" id="stagingEditBtn" disabled title="Toggle numbered section markers">🔢 Section Numbers</button>
         <button class="btn btn-secondary btn-sm" onclick="toggleAnchorVisibility()" id="stagingAnchorBtn" disabled title="Show/hide anchor name chips on sections">⚓ Anchors</button>
         <button class="btn btn-secondary btn-sm" onclick="toggleGlobalFonts()" id="stagingFontBtn" disabled title="Global font &amp; colour settings">🔤 Fonts</button>
+        <button class="btn btn-secondary btn-sm" onclick="openStagingMediaLibrary()" id="stagingMediaBtn" disabled title="Upload and manage shared media for this website">🗂 Media Library</button>
         <button class="btn btn-secondary btn-sm" onclick="openAddSectionModal()" id="stagingAddSecBtn" disabled title="Add a new section to the page">＋ Add Section</button>
         <button class="btn btn-secondary btn-sm" onclick="historyUndo()" id="stagingUndoBtn" disabled title="Undo last change (up to 5 steps)">↩ Undo</button>
         <button class="btn btn-secondary btn-sm" onclick="historyReset()" id="stagingResetBtn" disabled title="Reset all edits back to original loaded state">↺ Reset</button>

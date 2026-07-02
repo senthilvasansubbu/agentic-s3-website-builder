@@ -2586,7 +2586,7 @@ async function uploadCartItemImage(file) {
   if (siteId) formData.append('website_id', siteId);
 
   try {
-    const resp = await fetch(`${API}/shop/upload-image`, {
+    const resp = await fetch(`${API}/media/upload-image`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${localStorage.getItem('wb_token')}` },
       body: formData,
@@ -3209,6 +3209,13 @@ function switchBuildTab(tab) {
 let stagedWebsiteId = null;
 let currentStagingUrl = null;
 let currentStagingEntryPath = 'index.html';
+let _siteImageLabelByPath = new Map();
+let _siteImageMetaByPath = new Map();
+let _siteImageItems = [];
+let _siteMediaById = new Map();
+let _selectedExistingMediaPath = '';
+let _mediaPickerContext = { mode: 'manage', fid: '' };
+let _mediaLibraryTypeFilter = 'all';
 let currentStagingHomeEntryPath = 'index.html';
 let currentStagingHtmlHash = '';
 let currentStagingManifestEtag = '';
@@ -3786,7 +3793,7 @@ async function loadStagedSite(preselect, entryPathOverride = null) {
   }
 
   // Enable controls
-  ['stagingEditBtn', 'stagingFontBtn', 'stagingAddSecBtn', 'stagingUndoBtn', 'stagingResetBtn', 'stagingPopoutBtn', 'stagingRefreshBtn', 'stagingSaveBtn', 'stagingGoLiveBtn', 'stagingAnchorBtn', 'stagingAddPageBtn', 'stagingSetHomeBtn'].forEach(btnId => {
+  ['stagingEditBtn', 'stagingFontBtn', 'stagingMediaBtn', 'stagingAddSecBtn', 'stagingUndoBtn', 'stagingResetBtn', 'stagingPopoutBtn', 'stagingRefreshBtn', 'stagingSaveBtn', 'stagingGoLiveBtn', 'stagingAnchorBtn', 'stagingAddPageBtn', 'stagingSetHomeBtn'].forEach(btnId => {
     const btn = document.getElementById(btnId);
     if (btn) btn.disabled = false;
   });
@@ -4345,7 +4352,7 @@ function openSecEditor(idx) {
     let brandEl = null, brandFid = '';
 
     // Always show Logo / Image + Brand Name only for the first section (nav/header)
-    const logo = el.querySelector('img');
+    const logo = activeSectionIndex === 0 ? el.querySelector('img') : null;
     if (activeSectionIndex === 0) {
       fieldIdx++;
       const logoFid = `img-${fieldIdx}`;
@@ -4388,6 +4395,7 @@ function openSecEditor(idx) {
     // Nav links / anchor texts — collect anchor refs before any innerHTML write
     const _linkFidToAnchor = new Map();
     el.querySelectorAll('a').forEach((a) => {
+      if (String(a?.dataset?.wbMediaType || '').toLowerCase() === 'social') return;
       const text = (a.textContent || '').trim();
       const href = a.getAttribute('href') || '';
       if (!text || text.length > 60) return;
@@ -4397,16 +4405,29 @@ function openSecEditor(idx) {
       _linkFidToAnchor.set(fid, a);
     });
 
-    // Additional images (skip already-shown logo)
-    el.querySelectorAll('img').forEach((img, i) => {
-      if (i === 0 && activeSectionIndex === 0 && logo) return;
+    // Additional media blocks (skip already-shown logo image only on section 0)
+    const mediaNodes = [...el.querySelectorAll('img,video,a[data-wb-media-type="social"]')];
+    let mediaIdx = 0;
+    mediaNodes.forEach((mediaNode) => {
+      if (activeSectionIndex === 0 && mediaNode === logo) return;
       fieldIdx++;
       const fid = `img-${fieldIdx}`;
-      const src = img.getAttribute('src') || img.src || '';
-      const imgInit = _imgAnimInit(img);
-      imgInit.click = _clickInit(img);
-      htmlChunks.push(_imgField(fieldIdx, `Image ${i+1}`, _normalizeStagingAssetUrl(src), img.alt, fid, imgInit));
-      _imgFidToEl.set(fid, img);
+      mediaIdx++;
+      const tag = (mediaNode.tagName || '').toUpperCase();
+      const mediaType = String(mediaNode?.dataset?.wbMediaType || (tag === 'VIDEO' ? 'video' : (tag === 'A' ? 'social' : 'image'))).toLowerCase();
+      const src = mediaType === 'video'
+        ? (mediaNode.getAttribute('src') || mediaNode.querySelector('source')?.getAttribute('src') || mediaNode.src || '')
+        : (mediaType === 'social'
+          ? (mediaNode.getAttribute('href') || '')
+          : (mediaNode.getAttribute('src') || mediaNode.src || ''));
+      const mediaInit = _imgAnimInit(mediaNode);
+      mediaInit.click = _clickInit(mediaNode);
+      mediaInit.mediaType = mediaType;
+      const altText = mediaType === 'social'
+        ? ((mediaNode.textContent || '').trim() || mediaNode.getAttribute('aria-label') || '')
+        : (mediaNode.alt || mediaNode.getAttribute('aria-label') || '');
+      htmlChunks.push(_imgField(fieldIdx, `Media ${mediaIdx}`, (mediaType === 'social' ? src : _normalizeStagingAssetUrl(src)), altText, fid, mediaInit));
+      _imgFidToEl.set(fid, mediaNode);
     });
 
     // Section layout controls (available for every section)
@@ -4558,6 +4579,8 @@ function openSecEditor(idx) {
     } else {
       // Single innerHTML write — eliminates O(n²) DOM rebuilds from repeated +=
       fields.innerHTML = htmlChunks.join('');
+      _refreshBgNameList();
+      loadExistingBgImages();
     }
 
     // Stamp metadata on stable DOM nodes (after innerHTML is final)
@@ -4704,12 +4727,15 @@ function addAllianceRowToActiveSection() {
 }
 
 function _bgField(bgUrl, bgColor, bgUrls = [], carouselEnabled = false, carouselIntervalSec = 5, carouselStyle = 'slide-left', carouselSpeedMs = 900, bgMotion = 'none', sectionLabel = 'Section', secIdx = 0) {
-  const bgInputId = `bgImageInput_${secIdx}`;
   const urls = (Array.isArray(bgUrls) ? bgUrls : []).filter(Boolean);
   const resolvedUrls = urls.length ? urls : (bgUrl ? [bgUrl] : []);
   const firstUrl = resolvedUrls[0] || '';
-  const thumb = firstUrl ? `<img src="${_esc(firstUrl)}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-top:6px;border:1px solid var(--border)" id="bgThumb">` : `<div id="bgThumb"></div>`;
+  const firstName = _displayBgImageName(firstUrl);
+  const thumb = firstUrl ? `<img src="${_esc(_toPreviewMediaUrl(firstUrl))}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-top:6px;border:1px solid var(--border)" id="bgThumb">` : `<div id="bgThumb"></div>`;
   const urlsText = resolvedUrls.join('\n');
+  const namesHtml = resolvedUrls.length
+    ? resolvedUrls.map((u, i) => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border:1px solid var(--border);border-radius:999px;background:var(--bg);font-size:.68rem;color:var(--text)">${i + 1}. ${_esc(_displayBgImageName(u))}</span>`).join(' ')
+    : '<span style="color:var(--muted);font-size:.68rem"><em>No images added</em></span>';
   const safeColor = (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') ? bgColor : '#ffffff';
   // Convert rgb() to hex for color input
   const hexColor = _rgbToHex(safeColor);
@@ -4720,7 +4746,7 @@ function _bgField(bgUrl, bgColor, bgUrls = [], carouselEnabled = false, carousel
         <strong style="color:#667eea">📍 ${_esc(sectionLabel.split('#')[0].trim()) || 'Section'}</strong>
         ${sectionLabel.includes('#') ? `<span style="background:#e0e7ff;color:#4f46e5;padding:2px 6px;border-radius:3px;font-weight:600;font-size:.65rem">${_esc(sectionLabel.split('#')[1] || '')}</span>` : ''}
       </div>
-      <div style="margin-bottom:5px;word-break:break-word;max-height:40px;overflow:auto"><strong>🖼️ Image:</strong> <span style="color:var(--muted);font-size:.68rem">${firstUrl ? _esc(firstUrl.substring(0, 60) + (firstUrl.length > 60 ? '...' : '')) : '<em>(None)</em>'}</span></div>
+      <div style="margin-bottom:5px;word-break:break-word;max-height:40px;overflow:auto"><strong>🖼️ Image:</strong> <span style="color:var(--muted);font-size:.68rem">${firstName ? _esc(firstName) : '<em>(None)</em>'}</span></div>
       <div style="margin-bottom:5px"><strong>🔄 Carousel:</strong> <span style="color:var(--muted)">${carouselEnabled ? `Enabled • ${resolvedUrls.length} imgs • ${carouselStyle}` : 'Disabled'}</span></div>
       <div><strong>✨ Motion:</strong> <span style="color:var(--muted)">${bgMotion === 'none' ? 'None' : bgMotion.charAt(0).toUpperCase() + bgMotion.slice(1)}</span></div>
     </div>
@@ -4737,31 +4763,28 @@ function _bgField(bgUrl, bgColor, bgUrls = [], carouselEnabled = false, carousel
         <span id="secBgOpacityVal" style="font-size:.7rem;color:var(--muted)">100%</span>
       </div>
     </div>
-    <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Background Image URLs (one per line)</label>
-    <textarea id="secBgUrls" rows="2" placeholder="https://image-1...&#10;https://image-2..."
-      oninput="_syncBgStrip();_previewBgDebounced()"
-      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-bottom:6px;resize:vertical"
-      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">${_esc(urlsText)}</textarea>
-    <input type="text" id="secBgUrl" value="${_esc(firstUrl)}" placeholder="Primary image URL (optional)"
-      oninput="syncBgUrlListFromSingle();_previewBgDebounced()"
-      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--muted);font-size:.78rem;outline:none;margin-bottom:6px"
-      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+    <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Background images</label>
+    <div id="secBgNamesList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${namesHtml}</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+      <select id="secBgExistingImage" style="display:none">
+        <option value="">Select existing image from server…</option>
+      </select>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="openExistingBgImagePicker()" title="Choose from uploaded media">🗂 Media Library</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadExistingBgImages()" title="Refresh server image list">↻ Refresh</button>
+    </div>
+    <div id="secBgExistingLabel" style="font-size:.71rem;color:var(--muted);margin:-4px 0 8px 0">No existing image selected</div>
+    <textarea id="secBgUrls" style="display:none">${_esc(urlsText)}</textarea>
+    <input type="hidden" id="secBgUrl" value="${_esc(firstUrl)}">
     <!-- Visual image strip -->
     <div id="secBgStrip" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:${resolvedUrls.length ? '0' : '0'}">
       ${resolvedUrls.map((u, i) => `
-        <div style="position:relative;width:64px;height:48px;border-radius:5px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0" title="${_esc(u)}">
-          <img src="${_esc(u)}" style="width:100%;height:100%;object-fit:cover">
+        <div style="position:relative;width:64px;height:48px;border-radius:5px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0" title="${_esc(_displayBgImageName(u))}">
+          <img src="${_esc(_toPreviewMediaUrl(u))}" style="width:100%;height:100%;object-fit:cover">
           <button type="button" onclick="removeBgImageAt(${i})" title="Remove"
             style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:3px;width:16px;height:16px;font-size:9px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
           <div style="position:absolute;bottom:1px;left:2px;background:rgba(0,0,0,.55);color:#fff;font-size:8px;padding:0 3px;border-radius:2px">${i+1}</div>
         </div>`).join('')}
-      <label title="Add another image" for="${bgInputId}"
-        style="width:64px;height:48px;border-radius:5px;border:1.5px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:.65rem;gap:2px;flex-shrink:0">
-        <span style="font-size:18px;line-height:1">＋</span>
-        Add
-      </label>
     </div>
-    <input id="${bgInputId}" type="file" accept="image/*" style="display:none" onchange="uploadBgImage(this)">
     <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);margin:4px 0 6px 0">
       <input type="checkbox" id="secBgCarouselEnabled" ${carouselEnabled ? 'checked' : ''} onchange="toggleBgCarouselOptions();previewBg()">
       Enable carousel slide for background images
@@ -4874,6 +4897,725 @@ function toggleLinkStyleInput(fid, key) {
   const enabled = document.querySelector(`[data-fid="${fid}-${key}-enabled"]`)?.checked;
   const colorEl = document.querySelector(`[data-fid="${fid}-${key}"]`);
   if (colorEl) colorEl.disabled = !enabled;
+}
+
+function _assetFileName(path) {
+  const raw = String(path || '').trim();
+  if (!raw) return '';
+  const clean = raw.split('?')[0].split('#')[0];
+  const parts = clean.split('/').filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : clean;
+}
+
+function _toTitleWords(input) {
+  const text = String(input || '').trim();
+  if (!text) return '';
+  return text
+    .split(' ')
+    .map(part => part ? (part.charAt(0).toUpperCase() + part.slice(1)) : part)
+    .join(' ')
+    .trim();
+}
+
+function _looksMachineLikeName(name) {
+  const s = String(name || '').trim();
+  if (!s) return true;
+  if (/[a-f0-9]{18,}/i.test(s)) return true;
+  if (/\b\d{10,}\b/.test(s)) return true;
+  return /[_-]{2,}|[a-f0-9]{8,}(?:[_-]|$)/i.test(s);
+}
+
+function _friendlyImageName(rawName, path = '') {
+  const fallback = _assetFileName(path || rawName);
+  let name = String(rawName || '').trim() || fallback;
+  name = name.replace(/\.[a-z0-9]{2,5}$/i, '');
+  if (_looksMachineLikeName(name)) {
+    name = name
+      .replace(/[a-f0-9]{10,}/ig, ' ')
+      .replace(/\b\d{6,}\b/g, ' ')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  } else {
+    name = name.replace(/[_-]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  }
+  if (!name) {
+    name = fallback.replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[_-]+/g, ' ').trim();
+  }
+  return _toTitleWords(name || 'Uploaded Image');
+}
+
+function _deriveSocialProvider(url = '') {
+  const raw = String(url || '').trim().toLowerCase();
+  if (!raw) return '';
+  const host = raw.replace(/^https?:\/\//, '').split('/')[0].trim();
+  if (!host) return '';
+  if (host.includes('instagram.')) return 'instagram';
+  if (host.includes('facebook.')) return 'facebook';
+  if (host.includes('youtube.') || host.includes('youtu.be')) return 'youtube';
+  if (host.includes('linkedin.')) return 'linkedin';
+  if (host.includes('x.com') || host.includes('twitter.')) return 'x';
+  if (host.includes('tiktok.')) return 'tiktok';
+  if (host.includes('pinterest.')) return 'pinterest';
+  if (host.includes('snapchat.')) return 'snapchat';
+  return host.replace(/^www\./, '').split(':')[0];
+}
+
+function _socialProviderGlyph(provider = '') {
+  const p = String(provider || '').trim().toLowerCase();
+  if (!p) return '🔗';
+  if (p === 'youtube') return '▶';
+  if (p === 'linkedin') return 'in';
+  if (p === 'x' || p === 'twitter') return '𝕏';
+  if (p === 'facebook') return 'f';
+  if (p === 'instagram') return '◉';
+  if (p === 'tiktok') return '♪';
+  return '🔗';
+}
+
+function _socialProviderPalette(provider = '') {
+  const p = String(provider || '').trim().toLowerCase();
+  if (p === 'instagram') return { from: '#833ab4', to: '#fd1d1d', chip: 'rgba(255,255,255,.22)' };
+  if (p === 'facebook') return { from: '#1877f2', to: '#0a55b8', chip: 'rgba(255,255,255,.24)' };
+  if (p === 'youtube') return { from: '#ff0000', to: '#b91c1c', chip: 'rgba(255,255,255,.24)' };
+  if (p === 'linkedin') return { from: '#0a66c2', to: '#0b4e93', chip: 'rgba(255,255,255,.24)' };
+  if (p === 'x' || p === 'twitter') return { from: '#111827', to: '#374151', chip: 'rgba(255,255,255,.20)' };
+  if (p === 'tiktok') return { from: '#111827', to: '#db2777', chip: 'rgba(255,255,255,.22)' };
+  if (p === 'pinterest') return { from: '#e60023', to: '#9f1239', chip: 'rgba(255,255,255,.24)' };
+  if (p === 'snapchat') return { from: '#facc15', to: '#f59e0b', chip: 'rgba(0,0,0,.16)' };
+  return { from: '#1e3a8a', to: '#0369a1', chip: 'rgba(255,255,255,.22)' };
+}
+
+function _mediaPickerVideoHover(cardEl) {
+  const video = cardEl?.querySelector('video[data-media-preview="video"]');
+  if (!video) return;
+  try {
+    video.currentTime = 0;
+    const p = video.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch (_) {}
+}
+
+function _mediaPickerVideoLeave(cardEl) {
+  const video = cardEl?.querySelector('video[data-media-preview="video"]');
+  if (!video) return;
+  try {
+    video.pause();
+    video.currentTime = 0;
+  } catch (_) {}
+}
+
+function _renderImageMediaPreviewHtml(mediaType = 'image', src = '', label = '', provider = '') {
+  const type = String(mediaType || 'image').toLowerCase();
+  const val = String(src || '').trim();
+  const previewSrc = (type === 'social') ? val : _toPreviewMediaUrl(val);
+  const safeLabel = _esc(String(label || '').trim() || 'Media');
+  if (!val) {
+    return `<div style="height:54px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;margin-top:6px">No media selected</div>`;
+  }
+  if (type === 'image') {
+    return `<img src="${_esc(previewSrc)}" style="height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px">`;
+  }
+  if (type === 'video') {
+    return `<video src="${_esc(previewSrc)}" muted playsinline preload="metadata" style="height:54px;width:110px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px;background:#0f172a"></video>`;
+  }
+  const pr = provider || _deriveSocialProvider(val);
+  const pal = _socialProviderPalette(pr);
+  return `<div style="height:54px;min-width:110px;max-width:180px;padding:0 10px;border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;gap:8px;margin-top:6px;background:linear-gradient(135deg,${pal.from},${pal.to});color:#fff;font-size:.75rem">
+    <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:999px;background:${pal.chip};font-weight:700">${_socialProviderGlyph(pr)}</span>
+    <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${safeLabel}</span>
+  </div>`;
+}
+
+function _friendlyMediaSourceLabel(rawPath = '') {
+  const norm = _normalizeStagingAssetUrl(rawPath || '');
+  if (!norm) return '';
+  const mapped = _siteImageLabelByPath.get(norm);
+  if (mapped && String(mapped).trim()) return String(mapped).trim();
+  return _assetFileName(norm) || norm;
+}
+
+function _toPreviewMediaUrl(rawUrl = '') {
+  const raw = String(rawUrl || '').trim();
+  if (!raw) return '';
+  if (/^(https?:)?\/\//i.test(raw) || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+  const norm = _normalizeStagingAssetUrl(raw);
+  if (!norm) return raw;
+  if (!/^assets\//i.test(norm)) return norm;
+  const m = String(currentStagingUrl || '').match(/\/output\/staging\/([^/]+)/i);
+  if (!m) return norm;
+  return `/output/staging/${m[1]}/${norm}`;
+}
+
+function _setImageSourceFieldValue(fid, rawValue) {
+  const srcEl = document.querySelector(`input[data-fid="${fid}-src"]`);
+  if (srcEl) srcEl.value = String(rawValue || '').trim();
+  const displayEl = document.querySelector(`input[data-fid="${fid}-src-display"]`);
+  if (displayEl) {
+    const friendly = _friendlyMediaSourceLabel(rawValue);
+    displayEl.value = friendly || String(rawValue || '').trim();
+    displayEl.title = String(rawValue || '').trim();
+  }
+}
+
+function _syncImageMediaFieldUI(fid) {
+  const typeEl = document.querySelector(`select[data-fid="${fid}-media-type"]`);
+  const srcEl = document.querySelector(`input[data-fid="${fid}-src"]`);
+  const srcDisplayEl = document.querySelector(`input[data-fid="${fid}-src-display"]`);
+  const altEl = document.querySelector(`input[data-fid="${fid}-alt"]`);
+  const animEl = document.querySelector(`select[data-fid="${fid}-anim"]`);
+  if (!typeEl) return;
+  const mediaType = String(typeEl.value || 'image').toLowerCase();
+  if (srcEl) {
+    srcEl.placeholder = mediaType === 'video' ? 'Video source' : (mediaType === 'social' ? 'Social URL' : 'Image source');
+    srcEl.style.display = mediaType === 'social' ? 'block' : 'none';
+  }
+  if (srcDisplayEl) {
+    srcDisplayEl.style.display = mediaType === 'social' ? 'none' : 'block';
+    if (mediaType !== 'social') {
+      const raw = String(srcEl?.value || '').trim();
+      srcDisplayEl.value = _friendlyMediaSourceLabel(raw) || raw;
+      srcDisplayEl.title = raw;
+    }
+  }
+  if (altEl) altEl.placeholder = mediaType === 'social' ? 'Link label' : 'Alt text / label';
+  if (animEl) {
+    const disabled = mediaType !== 'image';
+    animEl.disabled = disabled;
+    animEl.style.opacity = disabled ? '.55' : '1';
+  }
+  _updateImageMediaPreview(fid);
+}
+
+function _updateImageMediaPreview(fid) {
+  const typeEl = document.querySelector(`select[data-fid="${fid}-media-type"]`);
+  const srcEl = document.querySelector(`input[data-fid="${fid}-src"]`);
+  const altEl = document.querySelector(`input[data-fid="${fid}-alt"]`);
+  const preview = document.querySelector(`[data-fid="${fid}-preview"]`);
+  if (!preview) return;
+  const mediaType = String(typeEl?.value || 'image').toLowerCase();
+  const src = String(srcEl?.value || '').trim();
+  const label = String(altEl?.value || '').trim();
+  preview.innerHTML = _renderImageMediaPreviewHtml(mediaType, src, label, _deriveSocialProvider(src));
+}
+
+function _setSelectedExistingBgImage(mediaId = '') {
+  const mediaKey = String(mediaId || '').trim();
+  _selectedExistingMediaPath = mediaKey;
+  const sel = document.getElementById('secBgExistingImage');
+  if (sel) sel.value = mediaKey || '';
+  const labelEl = document.getElementById('secBgExistingLabel');
+  const meta = mediaKey ? _siteMediaById.get(mediaKey) : null;
+  if (labelEl) {
+    if (!mediaKey) {
+      labelEl.textContent = 'No existing image selected';
+    } else {
+      const mediaName = String(meta?.name || '').trim() || _displayBgImageName(meta?.path || meta?.url || '');
+      labelEl.textContent = `Selected: ${mediaName}`;
+    }
+  }
+}
+
+function _selectedMediaMeta() {
+  const key = String(_selectedExistingMediaPath || '').trim();
+  return key ? (_siteMediaById.get(key) || null) : null;
+}
+
+function _displayBgImageName(path) {
+  const norm = _normalizeStagingAssetUrl(path || '');
+  if (norm && _siteImageLabelByPath.has(norm)) return _siteImageLabelByPath.get(norm) || _friendlyImageName('', norm);
+  return _friendlyImageName('', norm || path);
+}
+
+function _refreshBgNameList() {
+  const box = document.getElementById('secBgNamesList');
+  if (!box) return;
+  const urls = _parseBgUrls();
+  if (!urls.length) {
+    box.innerHTML = '<span style="color:var(--muted);font-size:.68rem"><em>No images added</em></span>';
+    return;
+  }
+  box.innerHTML = urls
+    .map((u, i) => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border:1px solid var(--border);border-radius:999px;background:var(--bg);font-size:.68rem;color:var(--text)">${i + 1}. ${_esc(_displayBgImageName(u))}</span>`)
+    .join(' ');
+}
+
+function _currentSiteSlugForFinalize() {
+  const site = (websites || []).find(x => x.website_id === stagedWebsiteId);
+  const localPath = String(site?.local_path || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  if (localPath) {
+    const segs = localPath.split('/').filter(Boolean);
+    return segs[segs.length - 1] || '';
+  }
+  const m = String(currentStagingUrl || '').match(/\/output\/staging\/([^/]+)/i);
+  return m ? m[1] : '';
+}
+
+function _extractUploadedFilename(url) {
+  const m = String(url || '').match(/assets\/uploads\/([^/?#]+)/i);
+  return m ? m[1] : '';
+}
+
+async function _finalizeUploadedAssetUrl(url) {
+  const filename = _extractUploadedFilename(url);
+  if (!filename || !stagedWebsiteId) return url;
+  const siteSlug = _currentSiteSlugForFinalize();
+  if (!siteSlug) return url;
+  try {
+    const r = await fetch(`${API}/media/finalize-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ website_id: stagedWebsiteId, site_slug: siteSlug, filename }),
+    });
+    if (!r.ok) return url;
+    const data = await r.json();
+    return _normalizeStagingAssetUrl(data.image_url || url);
+  } catch (_) {
+    return url;
+  }
+}
+
+async function _uploadImageBlobToMedia(blob, filename = 'image.png') {
+  const fd = new FormData();
+  fd.append('file', blob, filename || 'image.png');
+  if (stagedWebsiteId) fd.append('website_id', stagedWebsiteId);
+  const r = await fetch(`${API}/media/upload-image`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err?.detail || `HTTP ${r.status}`);
+  }
+  const data = await r.json();
+  const uploadedUrl = _normalizeStagingAssetUrl(data.full_url || data.thumb_url || '');
+  return await _finalizeUploadedAssetUrl(uploadedUrl);
+}
+
+function _refreshMediaPickerHeader() {
+  const titleEl = document.getElementById('existingBgPickerTitle');
+  const actionBtn = document.getElementById('existingBgPickerActionBtn');
+  const typeFilterEl = document.getElementById('existingBgTypeFilter');
+  const mode = _mediaPickerContext.mode;
+  if (titleEl) {
+    titleEl.textContent = mode === 'background'
+      ? 'Media Library - Choose Background Image'
+      : mode === 'image-field'
+        ? 'Media Library - Choose Block Media'
+        : 'Media Library';
+  }
+  if (typeFilterEl) {
+    if (mode === 'background') {
+      typeFilterEl.value = 'image';
+      typeFilterEl.disabled = true;
+      _mediaLibraryTypeFilter = 'image';
+    } else {
+      typeFilterEl.disabled = false;
+      if (!['all', 'image', 'video', 'social'].includes(typeFilterEl.value)) {
+        typeFilterEl.value = _mediaLibraryTypeFilter;
+      }
+      _mediaLibraryTypeFilter = typeFilterEl.value || 'all';
+    }
+  }
+  if (actionBtn) {
+    if (mode === 'manage') {
+      actionBtn.style.display = 'none';
+    } else {
+      actionBtn.style.display = '';
+      actionBtn.textContent = mode === 'background' ? 'Add To Background' : 'Use In Block';
+    }
+  }
+}
+
+function onMediaTypeFilterChange() {
+  const typeFilterEl = document.getElementById('existingBgTypeFilter');
+  if (!typeFilterEl) return;
+  _mediaLibraryTypeFilter = typeFilterEl.value || 'all';
+  loadExistingBgImages();
+}
+
+function openStagingMediaLibrary() {
+  if (!stagedWebsiteId) {
+    toast('Open a staging website first', false);
+    return;
+  }
+  _mediaPickerContext = { mode: 'manage', fid: '' };
+  _mediaLibraryTypeFilter = 'all';
+  _refreshMediaPickerHeader();
+  openModal('existingBgImageModal');
+  loadExistingBgImages();
+  renderExistingBgImagePicker();
+}
+
+function openImageFieldMediaPicker(fid) {
+  if (!stagedWebsiteId) {
+    toast('Open a staging website first', false);
+    return;
+  }
+  _mediaPickerContext = { mode: 'image-field', fid: String(fid || '') };
+  _mediaLibraryTypeFilter = 'all';
+  _refreshMediaPickerHeader();
+  openModal('existingBgImageModal');
+  loadExistingBgImages();
+  renderExistingBgImagePicker();
+}
+
+function triggerMediaUploadFromPicker() {
+  if (!stagedWebsiteId) {
+    toast('Open a staging website first', false);
+    return;
+  }
+  const input = document.getElementById('existingBgUploadInput');
+  if (!input) return;
+  input.value = '';
+  input.click();
+}
+
+function triggerMediaVideoUploadFromPicker() {
+  if (!stagedWebsiteId) {
+    toast('Open a staging website first', false);
+    return;
+  }
+  const input = document.getElementById('existingBgVideoUploadInput');
+  if (!input) return;
+  input.value = '';
+  input.click();
+}
+
+async function uploadMediaImageFromPicker(inputEl) {
+  const file = inputEl?.files?.[0];
+  if (!file) return;
+  inputEl.value = '';
+  openImageEditor(file, async blob => {
+    try {
+      await _uploadImageBlobToMedia(blob, file.name || 'image.png');
+      await loadExistingBgImages();
+      renderExistingBgImagePicker();
+      toast('Image uploaded to Media Library ✅');
+    } catch (err) {
+      toast(`Upload failed: ${err.message || 'unknown error'}`, false);
+    }
+  });
+}
+
+async function uploadMediaVideoFromPicker(inputEl) {
+  const file = inputEl?.files?.[0];
+  if (!file) return;
+  inputEl.value = '';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('website_id', stagedWebsiteId || '');
+
+  try {
+    const r = await fetch(`${API}/media/upload-video`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd,
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err?.detail || `HTTP ${r.status}`);
+    }
+    await loadExistingBgImages();
+    renderExistingBgImagePicker();
+    toast('Video uploaded to Media Library ✅');
+  } catch (err) {
+    toast(`Video upload failed: ${err.message || 'unknown error'}`, false);
+  }
+}
+
+async function addSocialLinkFromPicker() {
+  if (!stagedWebsiteId) {
+    toast('Open a staging website first', false);
+    return;
+  }
+  const url = (window.prompt('Enter social media URL (https://...)') || '').trim();
+  if (!url) return;
+  const displayName = (window.prompt('Display name (optional)') || '').trim();
+  const provider = _deriveSocialProvider(url);
+  try {
+    const r = await fetch(`${API}/media/site-links`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ website_id: stagedWebsiteId, url, display_name: displayName, provider }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err?.detail || `HTTP ${r.status}`);
+    }
+    await loadExistingBgImages();
+    renderExistingBgImagePicker();
+    toast('Social link added to Media Library ✅');
+  } catch (err) {
+    toast(`Failed to add social link: ${err.message || 'unknown error'}`, false);
+  }
+}
+
+function _applySelectedMediaToImageField(media, fid) {
+  const safeFid = String(fid || '').trim();
+  if (!media || !safeFid) return;
+  const mediaType = String(media.media_type || 'image').trim().toLowerCase();
+  const rawSource = String(media.url || media.path || '').trim();
+  if (!rawSource) return;
+  const srcVal = mediaType === 'social' ? rawSource : _normalizeStagingAssetUrl(rawSource);
+  const srcEl = document.querySelector(`[data-fid="${safeFid}-src"]`);
+  const typeEl = document.querySelector(`[data-fid="${safeFid}-media-type"]`);
+  const altEl = document.querySelector(`[data-fid="${safeFid}-alt"]`);
+  if (!srcEl) {
+    toast('Target image field is no longer available', false);
+    return;
+  }
+  if (typeEl) typeEl.value = mediaType;
+  _setImageSourceFieldValue(safeFid, srcVal);
+  if (altEl && !String(altEl.value || '').trim()) {
+    if (mediaType === 'social') {
+      altEl.value = String(media.name || media.provider || 'Open Link').trim();
+    } else if (mediaType === 'video') {
+      altEl.value = String(media.name || 'Video').trim();
+    }
+  }
+  const wrap = srcEl.closest('[data-fid]');
+  if (wrap) {
+    const existing = wrap.querySelector('img');
+    const previewSrc = mediaType === 'image' ? _toPreviewMediaUrl(srcVal) : '';
+    if (existing) {
+      existing.src = previewSrc;
+      existing.style.removeProperty('display');
+    } else {
+      const img = document.createElement('img');
+      img.src = previewSrc;
+      img.style.cssText = 'height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px';
+      wrap.prepend(img);
+    }
+  }
+  _syncImageMediaFieldUI(safeFid);
+  const displayName = String(media.name || '').trim() || _displayBgImageName(srcVal);
+  toast(`Selected ${displayName} ✅`);
+}
+
+async function loadExistingBgImages() {
+  const sel = document.getElementById('secBgExistingImage');
+  if (!stagedWebsiteId) return;
+  const typeFilterEl = document.getElementById('existingBgTypeFilter');
+  const mode = _mediaPickerContext.mode;
+  const reqType = mode === 'background'
+    ? 'image'
+    : ((typeFilterEl?.value || _mediaLibraryTypeFilter || 'all').toLowerCase());
+  try {
+    const r = await fetch(`${API}/media/site-media/${stagedWebsiteId}?media_type=${encodeURIComponent(reqType)}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    const items = Array.isArray(data?.items) ? data.items : [];
+    const prev = (sel?.value || _selectedExistingMediaPath || '').trim();
+    _siteImageLabelByPath = new Map();
+    _siteImageMetaByPath = new Map();
+    _siteImageItems = [];
+    _siteMediaById = new Map();
+    if (sel) sel.innerHTML = '<option value="">Select existing image from server…</option>';
+    items.forEach(it => {
+      const mediaType = String(it?.media_type || 'image').trim().toLowerCase();
+      const mediaId = String(it?.media_id || it?.image_id || '').trim();
+      const rawUrl = String(it?.url || it?.path || '').trim();
+      const path = mediaType === 'social' ? rawUrl : _normalizeStagingAssetUrl(rawUrl);
+      if (!mediaId || !path) return;
+      const displayName = String(it?.name || '').trim() || _friendlyImageName('', path);
+      if (mediaType === 'image') {
+        _siteImageLabelByPath.set(path, displayName);
+      }
+      const meta = {
+        media_id: mediaId,
+        image_id: String(it?.image_id || mediaId).trim(),
+        media_type: mediaType,
+        name: displayName,
+        raw_name: String(it?.name || '').trim(),
+        folder: String(it?.folder || '').trim() || 'uploads',
+        provider: String(it?.provider || '').trim() || _deriveSocialProvider(path),
+        mime_type: String(it?.mime_type || '').trim(),
+        path,
+        url: path,
+      };
+      _siteImageMetaByPath.set(mediaId, meta);
+      _siteMediaById.set(mediaId, meta);
+      _siteImageItems.push(meta);
+      if (sel) sel.innerHTML += `<option value="${_esc(mediaId)}">${_esc(displayName)} (${_esc(mediaType)})</option>`;
+    });
+    if (prev && _siteMediaById.has(prev)) {
+      _setSelectedExistingBgImage(prev);
+    } else {
+      _setSelectedExistingBgImage('');
+    }
+    _refreshBgNameList();
+    renderExistingBgImagePicker();
+  } catch (_) {
+    // Keep editor usable even if list endpoint fails.
+  }
+}
+
+function openExistingBgImagePicker() {
+  if (!stagedWebsiteId) {
+    toast('Open a staging website first', false);
+    return;
+  }
+  _mediaPickerContext = { mode: 'background', fid: '' };
+  _mediaLibraryTypeFilter = 'image';
+  _refreshMediaPickerHeader();
+  openModal('existingBgImageModal');
+  loadExistingBgImages();
+  renderExistingBgImagePicker();
+}
+
+function renderExistingBgImagePicker() {
+  const grid = document.getElementById('existingBgImageGrid');
+  const status = document.getElementById('existingBgPickerStatus');
+  const typeFilterEl = document.getElementById('existingBgTypeFilter');
+  if (!grid || !status) return;
+  const chosenId = String(_selectedExistingMediaPath || '').trim();
+  const currentFilter = (typeFilterEl?.value || _mediaLibraryTypeFilter || 'all').toLowerCase();
+  const items = Array.isArray(_siteImageItems) ? [..._siteImageItems] : [];
+  const filtered = currentFilter === 'all'
+    ? items
+    : items.filter(it => String(it.media_type || 'image') === currentFilter);
+  filtered.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+  if (!filtered.length) {
+    status.textContent = 'No media found for this filter';
+    grid.innerHTML = '<div class="existing-bg-empty">No media available for the selected type.</div>';
+    return;
+  }
+
+  status.textContent = `${filtered.length} item${filtered.length === 1 ? '' : 's'} available`;
+  grid.innerHTML = filtered.map(it => {
+    const mediaId = String(it.media_id || '').trim();
+    const mediaType = String(it.media_type || 'image').trim().toLowerCase();
+    const provider = String(it.provider || '').trim() || _deriveSocialProvider(it.url || it.path || '');
+    const pal = _socialProviderPalette(provider);
+    const selected = mediaId && chosenId === mediaId;
+    const tag = mediaType === 'image'
+      ? (it.folder === 'images' ? 'image • finalized' : 'image • uploaded')
+      : mediaType === 'video'
+        ? 'video'
+        : `social${provider ? ` • ${provider}` : ''}`;
+    const cover = mediaType === 'image'
+      ? `<img src="${_esc(_toPreviewMediaUrl(it.path || ''))}" loading="lazy" alt="${_esc(it.name || 'Uploaded image')}">`
+      : mediaType === 'video'
+        ? `<video data-media-preview="video" src="${_esc(_toPreviewMediaUrl(it.path || ''))}" muted loop playsinline preload="metadata" style="width:100%;height:96px;object-fit:cover;border-bottom:1px solid var(--border);background:#0f172a"></video>`
+        : `<div style="height:96px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,${pal.from},${pal.to});font-size:2rem;color:#fff">${_socialProviderGlyph(provider)}</div>`;
+    return `<button type="button" class="existing-bg-card ${selected ? 'selected' : ''}" data-id="${_esc(mediaId)}" onclick="selectExistingBgImageCard(this)" ${mediaType === 'video' ? 'onmouseenter="_mediaPickerVideoHover(this)" onmouseleave="_mediaPickerVideoLeave(this)"' : ''} title="${_esc(it.name || '')}">
+      ${cover}
+      <div class="existing-bg-card-body">
+        <div class="existing-bg-card-name">${_esc(it.name || _friendlyImageName('', it.path || it.url || ''))}</div>
+        <div class="existing-bg-card-tag">${_esc(tag)}</div>
+      </div>
+    </button>`;
+  }).join('');
+}
+
+function addChosenExistingBgImageFromPicker() {
+  const selected = _selectedMediaMeta();
+  if (!selected) {
+    toast('Choose an existing image first', false);
+    return;
+  }
+  if (_mediaPickerContext.mode === 'image-field') {
+    _applySelectedMediaToImageField(selected, _mediaPickerContext.fid);
+    closeModal('existingBgImageModal');
+    return;
+  }
+  if (_mediaPickerContext.mode === 'background') {
+    addSelectedExistingBgImage();
+    if (_selectedExistingMediaPath) {
+      closeModal('existingBgImageModal');
+    }
+  }
+}
+
+function selectExistingBgImageCard(btnEl) {
+  const mediaId = String(btnEl?.dataset?.id || '').trim();
+  _setSelectedExistingBgImage(mediaId);
+  renderExistingBgImagePicker();
+}
+
+async function deleteSelectedExistingBgImageFromPicker() {
+  const before = document.getElementById('secBgExistingImage')?.value || '';
+  await deleteSelectedExistingBgImage();
+  const after = document.getElementById('secBgExistingImage')?.value || '';
+  if (before && !after) {
+    renderExistingBgImagePicker();
+  } else {
+    await loadExistingBgImages();
+  }
+}
+
+function addSelectedExistingBgImage() {
+  const selected = _selectedMediaMeta();
+  if (!selected) {
+    toast('Choose an existing image first', false);
+    return;
+  }
+  if (String(selected.media_type || '').toLowerCase() !== 'image') {
+    toast('Background supports images only', false);
+    return;
+  }
+  const path = _normalizeStagingAssetUrl(selected.path || selected.url || '');
+  const ta = document.getElementById('secBgUrls');
+  const urls = _parseBgUrls();
+  if (!urls.includes(path)) urls.push(path);
+  if (ta) ta.value = urls.join('\n');
+  const single = document.getElementById('secBgUrl');
+  if (single && !single.value) single.value = urls[0] || '';
+  _syncBgStrip();
+  _refreshBgNameList();
+  _previewBgDebounced();
+  toast(`Added ${_displayBgImageName(path)} ✅`);
+}
+
+async function deleteSelectedExistingBgImage() {
+  const selected = _selectedMediaMeta();
+  if (!stagedWebsiteId || !selected) {
+    toast('Choose an existing image first', false);
+    return;
+  }
+  const mediaId = String(selected.media_id || selected.image_id || '').trim();
+  const path = String(selected.path || selected.url || '').trim();
+  if (!mediaId) {
+    toast('Selected image cannot be deleted (missing id)', false);
+    return;
+  }
+  const displayName = selected?.name || _displayBgImageName(path);
+  if (!window.confirm(`Delete "${displayName}" from media library?`)) return;
+
+  try {
+    const r = await fetch(`${API}/media/site-media/${stagedWebsiteId}/${encodeURIComponent(mediaId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err?.detail || `HTTP ${r.status}`);
+    }
+
+    const ta = document.getElementById('secBgUrls');
+    const urls = _parseBgUrls().filter(u => u !== path);
+    if (ta) ta.value = urls.join('\n');
+    const single = document.getElementById('secBgUrl');
+    if (single) single.value = urls[0] || '';
+    _setSelectedExistingBgImage('');
+
+    await loadExistingBgImages();
+    _syncBgStrip();
+    _previewBgDebounced();
+    toast(`Deleted ${displayName} ✅`);
+  } catch (err) {
+    toast(`Delete failed: ${err.message || 'unknown error'}`, false);
+  }
 }
 
 function _parseBgUrls() {
@@ -5018,7 +5760,12 @@ function previewBg() {
   // Update thumb
   const url = (_parseBgUrls()[0] || document.getElementById('secBgUrl')?.value || '').trim();
   const thumb = document.getElementById('bgThumb');
-  if (thumb && url) { thumb.tagName === 'IMG' ? (thumb.src = url) : (thumb.outerHTML = `<img src="${url}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-top:6px;border:1px solid var(--border)" id="bgThumb">`); }
+  if (thumb && url) {
+    const previewUrl = _toPreviewMediaUrl(url);
+    thumb.tagName === 'IMG'
+      ? (thumb.src = previewUrl)
+      : (thumb.outerHTML = `<img src="${previewUrl}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-top:6px;border:1px solid var(--border)" id="bgThumb">`);
+  }
 }
 
 function _bgTarget(el) {
@@ -5256,6 +6003,41 @@ async function uploadBgImage(inputEl) {
   if (!files.length) return;
   inputEl.value = '';
 
+  const _currentSiteSlugForFinalize = () => {
+    const site = (websites || []).find(x => x.website_id === stagedWebsiteId);
+    const localPath = String(site?.local_path || '').replace(/\\/g, '/').replace(/\/+$/, '');
+    if (localPath) {
+      const segs = localPath.split('/').filter(Boolean);
+      return segs[segs.length - 1] || '';
+    }
+    const m = String(currentStagingUrl || '').match(/\/output\/staging\/([^/]+)/i);
+    return m ? m[1] : '';
+  };
+
+  const _extractUploadedFilename = (url) => {
+    const m = String(url || '').match(/assets\/uploads\/([^/?#]+)/i);
+    return m ? m[1] : '';
+  };
+
+  const _finalizeUploadedAssetUrl = async (url) => {
+    const filename = _extractUploadedFilename(url);
+    if (!filename || !stagedWebsiteId) return url;
+    const siteSlug = _currentSiteSlugForFinalize();
+    if (!siteSlug) return url;
+    try {
+      const r = await fetch(`${API}/media/finalize-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ website_id: stagedWebsiteId, site_slug: siteSlug, filename }),
+      });
+      if (!r.ok) return url;
+      const data = await r.json();
+      return _normalizeStagingAssetUrl(data.image_url || url);
+    } catch (_) {
+      return url;
+    }
+  };
+
   const appendUrl = (url) => {
     const ta = document.getElementById('secBgUrls');
     if (ta) {
@@ -5273,15 +6055,16 @@ async function uploadBgImage(inputEl) {
     const fd = new FormData();
     fd.append('file', blob, name);
     if (stagedWebsiteId) fd.append('website_id', stagedWebsiteId);
-    const r = await fetch(`${API}/shop/upload-image`, {
+    const r = await fetch(`${API}/media/upload-image`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: fd,
     });
     if (r.ok) {
       const data = await r.json();
-      const url = _normalizeStagingAssetUrl(data.full_url || data.thumb_url || '');
-      appendUrl(url);
+      const uploadedUrl = _normalizeStagingAssetUrl(data.full_url || data.thumb_url || '');
+      const finalUrl = await _finalizeUploadedAssetUrl(uploadedUrl);
+      appendUrl(finalUrl);
       return true;
     } else {
       return false;
@@ -5304,23 +6087,20 @@ function _syncBgStrip() {
   const strip = document.getElementById('secBgStrip');
   if (!strip) return;
   const urls = _parseBgUrls();
-  // Rebuild thumbnails (keep the trailing ＋ Add tile)
+  // Rebuild thumbnails based on selected media paths.
   const tiles = urls.map((u, i) => {
     const div = document.createElement('div');
     div.style.cssText = 'position:relative;width:64px;height:48px;border-radius:5px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0';
-    div.title = u;
-    div.innerHTML = `<img src="${u}" style="width:100%;height:100%;object-fit:cover">
+    div.title = _displayBgImageName(u);
+    div.innerHTML = `<img src="${_toPreviewMediaUrl(u)}" style="width:100%;height:100%;object-fit:cover">
       <button type="button" onclick="removeBgImageAt(${i})" title="Remove"
         style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:3px;width:16px;height:16px;font-size:9px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
       <div style="position:absolute;bottom:1px;left:2px;background:rgba(0,0,0,.55);color:#fff;font-size:8px;padding:0 3px;border-radius:2px">${i+1}</div>`;
     return div;
   });
-
-  // keep last child (the ＋ Add label) and rebuild
-  const addTile = strip.querySelector('label');
   strip.innerHTML = '';
   tiles.forEach(t => strip.appendChild(t));
-  if (addTile) strip.appendChild(addTile);
+  _refreshBgNameList();
 }
 
 function removeBgImageAt(idx) {
@@ -5332,6 +6112,7 @@ function removeBgImageAt(idx) {
   const inp = document.getElementById('secBgUrl');
   if (inp) inp.value = urls[0] || '';
   _syncBgStrip();
+  _refreshBgNameList();
   _previewBgDebounced();
 }
 
@@ -5352,6 +6133,7 @@ function addBgImageUrl() {
   const singleInp = document.getElementById('secBgUrl');
   if (singleInp) singleInp.value = first;
   inp.value = '';
+  _refreshBgNameList();
   _previewBgDebounced();
   toast('Image URL added ✅');
 }
@@ -5864,20 +6646,36 @@ function moveLinkField(btn, dir) {
 
 function _imgField(idx, tag, src, alt, fid, init = {}) {
   const mode = init.mode || 'none';
+  const mediaType = String(init.mediaType || 'image').trim().toLowerCase();
+  const isFileMedia = mediaType !== 'social';
+  const sourceLabel = mediaType === 'video' ? 'Video source' : (mediaType === 'social' ? 'Social URL' : 'Image source');
+  const sourceDisplay = isFileMedia ? _friendlyMediaSourceLabel(src) : src;
   const clickInit = init.click || {};
-  const thumb = src ? `<img src="${_esc(src)}" style="height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px">` : '';
+  const animDisabled = mediaType !== 'image' ? 'disabled style="opacity:.55"' : '';
+  const previewHtml = _renderImageMediaPreviewHtml(mediaType, src, alt, _deriveSocialProvider(src));
   return `<div data-fid="${fid}" data-type="img">
     <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">${idx}. ${tag}</label>
-    ${thumb}
-    <input type="text" value="${_esc(src)}" placeholder="Image URL" data-fid="${fid}-src"
-      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-top:6px"
+    <div style="margin:4px 0 6px">
+      <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Media type</label>
+      <select data-fid="${fid}-media-type" onchange="_syncImageMediaFieldUI('${fid}')" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+        <option value="image" ${mediaType === 'image' ? 'selected' : ''}>Image</option>
+        <option value="video" ${mediaType === 'video' ? 'selected' : ''}>Video</option>
+        <option value="social" ${mediaType === 'social' ? 'selected' : ''}>Social Link</option>
+      </select>
+    </div>
+    <div data-fid="${fid}-preview">${previewHtml}</div>
+    <input type="text" value="${_esc(src)}" placeholder="${_esc(sourceLabel)}" data-fid="${fid}-src" oninput="_updateImageMediaPreview('${fid}')"
+      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-top:6px;display:${isFileMedia ? 'none' : 'block'}"
       onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
-    <input type="text" value="${_esc(alt)}" placeholder="Alt text (description)" data-fid="${fid}-alt"
+    <input type="text" value="${_esc(sourceDisplay)}" data-fid="${fid}-src-display" readonly title="${_esc(src)}"
+      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-top:6px;display:${isFileMedia ? 'block' : 'none'}"
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
+    <input type="text" value="${_esc(alt)}" placeholder="Alt text / link label" data-fid="${fid}-alt" oninput="_updateImageMediaPreview('${fid}')"
       style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--muted);font-size:.8rem;outline:none;margin-top:4px"
       onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" />
     <div style="margin-top:6px">
       <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Image animation</label>
-      <select data-fid="${fid}-anim" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+      <select data-fid="${fid}-anim" ${animDisabled} style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
         <option value="none" ${mode === 'none' ? 'selected' : ''}>None</option>
         <option value="float" ${mode === 'float' ? 'selected' : ''}>Float</option>
         <option value="zoom" ${mode === 'zoom' ? 'selected' : ''}>Zoom Pulse</option>
@@ -5891,11 +6689,7 @@ function _imgField(idx, tag, src, alt, fid, init = {}) {
       <button type="button" class="btn btn-secondary btn-sm" style="flex:1" onclick="applyImgAnimPreset('${fid}','bold')">Bold</button>
     </div>
     <div style="display:flex;gap:6px;margin-top:6px">
-      <label class="btn btn-secondary btn-sm" style="cursor:pointer;flex:1;text-align:center">
-        ⬆ Upload Image
-        <input type="file" accept="image/*" style="display:none" onchange="uploadSectionImage(this,'${fid}')">
-      </label>
-      <button class="btn btn-secondary btn-sm" onclick="clearSectionImage('${fid}')" title="Remove image">🗑 Remove</button>
+      <button class="btn btn-secondary btn-sm" onclick="openImageFieldMediaPicker('${fid}')" title="Choose media from uploaded library" style="flex:1">🗂 Choose From Media Library</button>
     </div>
     ${_clickActionField(fid, clickInit)}
   </div>`;
@@ -6219,6 +7013,7 @@ function applySecEdits() {
   const headings  = [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
   const paras     = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
   const links     = [...el.querySelectorAll('a')].filter(a => {
+    if (String(a?.dataset?.wbMediaType || '').toLowerCase() === 'social') return false;
     const text = (a.textContent || '').trim();
     return text.length > 0 && text.length <= 60;
   });
@@ -6231,6 +7026,8 @@ function applySecEdits() {
 
   // Logo + Brand Name — only for first section
   if (activeSectionIndex === 0) {
+    const LOGO_FIXED_HEIGHT_PX = 32;
+
     fieldNum++;
     const logoFid = `img-${fieldNum}`;
     const logoSrcEl = fieldsEl.querySelector(`input[data-fid="${logoFid}-src"]`);
@@ -6239,13 +7036,39 @@ function applySecEdits() {
       let logoImg = imgs[0];
       if (!logoImg) {
         logoImg = el.ownerDocument.createElement('img');
-        logoImg.style.cssText = 'height:48px;object-fit:contain;vertical-align:middle;margin-right:10px';
+        logoImg.style.cssText = `height:${LOGO_FIXED_HEIGHT_PX}px;max-height:${LOGO_FIXED_HEIGHT_PX}px;width:auto;object-fit:contain;vertical-align:middle;margin:0 8px 0 0`;
         el.querySelector('.logo, .brand, [class*="logo"]')?.prepend(logoImg) || el.prepend(logoImg);
         imgs = [logoImg, ...imgs]; iIdx = 0;
       }
       logoImg.src = logoSrcEl.value;
       logoImg.setAttribute('src', logoSrcEl.value);
       if (logoAltEl) logoImg.alt = logoAltEl.value;
+
+      // Keep logo grouped with brand text when a brand container exists.
+      const brandWrapEl = el.querySelector('.brand, .logo, .site-title, [class*="brand"], [class*="logo"]');
+      if (brandWrapEl && logoImg.parentElement !== brandWrapEl) {
+        brandWrapEl.prepend(logoImg);
+      }
+
+      // Keep nav/header layout stable after logo replacement.
+      logoImg.style.setProperty('height', `${LOGO_FIXED_HEIGHT_PX}px`, 'important');
+      logoImg.style.setProperty('width', 'auto', 'important');
+      logoImg.style.setProperty('max-height', `${LOGO_FIXED_HEIGHT_PX}px`, 'important');
+      logoImg.style.setProperty('max-width', '220px', 'important');
+      logoImg.style.setProperty('object-fit', 'contain', 'important');
+      logoImg.style.setProperty('display', 'inline-block', 'important');
+      logoImg.style.setProperty('vertical-align', 'middle', 'important');
+      logoImg.style.setProperty('margin', '0 8px 0 0', 'important');
+      logoImg.style.setProperty('flex-shrink', '0', 'important');
+
+      const logoWrap = logoImg.parentElement;
+      if (logoWrap) {
+        const wrapStyle = logoWrap.style;
+        if (wrapStyle.getPropertyValue('display') === 'inline-flex') wrapStyle.removeProperty('display');
+        if (wrapStyle.getPropertyValue('align-items') === 'center') wrapStyle.removeProperty('align-items');
+        const wrapGap = wrapStyle.getPropertyValue('gap');
+        if (wrapGap === '6px' || wrapGap === '10px') wrapStyle.removeProperty('gap');
+      }
       iIdx = 1;
     }
 
@@ -6404,29 +7227,107 @@ function applySecEdits() {
   // Advance fieldNum past link fields so image fids align with openSecEditor numbering
   fieldNum += linkDivs.length;
 
-  // Remaining images
-  imgs.slice(iIdx).forEach(img => {
+  const _replaceMediaNodeType = (node, targetType) => {
+    if (!node || !node.ownerDocument) return node;
+    const doc2 = node.ownerDocument;
+    const currentType = String(node.dataset?.wbMediaType || (node.tagName === 'VIDEO' ? 'video' : (node.tagName === 'A' ? 'social' : 'image'))).toLowerCase();
+    if (currentType === targetType) return node;
+
+    const replacement = targetType === 'video'
+      ? doc2.createElement('video')
+      : targetType === 'social'
+        ? doc2.createElement('a')
+        : doc2.createElement('img');
+
+    replacement.style.cssText = node.style.cssText || '';
+    replacement.className = node.className || '';
+    replacement.setAttribute('data-wb-media-type', targetType);
+
+    if (targetType === 'video') {
+      replacement.setAttribute('controls', 'controls');
+      replacement.setAttribute('playsinline', 'playsinline');
+      replacement.setAttribute('preload', 'metadata');
+    }
+    if (targetType === 'social') {
+      replacement.setAttribute('target', '_blank');
+      replacement.setAttribute('rel', 'noopener noreferrer');
+      replacement.style.setProperty('display', 'inline-block', 'important');
+      replacement.style.setProperty('text-decoration', 'underline', 'important');
+    }
+
+    node.replaceWith(replacement);
+    return replacement;
+  };
+
+  const mediaDivs = [...fieldsEl.querySelectorAll('[data-type="img"]')];
+  const skipLogoField = activeSectionIndex === 0 ? 1 : 0;
+  mediaDivs.slice(skipLogoField).forEach((div) => {
     fieldNum++;
-    const fid = `img-${fieldNum}`;
+    const fid = String(div.getAttribute('data-fid') || `img-${fieldNum}`);
     const srcEl = fieldsEl.querySelector(`input[data-fid="${fid}-src"]`);
     const altEl = fieldsEl.querySelector(`input[data-fid="${fid}-alt"]`);
     const animEl = fieldsEl.querySelector(`select[data-fid="${fid}-anim"]`);
-    if (srcEl) {
-      const newSrc = _normalizeStagingAssetUrl(srcEl.value || '');
-      if (newSrc) {
-        img.src = newSrc;
-        img.setAttribute('src', newSrc);
-        img.style.removeProperty('display');
-        delete img.dataset.wbEditorHidden;
-      } else {
-        img.removeAttribute('src');
-        img.style.setProperty('display', 'none', 'important');
-        img.dataset.wbEditorHidden = '1';
-      }
+    const typeEl = fieldsEl.querySelector(`select[data-fid="${fid}-media-type"]`);
+    const mediaType = String(typeEl?.value || 'image').toLowerCase();
+
+    let node = div._imgEl || fieldsEl._imgFidToEl?.get(fid);
+    if (!node) {
+      const fallback = mediaType === 'video'
+        ? el.ownerDocument.createElement('video')
+        : mediaType === 'social'
+          ? el.ownerDocument.createElement('a')
+          : el.ownerDocument.createElement('img');
+      fallback.setAttribute('data-wb-media-type', mediaType);
+      el.appendChild(fallback);
+      node = fallback;
     }
-    if (altEl) img.alt = altEl.value;
-    _applyImgAnimation(img, animEl?.value || 'none');
-    _applyClickActionFromField(fieldsEl, fid, img);
+    node = _replaceMediaNodeType(node, mediaType);
+    node.dataset.wbMediaType = mediaType;
+
+    const rawSrc = String(srcEl?.value || '').trim();
+    const newSrc = mediaType === 'social' ? _normalizeClickActionUrl(rawSrc) : _normalizeStagingAssetUrl(rawSrc);
+    const newAlt = String(altEl?.value || '').trim();
+
+    if (mediaType === 'image') {
+      if (newSrc) {
+        node.src = newSrc;
+        node.setAttribute('src', newSrc);
+        node.style.removeProperty('display');
+        delete node.dataset.wbEditorHidden;
+      } else {
+        node.removeAttribute('src');
+        node.style.setProperty('display', 'none', 'important');
+        node.dataset.wbEditorHidden = '1';
+      }
+      node.alt = newAlt;
+      _applyImgAnimation(node, animEl?.value || 'none');
+      _applyClickActionFromField(fieldsEl, fid, node);
+    } else if (mediaType === 'video') {
+      node.removeAttribute('href');
+      node.textContent = '';
+      if (newSrc) {
+        node.setAttribute('src', newSrc);
+        node.src = newSrc;
+        node.style.removeProperty('display');
+      } else {
+        node.removeAttribute('src');
+        node.style.setProperty('display', 'none', 'important');
+      }
+      if (newAlt) node.setAttribute('aria-label', newAlt);
+      _applyClickActionFromField(fieldsEl, fid, node);
+    } else {
+      node.removeAttribute('src');
+      node.setAttribute('href', newSrc || '#');
+      node.textContent = newAlt || 'Open Social Link';
+      node.style.removeProperty('display');
+      node.removeAttribute('alt');
+      _applyClickActionFromField(fieldsEl, fid, node);
+    }
+
+    div._imgEl = node;
+    if (fieldsEl._imgFidToEl && typeof fieldsEl._imgFidToEl.set === 'function') {
+      fieldsEl._imgFidToEl.set(fid, node);
+    }
   });
 
   // Alliance table rows (if present in this section)
@@ -6617,61 +7518,55 @@ async function uploadSectionImage(inputEl, fid) {
   inputEl.value = '';
   openImageEditor(file, async blob => {
     const fd = new FormData();
-    fd.append('file', blob, 'image.png');
+    fd.append('file', blob, file.name || 'image.png');
     if (stagedWebsiteId) fd.append('website_id', stagedWebsiteId);
-    const r = await fetch(`${API}/shop/upload-image`, {
+    const r = await fetch(`${API}/media/upload-image`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: fd,
     });
     if (r.ok) {
       const data = await r.json();
-      // Use returned relative path directly
-      const url = _normalizeStagingAssetUrl(data.full_url || data.thumb_url || '');
+      const uploadedUrl = _normalizeStagingAssetUrl(data.full_url || data.thumb_url || '');
+      let url = uploadedUrl;
+      try {
+        const site = (websites || []).find(x => x.website_id === stagedWebsiteId);
+        const localPath = String(site?.local_path || '').replace(/\\/g, '/').replace(/\/+$/, '');
+        const siteSlug = localPath ? localPath.split('/').filter(Boolean).pop() : (String(currentStagingUrl || '').match(/\/output\/staging\/([^/]+)/i)?.[1] || '');
+        const fileMatch = String(uploadedUrl || '').match(/assets\/uploads\/([^/?#]+)/i);
+        const filename = fileMatch ? fileMatch[1] : '';
+        if (siteSlug && filename && stagedWebsiteId) {
+          const fr = await fetch(`${API}/media/finalize-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ website_id: stagedWebsiteId, site_slug: siteSlug, filename }),
+          });
+          if (fr.ok) {
+            const fdata = await fr.json();
+            url = _normalizeStagingAssetUrl(fdata.image_url || uploadedUrl);
+          }
+        }
+      } catch (_) {}
       const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
-      if (srcEl) srcEl.value = url;
+      _setImageSourceFieldValue(fid, url);
       // Show thumbnail preview
       const wrap = srcEl?.closest('[data-fid]');
       if (wrap) {
         const existing = wrap.querySelector('img');
-        if (existing) existing.src = url;
-        else { const img = document.createElement('img'); img.src = url; img.style.cssText='height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px'; wrap.prepend(img); }
+        const previewSrc = _toPreviewMediaUrl(url);
+        if (existing) existing.src = previewSrc;
+        else { const img = document.createElement('img'); img.src = previewSrc; img.style.cssText='height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px'; wrap.prepend(img); }
       }
       toast('Image uploaded ✅');
     } else {
       toast('Image upload failed', false);
     }
   });
-// Finalize image: move from uploads to images and update HTML reference
-async function finalizeSectionImage(siteSlug, filename, fid) {
-  const r = await fetch(`${API}/shop/finalize-image`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ website_id: stagedWebsiteId, site_slug: siteSlug, filename }),
-  });
-  if (r.ok) {
-    const data = await r.json();
-    const newUrl = _normalizeStagingAssetUrl(data.image_url);
-    const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
-    if (srcEl) srcEl.value = newUrl;
-    // Update preview if present
-    const wrap = srcEl?.closest('[data-fid]');
-    if (wrap) {
-      const img = wrap.querySelector('img');
-      if (img) img.src = newUrl;
-    }
-    toast('Image finalized and moved to images ✅');
-    return newUrl;
-  } else {
-    toast('Failed to finalize image', false);
-    return null;
-  }
-}
 }
 
 function clearSectionImage(fid) {
   const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
-  if (srcEl) srcEl.value = '';
+  _setImageSourceFieldValue(fid, '');
   const wrap = srcEl?.closest('[data-fid]');
   if (wrap) {
     const img = wrap.querySelector('img');
@@ -7480,18 +8375,10 @@ async function _imgEdApplyUpload() {
 
   _imgEdClose();
 
-  // After upload, finalize image (move to images folder)
+  // Deliver the processed image blob to the caller's upload handler.
   const cb = _imgCallback;
   _imgCallback = null;
   if (cb) {
-    // Wrap the callback to finalize after upload
-    cb(async (blob) => {
-      // The uploadSectionImage logic will call openImageEditor(file, cb)
-      // and cb(blob) is called here. We need to finalize after upload.
-      // Find the current site slug and field id (fid) if available.
-      // This requires passing context from uploadSectionImage.
-      // For now, user must call finalizeSectionImage after upload in their handler.
-      return blob;
-    });
+    cb(finalBlob || _imgOrigBlob);
   }
 }

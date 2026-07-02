@@ -108,10 +108,22 @@ def _to_rgb(img: Image.Image) -> Image.Image:
         return bg
     return img.convert("RGB")
 
+
+def _resize_and_encode(img: Image.Image, max_w: int, max_h: int, quality: int) -> bytes:
+    """Resize image to fit bounds and encode as WebP bytes."""
+    normalized = ImageOps.exif_transpose(img)
+    work = _to_rgb(normalized)
+    # Preserve aspect ratio within requested bounds.
+    work.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
+    out = io.BytesIO()
+    work.save(out, format="WEBP", quality=int(quality), method=6)
+    return out.getvalue()
+
 def process_image(
     raw_data: bytes,
     original_filename: str = "",
-    site_slug: str = "website"
+    site_slug: str = "website",
+    storage_override: Optional[dict[str, Any]] = None,
 ) -> ProcessedImage:
     """
     Validate, resize, compress *raw_data* and write both the thumbnail and

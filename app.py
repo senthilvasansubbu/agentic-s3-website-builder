@@ -59,6 +59,7 @@ logging.config.dictConfig({
 from api.routes.auth import router as auth_router
 from api.routes.website_builder import router as website_router
 from api.routes.shopping_cart import router as shop_router
+from api.routes.media import router as media_router
 from api.routes.payment import router as payment_router
 from api.routes.admin import router as admin_router
 from api.routes.console import router as console_router
@@ -100,6 +101,7 @@ app.add_middleware(
 app.include_router(auth_router,    prefix="/api/v1")
 app.include_router(website_router, prefix="/api/v1")
 app.include_router(shop_router,    prefix="/api/v1")
+app.include_router(media_router,   prefix="/api/v1")
 app.include_router(payment_router, prefix="/api/v1")
 app.include_router(admin_router,   prefix="/api/v1")
 app.include_router(console_router, prefix="/api/v1")

@@ -5,7 +5,7 @@ import pytest
 
 def test_finalize_image_requires_authentication(client):
     r = client.post(
-        "/api/v1/shop/finalize-image",
+        "/api/v1/media/finalize-image",
         json={
             "website_id": "site-1",
             "site_slug": "site-1",
@@ -25,7 +25,7 @@ def test_finalize_image_forbidden_for_non_owner(client, verified_user, _in_memor
     )
 
     r = client.post(
-        "/api/v1/shop/finalize-image",
+        "/api/v1/media/finalize-image",
         headers={"Authorization": f"Bearer {verified_user['token']}"},
         json={
             "website_id": website_id,

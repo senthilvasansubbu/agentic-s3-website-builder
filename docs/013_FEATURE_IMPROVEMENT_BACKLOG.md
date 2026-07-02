@@ -353,6 +353,40 @@ API constraints:
 1. Health schema changes must remain backward compatible.
 2. Background jobs must be idempotent and safe on restart.
 
+## 21) Media Recovery (Deleted Images View + Restore)
+
+Priority: P2
+
+User story:
+As a website owner, I want to review soft-deleted images and restore valid ones so accidental deletions do not cause content loss.
+
+Acceptance criteria:
+1. A deleted-images list is available per website with delete timestamp and actor details.
+2. Restore action returns image to the active picker/list for that website.
+3. Restore gracefully handles missing physical files and shows actionable feedback.
+4. Restore operations are auditable.
+
+API constraints:
+1. Restore endpoint must enforce strict website ownership/role checks.
+2. Restore must only target previously soft-deleted media records.
+
+## 22) Media Retention Cleanup (Scheduled Hard Delete)
+
+Priority: P2
+
+User story:
+As a platform operator, I want a retention-based cleanup task for deleted media so storage usage stays controlled and predictable.
+
+Acceptance criteria:
+1. Configurable retention window determines when soft-deleted media is permanently removed.
+2. Cleanup removes both DB records and orphaned files safely.
+3. Dry-run mode reports what would be removed before execution.
+4. Cleanup summary logs include counts for deleted, skipped, and failed records.
+
+API constraints:
+1. Cleanup process must be idempotent and safe across retries/restarts.
+2. Cleanup must not remove active (non-deleted) media records.
+
 ---
 
 ## Additional Improvement Themes (Cross-Cutting)
