@@ -713,6 +713,9 @@ class BuildWebsiteRequest(BaseModel):
     phone: Optional[str] = None                     # e.g. "+1-212-555-0199"
     booking_prefix: Optional[str] = None            # e.g. "BK" — order ref prefix
     social_links: Optional[dict] = None             # e.g. {"instagram": "https://...", "facebook": [...], "linkedin": "https://..."}
+    product_layout_mode: Optional[str] = "grid"    # grid | carousel
+    product_image_min_height: Optional[int] = 170   # px
+    product_image_max_height: Optional[int] = 260   # px
 
 
 class UpdateWebsiteRequest(BaseModel):
@@ -1267,6 +1270,9 @@ async def build_website_pages(
         booking_prefix=body.booking_prefix,
         niche=body.niche,
         social_links=body.social_links,
+        product_layout_mode=body.product_layout_mode,
+        product_image_min_height=body.product_image_min_height,
+        product_image_max_height=body.product_image_max_height,
         website_id=website_id,
         include_shopping_cart=body.include_shopping_cart,
         # NOTE: scraped_title is intentionally NOT passed here — it comes from an external
@@ -1304,6 +1310,9 @@ async def build_website_pages(
         "booking_prefix": body.booking_prefix,
         "niche": body.niche,
         "social_links": body.social_links or {},
+        "product_layout_mode": body.product_layout_mode,
+        "product_image_min_height": body.product_image_min_height,
+        "product_image_max_height": body.product_image_max_height,
         "content_depth": body.content_depth,
         "include_shopping_cart": body.include_shopping_cart,
         "enable_chatbot": bool(site.get("enable_chatbot")),

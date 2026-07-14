@@ -8,6 +8,7 @@ Or:
     python app.py
 """
 import os
+import argparse
 import logging
 import logging.config
 from pathlib import Path
@@ -384,4 +385,41 @@ async def root():
 # ── Dev entrypoint ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+
+    parser = argparse.ArgumentParser(description="Run the Agentic Website Builder API")
+    parser.add_argument("--host", default=os.getenv("APP_HOST", "0.0.0.0"))
+    parser.add_argument("--port", type=int, default=int(os.getenv("APP_PORT", "8000")))
+    parser.add_argument("--https", action="store_true", default=_is_truthy(os.getenv("APP_HTTPS", "")))
+    parser.add_argument("--ssl-keyfile", default=os.getenv("SSL_KEYFILE", ""))
+    parser.add_argument("--ssl-certfile", default=os.getenv("SSL_CERTFILE", ""))
+    parser.add_argument("--reload", dest="reload", action="store_true")
+    parser.add_argument("--no-reload", dest="reload", action="store_false")
+    parser.set_defaults(reload=_is_truthy(os.getenv("UVICORN_RELOAD", "true")))
+
+    args = parser.parse_args()
+
+    ssl_keyfile = (args.ssl_keyfile or "").strip() or None
+    ssl_certfile = (args.ssl_certfile or "").strip() or None
+    https_enabled = bool(args.https or ssl_keyfile or ssl_certfile)
+
+    if https_enabled and not (ssl_keyfile and ssl_certfile):
+        default_key = Path("certs/dev.key")
+        default_cert = Path("certs/dev.crt")
+        if default_key.exists() and default_cert.exists():
+            ssl_keyfile = str(default_key)
+            ssl_certfile = str(default_cert)
+        else:
+            raise RuntimeError(
+                "HTTPS enabled but SSL certificate files are missing. "
+                "Provide --ssl-keyfile and --ssl-certfile (or SSL_KEYFILE/SSL_CERTFILE), "
+                "or add local dev certs at certs/dev.key and certs/dev.crt."
+            )
+
+    uvicorn.run(
+        "app:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        ssl_keyfile=ssl_keyfile if https_enabled else None,
+        ssl_certfile=ssl_certfile if https_enabled else None,
+    )

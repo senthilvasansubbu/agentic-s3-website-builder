@@ -62,6 +62,9 @@ class BuildRequest:
     output_target: str = "legacy"
     categories: Optional[List[str]] = None
     catalog_items: Optional[List[str]] = None   # exact product/model names — no AI hallucination
+    product_layout_mode: Optional[str] = "grid"   # grid | carousel
+    product_image_min_height: Optional[int] = 170  # px
+    product_image_max_height: Optional[int] = 260  # px
     location: Optional[str] = None
     niche: Optional[str] = None
     email: Optional[str] = None
@@ -106,6 +109,32 @@ def _detect_medical_domain(requirements: str) -> bool:
     """Check if this is a medical/diagnostic/pharmaceutical domain."""
     medical_keywords = r"\b(medical|medicinal|diagnostic|diagnostics|pharma|pharmaceutical|laboratory|lab\s*equipment|reagent|reseller|distributor|hospital|clinic|healthcare|health\s*care|device|analyzer|analyzer)\b"
     return bool(re.search(medical_keywords, requirements or "", re.I))
+
+
+def _normalize_product_display_settings(body: BuildRequest) -> Dict[str, int | str]:
+    mode = (getattr(body, "product_layout_mode", None) or "grid").strip().lower()
+    if mode not in {"grid", "carousel"}:
+        mode = "grid"
+
+    def _to_int(value: Any, fallback: int) -> int:
+        try:
+            return int(value)
+        except Exception:
+            return fallback
+
+    min_h = _to_int(getattr(body, "product_image_min_height", None), 170)
+    max_h = _to_int(getattr(body, "product_image_max_height", None), 260)
+
+    min_h = max(120, min(420, min_h))
+    max_h = max(140, min(560, max_h))
+    if max_h < min_h:
+        max_h = min_h
+
+    return {
+        "mode": mode,
+        "image_min_height": min_h,
+        "image_max_height": max_h,
+    }
 
 
 # Canonical grouped taxonomy used by the build UI.
@@ -226,11 +255,15 @@ def _build_cart_section(cart_features: List[str]) -> str:
     )
 
 
-def _build_shop_nav_section(website_id: str) -> str:
+def _build_shop_nav_section(website_id: str, product_settings: Dict[str, int | str]) -> str:
     """
     Injects instructions so the AI generates a live Shop page that fetches
     products dynamically from the platform API using the website_id.
     """
+    mode = product_settings.get("mode", "grid")
+    min_h = int(product_settings.get("image_min_height", 170))
+    max_h = int(product_settings.get("image_max_height", 260))
+
     return f"""
 
 === Shop / Product Catalogue Navigation ===
@@ -244,7 +277,13 @@ You MUST:
 3. The separate Shop experience should provide:
    - A search bar (input type="text" id="shopSearch") that filters the product
      grid in real time.
-   - A product grid (CSS grid, 3-4 columns on desktop, 2 on tablet, 1 on mobile).
+     - A product catalogue area that supports BOTH:
+         a) GRID mode: 3-4 columns desktop, 2 tablet, 1 mobile.
+         b) CAROUSEL mode: horizontal row with left/right icon controls and bottom indicator dots.
+     - Respect user-configured product display settings:
+         PRODUCT_LAYOUT_MODE={str(mode).upper()},
+         PRODUCT_IMAGE_MIN_HEIGHT={min_h}px,
+         PRODUCT_IMAGE_MAX_HEIGHT={max_h}px.
    - Each product card must show: product image, name, price (formatted with
      currency symbol), a short description snippet, category badge, and an
      "Add to Cart" button styled with the site accent colour.
@@ -254,6 +293,9 @@ You MUST:
 (function () {{
   const WEBSITE_ID = "{website_id}";
   const API_BASE   = window.location.origin + "/api/v1";
+    const PRODUCT_LAYOUT_MODE = "{mode}";
+    const PRODUCT_IMAGE_MIN = {min_h};
+    const PRODUCT_IMAGE_MAX = {max_h};
 
   async function loadProducts() {{
     const grid = document.getElementById("shopGrid");
@@ -267,7 +309,7 @@ You MUST:
         <div class="product-card" data-name="${{(p.name||'').toLowerCase()}}">
           <div class="product-img-wrap">
             <img src="${{p.image_url || p.thumb_url || 'https://source.unsplash.com/featured/400x400/?product'}}"
-                 alt="${{p.name}}" loading="lazy" style="width:100%;height:220px;object-fit:cover;border-radius:8px 8px 0 0">
+                                 alt="${{p.name}}" loading="lazy" style="width:100%;height:clamp(${{PRODUCT_IMAGE_MIN}}px,22vw,${{PRODUCT_IMAGE_MAX}}px);object-fit:cover;border-radius:8px 8px 0 0">
             ${{p.category_name ? `<span class="cat-badge">${{p.category_name}}</span>` : ''}}
           </div>
           <div class="product-info" style="padding:14px">
@@ -275,20 +317,76 @@ You MUST:
             <p style="color:#888;font-size:.85rem;margin:0 0 10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${{p.description||''}}</p>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-weight:700;font-size:1.05rem">${{p.currency||'$'}}${{Number(p.price||0).toFixed(2)}}</span>
-              <button onclick="addToCart('${{p.product_id}}')" style="background:var(--accent,#667eea);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Add to Cart</button>
+                            <button onclick="addToCart('${{p.product_id}}', this)" style="background:var(--accent,#667eea);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Add to Cart</button>
             </div>
           </div>
         </div>`).join('');
+            applyLayoutMode();
     }} catch(e) {{ console.error('Shop load error', e); }}
   }}
 
-  function addToCart(productId) {{
+    function addToCart(productId, btn) {{
     // Dispatch a custom event — intercept in your storefront logic
     document.dispatchEvent(new CustomEvent('addToCart', {{ detail: {{ productId }} }}));
-    const btn = event.currentTarget;
+        if (!btn) return;
     btn.textContent = '✓ Added';
     setTimeout(() => btn.textContent = 'Add to Cart', 1500);
   }}
+
+    function ensureCarouselControls() {{
+        const grid = document.getElementById('shopGrid');
+        if (!grid) return;
+        if (document.getElementById('shopCarouselControls')) return;
+        const controls = document.createElement('div');
+        controls.id = 'shopCarouselControls';
+        controls.innerHTML = `
+            <button type="button" id="shopPrev" aria-label="Scroll products left">◀</button>
+            <div id="shopDots" aria-label="Product carousel position"></div>
+            <button type="button" id="shopNext" aria-label="Scroll products right">▶</button>
+        `;
+        grid.insertAdjacentElement('afterend', controls);
+        document.getElementById('shopPrev')?.addEventListener('click', () => scrollGrid(-1));
+        document.getElementById('shopNext')?.addEventListener('click', () => scrollGrid(1));
+        grid.addEventListener('scroll', updateCarouselDots);
+        updateCarouselDots();
+    }}
+
+    function scrollGrid(direction) {{
+        const grid = document.getElementById('shopGrid');
+        if (!grid) return;
+        const jump = Math.max(280, Math.floor(grid.clientWidth * 0.78));
+        grid.scrollBy({{ left: direction * jump, behavior: 'smooth' }});
+    }}
+
+    function updateCarouselDots() {{
+        const grid = document.getElementById('shopGrid');
+        const dotsWrap = document.getElementById('shopDots');
+        if (!grid || !dotsWrap || PRODUCT_LAYOUT_MODE !== 'carousel') return;
+        const cardCount = grid.querySelectorAll('.product-card').length;
+        const cardsPerPage = Math.max(1, Math.floor(grid.clientWidth / 260));
+        const pages = Math.max(1, Math.ceil(cardCount / cardsPerPage));
+        const active = Math.min(pages - 1, Math.max(0, Math.round(grid.scrollLeft / Math.max(1, grid.clientWidth * 0.78))));
+        dotsWrap.innerHTML = Array.from({{ length: pages }}).map((_, i) =>
+            `<button type="button" class="shop-dot ${{i === active ? 'active' : ''}}" aria-label="Go to product page ${{i+1}}"></button>`
+        ).join('');
+        dotsWrap.querySelectorAll('.shop-dot').forEach((dot, i) => {{
+            dot.addEventListener('click', () => grid.scrollTo({{ left: i * grid.clientWidth * 0.78, behavior: 'smooth' }}));
+        }});
+    }}
+
+    function applyLayoutMode() {{
+        const grid = document.getElementById('shopGrid');
+        if (!grid) return;
+        const controls = document.getElementById('shopCarouselControls');
+        if (PRODUCT_LAYOUT_MODE === 'carousel') {{
+            grid.classList.add('shop-carousel');
+            ensureCarouselControls();
+            updateCarouselDots();
+        }} else {{
+            grid.classList.remove('shop-carousel');
+            if (controls) controls.remove();
+        }}
+    }}
 
   document.getElementById('shopSearch')?.addEventListener('input', function() {{
     const q = this.value.toLowerCase();
@@ -306,8 +404,30 @@ You MUST:
 .product-card:hover{{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.13)}}
 .product-img-wrap{{position:relative}}
 .cat-badge{{position:absolute;top:10px;left:10px;background:var(--accent,#667eea);color:#fff;font-size:.7rem;padding:3px 8px;border-radius:20px}}
-#shopGrid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;padding:20px 0}}
+#shopGrid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;padding:20px 0;--product-image-min:{min_h}px;--product-image-max:{max_h}px}}
+#shopGrid.shop-carousel{{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,280px);grid-template-columns:none;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;padding-bottom:10px;scrollbar-width:thin}}
+#shopGrid.shop-carousel .product-card{{scroll-snap-align:start}}
+#shopCarouselControls{{display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 4px}}
+#shopCarouselControls button{{border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:6px 10px;cursor:pointer}}
+#shopDots{{display:flex;gap:8px}}
+.shop-dot{{width:8px;height:8px;border-radius:999px;border:none;background:#cbd5e1;cursor:pointer;padding:0}}
+.shop-dot.active{{background:var(--accent,#667eea)}}
 """
+
+
+def _build_product_layout_directive(product_settings: Dict[str, int | str]) -> str:
+    mode = str(product_settings.get("mode", "grid")).lower()
+    min_h = int(product_settings.get("image_min_height", 170))
+    max_h = int(product_settings.get("image_max_height", 260))
+    return (
+        "\n\n=== PRODUCT DISPLAY LAYOUT DIRECTIVE ===\n"
+        f"PRODUCT LAYOUT MODE: {mode.upper()}\n"
+        f"PRODUCT IMAGE MIN HEIGHT: {min_h}px\n"
+        f"PRODUCT IMAGE MAX HEIGHT: {max_h}px\n"
+        "Apply these values across ALL product/service cards. Use CSS clamp() so card image heights stay visually aligned. "
+        "When mode is CAROUSEL, render a horizontal scroller with left/right icon controls and bottom indicators; "
+        "when mode is GRID, render a responsive multi-column grid."
+    )
 
 
 def _build_feature_flag_sections(site: Dict[str, Any]) -> str:
@@ -587,6 +707,7 @@ def build_prompt(
         if _parts[0] == _parts[-1]:
             site_title = _parts[0]
     nav_links = body.nav_links or []
+    product_settings = _normalize_product_display_settings(body)
 
     booking_prefix = (body.booking_prefix or "").strip()
 
@@ -625,6 +746,12 @@ def build_prompt(
         priority_lines.append(
             "Exact Service / Category Names: " + " | ".join(body.categories)
         )
+    priority_lines.append(
+        f"Product Layout Mode (user-set): {str(product_settings['mode']).upper()}"
+    )
+    priority_lines.append(
+        f"Product Image Height Range (user-set): min {product_settings['image_min_height']}px, max {product_settings['image_max_height']}px"
+    )
     if booking_prefix:
         priority_lines.append(f"Order/Booking Reference Prefix: {booking_prefix}")
         priority_lines.append(
@@ -686,7 +813,9 @@ def build_prompt(
     # Shop navigation (inject live product catalogue if cart is enabled)
     website_id = body.website_id or site.get("website_id", "")
     if (body.include_shopping_cart or cart_features) and website_id:
-        prompt += _build_shop_nav_section(website_id)
+        prompt += _build_shop_nav_section(website_id, product_settings)
+
+    prompt += _build_product_layout_directive(product_settings)
 
 
     # Feature flags (livestream, blog, chatbot)

@@ -3764,6 +3764,8 @@ async function loadStagedSite(preselect, entryPathOverride = null) {
       try {
         if (frame.contentDocument) {
           _injectResponsiveEnhancements(frame.contentDocument);
+          _ensureMediaCardCarouselRuntime(frame.contentDocument);
+          frame.contentDocument.defaultView?.wbMediaCardCarouselInitAll?.(frame.contentDocument);
           _originalHTML = frame.contentDocument.documentElement.outerHTML;
           _historyStack = [];
           _updateUndoBtn();
@@ -4109,6 +4111,7 @@ const SEC_TEMPLATES = [
   { label: '📝 Text / Content', id: 'text-content', html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:900px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:16px">Section Heading</h2><p style="font-size:1.05rem;line-height:1.8;color:#555">Add your content here. Click ✏️ to edit this section.</p></div></section>` },
   { label: '🖼 Image + Text',   id: 'image-text',   html: (id) => `<section id="${id}" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center"><div><h2 style="font-size:1.8rem;margin-bottom:16px">Heading</h2><p style="font-size:1rem;line-height:1.8;color:#555">Your description goes here.</p></div><img src="https://placehold.co/600x400" alt="" style="width:100%;border-radius:12px"></div></section>` },
   { label: '🃏 Cards / Grid',   id: 'cards-grid',   html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:1100px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:40px">Our Offerings</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px"><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card One</h3><p style="color:#666;font-size:.95rem">Description.</p></div><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card Two</h3><p style="color:#666;font-size:.95rem">Description.</p></div><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card Three</h3><p style="color:#666;font-size:.95rem">Description.</p></div></div></div></section>` },
+  { label: '🖼 Media Card Carousel', id: 'media-card-carousel', html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:1160px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:12px">Media Showcase</h2><p style="text-align:center;color:#64748b;margin:0 0 24px">Horizontal media cards with aligned image sizing and bottom carousel controls.</p><div style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,270px);gap:16px;overflow-x:hidden;scroll-snap-type:x mandatory;padding-bottom:8px;scrollbar-width:none"><article id="${id}-item-1" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-1/640/420" alt="Media item 1" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight One</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-2" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-2/640/420" alt="Media item 2" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Two</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-3" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-3/640/420" alt="Media item 3" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Three</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-4" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-4/640/420" alt="Media item 4" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Four</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-5" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-5/640/420" alt="Media item 5" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Five</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-6" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-6/640/420" alt="Media item 6" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Six</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article></div><div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px"><a href="#${id}-item-1" aria-label="Scroll left" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #cbd5e1;border-radius:999px;text-decoration:none;color:#0f172a">◀</a><a href="#${id}-item-1" aria-label="Slide 1" style="width:9px;height:9px;background:#2563eb;border-radius:999px;display:inline-block"></a><a href="#${id}-item-2" aria-label="Slide 2" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-3" aria-label="Slide 3" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-4" aria-label="Slide 4" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-5" aria-label="Slide 5" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-6" aria-label="Slide 6" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-6" aria-label="Scroll right" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #cbd5e1;border-radius:999px;text-decoration:none;color:#0f172a">▶</a></div></div></section>` },
   { label: '📬 Contact Form',  id: 'contact-form',  html: (id) => `<section id="${id}" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:600px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:24px">Get In Touch</h2><form onsubmit="return false" style="display:flex;flex-direction:column;gap:14px;text-align:left"><input type="text" placeholder="Your name" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem"><input type="email" placeholder="Email address" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem"><textarea placeholder="Your message" rows="4" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem;resize:vertical"></textarea><button type="submit" style="padding:13px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer">Send Message</button></form></div></section>` },
   { label: '💬 Testimonials',  id: 'testimonials',  html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:1000px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:40px">What People Say</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px"><div style="background:#f9f7f4;border-radius:12px;padding:28px"><p style="font-style:italic;color:#555;line-height:1.7;margin-bottom:16px">"An excellent experience. Highly recommended!"</p><strong style="font-size:.9rem">— Happy Customer</strong></div><div style="background:#f9f7f4;border-radius:12px;padding:28px"><p style="font-style:italic;color:#555;line-height:1.7;margin-bottom:16px">"Outstanding quality and service."</p><strong style="font-size:.9rem">— Another Customer</strong></div></div></div></section>` },
   { label: '📢 Call to Action', id: 'cta',           html: (id) => `<section id="${id}" style="padding:80px 5%;text-align:center;background:#6366f1;color:#fff"><div style="max-width:700px;margin:0 auto"><h2 style="font-size:2.2rem;margin-bottom:16px">Ready to Get Started?</h2><p style="opacity:.85;font-size:1.05rem;margin-bottom:32px">Join us today and experience the difference.</p><a href="#contact" style="display:inline-block;padding:14px 36px;background:#fff;color:#6366f1;border-radius:8px;font-weight:700;font-size:1rem;text-decoration:none">Get Started</a></div></section>` },
@@ -4267,6 +4270,11 @@ function openSecEditor(idx) {
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   document.getElementById('secEditorTitle').textContent = label;
+  const modeNoteEl = document.getElementById('secEditorModeNote');
+  const isMediaCardMode = _isMediaCardCarouselSection(el);
+  if (modeNoteEl) {
+    modeNoteEl.style.display = isMediaCardMode ? '' : 'none';
+  }
   document.getElementById('secList').style.display = 'none';
   const editor = document.getElementById('secEditor');
   editor.style.display = 'flex';
@@ -4346,6 +4354,7 @@ function openSecEditor(idx) {
     let gridMeta = null;
     let heroMeta = null;
     let sectionBoxMeta = null;
+    const isMediaCardCarousel = _isMediaCardCarouselSection(el);
     const _imgFidToEl = new Map();
 
     // Metadata to store on fields after single innerHTML set
@@ -4376,7 +4385,7 @@ function openSecEditor(idx) {
     }
 
     // Headings — track each one so _getFidTargets can map by index
-    const _headingEls = [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
+    const _headingEls = isMediaCardCarousel ? [] : [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
     const _headingStartField = fieldIdx + 1;
     _headingEls.forEach(h => {
       fieldIdx++;
@@ -4385,7 +4394,7 @@ function openSecEditor(idx) {
 
     // Paragraphs — track start field
     const _paraStartField = fieldIdx + 1;
-    const _paraEls = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
+    const _paraEls = isMediaCardCarousel ? [] : [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
     _paraEls.forEach(p => {
       const text = p.innerText.trim();
       fieldIdx++;
@@ -4394,93 +4403,106 @@ function openSecEditor(idx) {
 
     // Nav links / anchor texts — collect anchor refs before any innerHTML write
     const _linkFidToAnchor = new Map();
-    el.querySelectorAll('a').forEach((a) => {
-      if (String(a?.dataset?.wbMediaType || '').toLowerCase() === 'social') return;
-      const text = (a.textContent || '').trim();
-      const href = a.getAttribute('href') || '';
-      if (!text || text.length > 60) return;
-      fieldIdx++;
-      const fid = `link-${fieldIdx}`;
-      htmlChunks.push(_linkField(fieldIdx, 'Link', text, href, fid, _linkInit(a)));
-      _linkFidToAnchor.set(fid, a);
-    });
+    if (!isMediaCardCarousel) {
+      el.querySelectorAll('a').forEach((a) => {
+        if (String(a?.dataset?.wbMediaType || '').toLowerCase() === 'social') return;
+        const text = (a.textContent || '').trim();
+        const href = a.getAttribute('href') || '';
+        if (!text || text.length > 60) return;
+        fieldIdx++;
+        const fid = `link-${fieldIdx}`;
+        htmlChunks.push(_linkField(fieldIdx, 'Link', text, href, fid, _linkInit(a)));
+        _linkFidToAnchor.set(fid, a);
+      });
+    }
 
     // Additional media blocks (skip already-shown logo image only on section 0)
-    const mediaNodes = [...el.querySelectorAll('img,video,a[data-wb-media-type="social"]')];
-    let mediaIdx = 0;
-    mediaNodes.forEach((mediaNode) => {
-      if (activeSectionIndex === 0 && mediaNode === logo) return;
-      fieldIdx++;
-      const fid = `img-${fieldIdx}`;
-      mediaIdx++;
-      const tag = (mediaNode.tagName || '').toUpperCase();
-      const mediaType = String(mediaNode?.dataset?.wbMediaType || (tag === 'VIDEO' ? 'video' : (tag === 'A' ? 'social' : 'image'))).toLowerCase();
-      const src = mediaType === 'video'
-        ? (mediaNode.getAttribute('src') || mediaNode.querySelector('source')?.getAttribute('src') || mediaNode.src || '')
-        : (mediaType === 'social'
-          ? (mediaNode.getAttribute('href') || '')
-          : (mediaNode.getAttribute('src') || mediaNode.src || ''));
-      const mediaInit = _imgAnimInit(mediaNode);
-      mediaInit.click = _clickInit(mediaNode);
-      mediaInit.mediaType = mediaType;
-      const altText = mediaType === 'social'
-        ? ((mediaNode.textContent || '').trim() || mediaNode.getAttribute('aria-label') || '')
-        : (mediaNode.alt || mediaNode.getAttribute('aria-label') || '');
-      htmlChunks.push(_imgField(fieldIdx, `Media ${mediaIdx}`, (mediaType === 'social' ? src : _normalizeStagingAssetUrl(src)), altText, fid, mediaInit));
-      _imgFidToEl.set(fid, mediaNode);
-    });
+    if (!isMediaCardCarousel) {
+      const mediaNodes = [...el.querySelectorAll('img,video,a[data-wb-media-type="social"]')];
+      let mediaIdx = 0;
+      mediaNodes.forEach((mediaNode) => {
+        if (activeSectionIndex === 0 && mediaNode === logo) return;
+        fieldIdx++;
+        const fid = `img-${fieldIdx}`;
+        mediaIdx++;
+        const tag = (mediaNode.tagName || '').toUpperCase();
+        const mediaType = String(mediaNode?.dataset?.wbMediaType || (tag === 'VIDEO' ? 'video' : (tag === 'A' ? 'social' : 'image'))).toLowerCase();
+        const src = mediaType === 'video'
+          ? (mediaNode.getAttribute('src') || mediaNode.querySelector('source')?.getAttribute('src') || mediaNode.src || '')
+          : (mediaType === 'social'
+            ? (mediaNode.getAttribute('href') || '')
+            : (mediaNode.getAttribute('src') || mediaNode.src || ''));
+        const mediaInit = _imgAnimInit(mediaNode);
+        mediaInit.click = _clickInit(mediaNode);
+        mediaInit.mediaType = mediaType;
+        const altText = mediaType === 'social'
+          ? ((mediaNode.textContent || '').trim() || mediaNode.getAttribute('aria-label') || '')
+          : (mediaNode.alt || mediaNode.getAttribute('aria-label') || '');
+        htmlChunks.push(_imgField(fieldIdx, `Media ${mediaIdx}`, (mediaType === 'social' ? src : _normalizeStagingAssetUrl(src)), altText, fid, mediaInit));
+        _imgFidToEl.set(fid, mediaNode);
+      });
+    }
 
-    // Section layout controls (available for every section)
-    const textTarget = _findHeroTextTarget(el) || el;
-    const imageTarget = _findHeroImageTarget(el);
-    const textCs = textTarget ? iframeView.getComputedStyle(textTarget) : null;
-    const rawAlign = textTarget ? (textTarget.style.textAlign || textCs.textAlign || 'left') : 'left';
-    const rawV = textTarget ? (textTarget.dataset.wbValign || textTarget.style.justifyContent || textCs.justifyContent || 'flex-start') : 'flex-start';
-    const vAlign = String(rawV).includes('center') ? 'center' : (String(rawV).includes('end') ? 'bottom' : 'top');
-    const layoutMode = textTarget ? (textTarget.dataset.wbLayoutMode || 'preserve') : 'preserve';
-    const imageCs = imageTarget ? iframeView.getComputedStyle(imageTarget) : null;
-    const showImage = imageTarget ? ((imageTarget.style.display || imageCs.display) !== 'none') : false;
-    htmlChunks.push(_heroLayoutField({
-      showImage,
-      hasImage: !!imageTarget,
-      textAlign: rawAlign,
-      vAlign,
-      layoutMode,
-    }));
-    heroMeta = { textTarget, imageTarget, sectionEl: el };
-
-    // Section box controls
-    const secCs = iframeView.getComputedStyle(el);
-    const borderWidth = parseFloat(el.style.borderTopWidth || secCs.borderTopWidth || '0') || 0;
-    const borderRadius = parseFloat(el.style.borderTopLeftRadius || secCs.borderTopLeftRadius || '0') || 0;
-    const borderStyle = (el.style.borderTopStyle || secCs.borderTopStyle || 'none').toLowerCase();
-    const borderColor = _rgbToHex(el.style.borderTopColor || secCs.borderTopColor || '#d1d5db');
-    const hasPctWidth = /%$/.test(String(el.style.width || '').trim());
-    const parentEl = el.parentElement;
-    const parentRect = parentEl ? parentEl.getBoundingClientRect() : null;
-    const elRect = el.getBoundingClientRect();
-    const derivedPct = (parentRect && parentRect.width > 0)
-      ? Math.round(Math.max(20, Math.min(100, (elRect.width / parentRect.width) * 100)))
-      : 100;
-    const widthPct = hasPctWidth
-      ? (parseFloat(String(el.style.width).replace('%','')) || derivedPct)
-      : derivedPct;
+    let borderWidth = 0;
+    let borderRadius = 0;
+    let borderStyle = 'none';
+    let borderColor = '#d1d5db';
+    let widthPct = 100;
     let align = 'center';
-    const ml = String(el.style.marginLeft || '').trim().toLowerCase();
-    const mr = String(el.style.marginRight || '').trim().toLowerCase();
-    if (ml === '0px' || ml === '0') align = 'left';
-    if (mr === '0px' || mr === '0') align = 'right';
-    if (ml === 'auto' && mr === 'auto') align = 'center';
 
-    htmlChunks.push(_sectionBoxField({
-      borderWidth,
-      borderRadius,
-      borderStyle,
-      borderColor,
-      widthPct,
-      align,
-    }));
-    sectionBoxMeta = { target: el };
+    if (!isMediaCardCarousel) {
+      // Section layout controls (available for standard sections)
+      const textTarget = _findHeroTextTarget(el) || el;
+      const imageTarget = _findHeroImageTarget(el);
+      const textCs = textTarget ? iframeView.getComputedStyle(textTarget) : null;
+      const rawAlign = textTarget ? (textTarget.style.textAlign || textCs.textAlign || 'left') : 'left';
+      const rawV = textTarget ? (textTarget.dataset.wbValign || textTarget.style.justifyContent || textCs.justifyContent || 'flex-start') : 'flex-start';
+      const vAlign = String(rawV).includes('center') ? 'center' : (String(rawV).includes('end') ? 'bottom' : 'top');
+      const layoutMode = textTarget ? (textTarget.dataset.wbLayoutMode || 'preserve') : 'preserve';
+      const imageCs = imageTarget ? iframeView.getComputedStyle(imageTarget) : null;
+      const showImage = imageTarget ? ((imageTarget.style.display || imageCs.display) !== 'none') : false;
+      htmlChunks.push(_heroLayoutField({
+        showImage,
+        hasImage: !!imageTarget,
+        textAlign: rawAlign,
+        vAlign,
+        layoutMode,
+      }));
+      heroMeta = { textTarget, imageTarget, sectionEl: el };
+
+      // Section box controls
+      const secCs = iframeView.getComputedStyle(el);
+      borderWidth = parseFloat(el.style.borderTopWidth || secCs.borderTopWidth || '0') || 0;
+      borderRadius = parseFloat(el.style.borderTopLeftRadius || secCs.borderTopLeftRadius || '0') || 0;
+      borderStyle = (el.style.borderTopStyle || secCs.borderTopStyle || 'none').toLowerCase();
+      borderColor = _rgbToHex(el.style.borderTopColor || secCs.borderTopColor || '#d1d5db');
+      const hasPctWidth = /%$/.test(String(el.style.width || '').trim());
+      const parentEl = el.parentElement;
+      const parentRect = parentEl ? parentEl.getBoundingClientRect() : null;
+      const elRect = el.getBoundingClientRect();
+      const derivedPct = (parentRect && parentRect.width > 0)
+        ? Math.round(Math.max(20, Math.min(100, (elRect.width / parentRect.width) * 100)))
+        : 100;
+      widthPct = hasPctWidth
+        ? (parseFloat(String(el.style.width).replace('%','')) || derivedPct)
+        : derivedPct;
+      align = 'center';
+      const ml = String(el.style.marginLeft || '').trim().toLowerCase();
+      const mr = String(el.style.marginRight || '').trim().toLowerCase();
+      if (ml === '0px' || ml === '0') align = 'left';
+      if (mr === '0px' || mr === '0') align = 'right';
+      if (ml === 'auto' && mr === 'auto') align = 'center';
+
+      htmlChunks.push(_sectionBoxField({
+        borderWidth,
+        borderRadius,
+        borderStyle,
+        borderColor,
+        widthPct,
+        align,
+      }));
+      sectionBoxMeta = { target: el };
+    }
 
     // Alliance table rows (existing rows + add-new inputs)
     const allianceTable = el.querySelector('table');
@@ -4509,15 +4531,17 @@ function openSecEditor(idx) {
     }
 
     // Generic grid/card item editing (for repeated info cards)
-    const gridCandidates = [...el.querySelectorAll('div,section,article,ul,ol')].filter(container => {
-      const cs = iframeView.getComputedStyle(container);
-      const isLayout = cs.display.includes('grid') || cs.display.includes('flex');
-      if (!isLayout) return false;
-      const kids = [...container.children].filter(k => ['DIV', 'ARTICLE', 'LI', 'SECTION'].includes(k.tagName));
-      if (kids.length < 2 || kids.length > 12) return false;
-      const populated = kids.filter(k => (k.innerText || '').trim().length >= 2);
-      return populated.length >= 2;
-    });
+    const gridCandidates = isMediaCardCarousel
+      ? [_findMediaCardCarouselContainer(el)].filter(Boolean)
+      : [...el.querySelectorAll('div,section,article,ul,ol')].filter(container => {
+          const cs = iframeView.getComputedStyle(container);
+          const isLayout = cs.display.includes('grid') || cs.display.includes('flex');
+          if (!isLayout) return false;
+          const kids = [...container.children].filter(k => ['DIV', 'ARTICLE', 'LI', 'SECTION'].includes(k.tagName));
+          if (kids.length < 2 || kids.length > 12) return false;
+          const populated = kids.filter(k => (k.innerText || '').trim().length >= 2);
+          return populated.length >= 2;
+        });
 
     if (gridCandidates.length) {
       const scored = gridCandidates.map(c => {
@@ -4531,56 +4555,106 @@ function openSecEditor(idx) {
       best.kids.forEach((cardEl) => {
         const titleEl = cardEl.querySelector('h1,h2,h3,h4,h5,strong,b,.title,[class*="title"],[class*="label"]');
         let bodyEl = cardEl.querySelector('p,small');
+        const imageEl = cardEl.querySelector('img');
         if (!bodyEl) {
           const textEls = [...cardEl.querySelectorAll('span,div')].filter(x => (x.textContent || '').trim().length > 0);
           bodyEl = textEls.find(x => x !== titleEl) || null;
         }
         const title = titleEl ? (titleEl.textContent || '').trim() : '';
         const body = bodyEl ? (bodyEl.textContent || '').trim() : '';
+        const imageSrc = imageEl ? (imageEl.getAttribute('src') || imageEl.src || '') : '';
+        const imageAlt = imageEl ? (imageEl.alt || imageEl.getAttribute('aria-label') || '') : '';
+        const titleInit = titleEl ? _elInit(titleEl) : {};
+        const titleAlign = titleEl
+          ? _normalizeTextAlignValue(titleEl.style.textAlign || iframeView.getComputedStyle(titleEl).textAlign || 'left')
+          : 'left';
+        const titleClick = titleEl ? _clickInit(titleEl) : {};
+        const imageClick = imageEl ? _clickInit(imageEl) : {};
         if (title || body) {
-          items.push({ cardEl, titleEl, bodyEl, title, body });
+          items.push({
+            cardEl,
+            titleEl,
+            bodyEl,
+            imageEl,
+            title,
+            body,
+            imageSrc,
+            imageAlt,
+            titleInit,
+            titleAlign,
+            titleClick,
+            imageClick,
+          });
         }
       });
 
       if (items.length >= 2) {
-        gridMeta = { container: best.c, items };
+        gridMeta = { container: best.c, items, isMediaCarousel: isMediaCardCarousel };
         htmlChunks.push('<div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:6px"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);display:block;margin-bottom:8px">🔳 Grid / Card Content</label></div>');
         items.forEach((item, idx2) => {
           htmlChunks.push(_gridCardEditor(idx2, {
             title: item.title,
             body: item.body,
-          }));
+            imageSrc: item.imageSrc,
+            imageAlt: item.imageAlt,
+            titleInit: item.titleInit,
+            titleAlign: item.titleAlign,
+            titleClick: item.titleClick,
+            imageClick: item.imageClick,
+          }, { includeImage: isMediaCardCarousel }));
         });
+        if (isMediaCardCarousel) {
+          const autoEnabled = String(best.c.dataset.wbCarouselAuto || '') === '1';
+          const delaySec = Math.max(2, parseInt(best.c.dataset.wbCarouselDelaySec || '4', 10) || 4);
+          const styleKey = _normalizeMediaCarouselStyle(best.c.dataset.wbCarouselStyle || 'classic');
+          const controlPos = _normalizeMediaCarouselControlPos(best.c.dataset.wbCarouselControlPos || 'bottom-center');
+          const showOnHover = String(best.c.dataset.wbCarouselHoverOnly || '') === '1';
+          htmlChunks.push(_gridAddCardEditor());
+          htmlChunks.push(_gridCarouselOptionsField({ enabled: autoEnabled, delaySec, styleKey, controlPos, showOnHover }));
+        }
       }
     }
 
-    // ── Background editor (always shown at bottom) ──────────────────────────
-    const bgTarget = _bgTarget(el);
-    const computed = iframeView.getComputedStyle(bgTarget);
-    const bgImage  = computed.backgroundImage !== 'none' ? computed.backgroundImage : (bgTarget.style.backgroundImage || '');
-    const bgColor  = bgTarget.style.backgroundColor || computed.backgroundColor || '';
-    const bgUrlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
-    const bgUrl = _normalizeStagingAssetUrl(bgUrlMatch ? bgUrlMatch[1] : '');
-    const carouselRaw = bgTarget.dataset.wbBgCarouselUrls || '';
-    const bgUrls = carouselRaw
-      ? carouselRaw.split('||').map(s => _normalizeStagingAssetUrl(s.trim())).filter(Boolean)
-      : (bgUrl ? [bgUrl] : []);
-    const bgColorInput = _rgbToHex((bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') ? bgColor : '#ffffff');
-    const carouselEnabled = bgUrls.length > 1;
-    const carouselIntervalSec = Math.max(2, Math.round((parseInt(bgTarget.dataset.wbBgIntervalMs || '5000', 10) || 5000) / 1000));
-    const carouselStyle = bgTarget.dataset.wbBgStyle || 'slide-left';
-    const carouselSpeedMs = Math.max(250, parseInt(bgTarget.dataset.wbBgSpeedMs || '900', 10) || 900);
-    const bgMotion = bgTarget.dataset.wbBgMotion || 'none';
-    const sectionLabel = activeSectionIndex !== null && stagingSections[activeSectionIndex] ? stagingSections[activeSectionIndex].label : 'Section';
-    htmlChunks.push(_bgField(bgUrl, bgColor, bgUrls, carouselEnabled, carouselIntervalSec, carouselStyle, carouselSpeedMs, bgMotion, sectionLabel, activeSectionIndex));
+    let bgUrl = '';
+    let bgUrls = [];
+    let bgColorInput = '#ffffff';
+    let carouselEnabled = false;
+    let carouselIntervalSec = 5;
+    let carouselStyle = 'slide-left';
+    let carouselSpeedMs = 900;
+    let bgMotion = 'none';
 
-    if (fieldIdx === 0 && !bgUrl && !bgColor) {
+    if (!isMediaCardCarousel) {
+      // ── Background editor (shown for standard sections) ───────────────────
+      const bgTarget = _bgTarget(el);
+      const computed = iframeView.getComputedStyle(bgTarget);
+      const bgImage  = computed.backgroundImage !== 'none' ? computed.backgroundImage : (bgTarget.style.backgroundImage || '');
+      const bgColor  = bgTarget.style.backgroundColor || computed.backgroundColor || '';
+      const bgUrlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
+      bgUrl = _normalizeStagingAssetUrl(bgUrlMatch ? bgUrlMatch[1] : '');
+      const carouselRaw = bgTarget.dataset.wbBgCarouselUrls || '';
+      bgUrls = carouselRaw
+        ? carouselRaw.split('||').map(s => _normalizeStagingAssetUrl(s.trim())).filter(Boolean)
+        : (bgUrl ? [bgUrl] : []);
+      bgColorInput = _rgbToHex((bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') ? bgColor : '#ffffff');
+      carouselEnabled = bgUrls.length > 1;
+      carouselIntervalSec = Math.max(2, Math.round((parseInt(bgTarget.dataset.wbBgIntervalMs || '5000', 10) || 5000) / 1000));
+      carouselStyle = bgTarget.dataset.wbBgStyle || 'slide-left';
+      carouselSpeedMs = Math.max(250, parseInt(bgTarget.dataset.wbBgSpeedMs || '900', 10) || 900);
+      bgMotion = bgTarget.dataset.wbBgMotion || 'none';
+      const sectionLabel = activeSectionIndex !== null && stagingSections[activeSectionIndex] ? stagingSections[activeSectionIndex].label : 'Section';
+      htmlChunks.push(_bgField(bgUrl, bgColor, bgUrls, carouselEnabled, carouselIntervalSec, carouselStyle, carouselSpeedMs, bgMotion, sectionLabel, activeSectionIndex));
+    }
+
+    if (fieldIdx === 0 && !bgUrl && !bgColorInput) {
       fields.innerHTML = '<p style="font-size:.82rem;color:var(--muted);text-align:center;padding:24px">No editable text or images detected in this section.</p>';
     } else {
       // Single innerHTML write — eliminates O(n²) DOM rebuilds from repeated +=
       fields.innerHTML = htmlChunks.join('');
-      _refreshBgNameList();
-      loadExistingBgImages();
+      if (!isMediaCardCarousel) {
+        _refreshBgNameList();
+        loadExistingBgImages();
+      }
     }
 
     // Stamp metadata on stable DOM nodes (after innerHTML is final)
@@ -4629,6 +4703,7 @@ function openSecEditor(idx) {
       motion: bgMotion,
     };
     fields._imgFidToEl = _imgFidToEl;
+    fields._isMediaCardCarousel = isMediaCardCarousel;
     _imgFidToEl.forEach((imgEl, fid) => {
       const div = fields.querySelector(`div[data-fid="${fid}"]`);
       if (div) div._imgEl = imgEl;
@@ -6311,14 +6386,14 @@ function _clickActionField(fid, init = {}) {
   return `<div style="margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:rgba(99,102,241,.04)">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
-        <input type="checkbox" data-fid="${fid}-click-enabled" ${enabled ? 'checked' : ''} onchange="toggleClickActionInputs('${fid}')">
+        <input type="checkbox" data-fid="${fid}-click-enabled" ${enabled ? 'checked' : ''} onchange="toggleClickActionInputs('${fid}');_previewClickActionFromEditor('${fid}')">
         Enable click action
       </label>
       <span data-fid="${fid}-click-badge" style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;border:1px solid ${badgeOn ? 'rgba(34,197,94,.45)' : 'var(--border)'};background:${badgeOn ? 'rgba(34,197,94,.14)' : 'rgba(255,255,255,.02)'};color:${badgeOn ? 'var(--success)' : 'var(--muted)'};font-size:.66rem;font-weight:700;letter-spacing:.35px;text-transform:uppercase">${badgeOn ? 'Link On' : 'Link Off'}</span>
     </div>
     <div style="margin-top:6px">
       <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Internal page</label>
-      <select data-fid="${fid}-click-page" ${disabled} onchange="onClickActionInternalPageChange('${fid}')"
+      <select data-fid="${fid}-click-page" ${disabled} onchange="onClickActionInternalPageChange('${fid}');_previewClickActionFromEditor('${fid}')"
         style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
         <option value="">Custom / external URL</option>
         ${pages.map((p) => `<option value="${_esc(p)}"${p === selectedInternal ? ' selected' : ''}>${_esc(_pageDisplayNameFromPath(p))}</option>`).join('')}
@@ -6327,10 +6402,10 @@ function _clickActionField(fid, init = {}) {
     <input type="text" data-fid="${fid}-click-url" value="${_esc(url)}" placeholder="https://example.com/page"
       ${disabled}
       style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;margin-top:6px"
-      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="syncClickActionInternalPageSelection('${fid}');_refreshClickActionBadge('${fid}')" />
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="syncClickActionInternalPageSelection('${fid}');_refreshClickActionBadge('${fid}');_previewClickActionFromEditor('${fid}')" />
     <div style="margin-top:6px">
       <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Target action</label>
-      <select data-fid="${fid}-click-mode" ${disabled}
+      <select data-fid="${fid}-click-mode" ${disabled} onchange="_previewClickActionFromEditor('${fid}')"
         style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
         <option value="popup" ${mode === 'popup' ? 'selected' : ''}>Popup (themed)</option>
         <option value="newtab" ${mode === 'newtab' ? 'selected' : ''}>Open in new tab</option>
@@ -6407,6 +6482,19 @@ function toggleClickActionInputs(fid) {
   if (urlEl) urlEl.disabled = !enabled;
   if (modeEl) modeEl.disabled = !enabled;
   _refreshClickActionBadge(fid);
+}
+
+function _previewClickActionFromEditor(fid) {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame?.contentDocument || activeSectionIndex === null || !stagingSections[activeSectionIndex]) return;
+  const { el } = stagingSections[activeSectionIndex];
+  const fieldsEl = document.getElementById('secEditorFields');
+  if (!fieldsEl) return;
+  const targets = _getFidTargets(el, fid);
+  if (!targets.length) return;
+  targets.forEach((t) => _applyClickActionFromField(fieldsEl, fid, t));
+  const status = document.getElementById('stagingStatusBar');
+  if (status) status.textContent = 'Preview updated — unsaved. Click 💾 Save Changes.';
 }
 
 function _ensureWbClickActionEngine(doc) {
@@ -6817,23 +6905,694 @@ function _allianceAddRowEditor() {
   </div>`;
 }
 
-function _gridCardEditor(cardIdx, data) {
+function _isMediaCardCarouselSection(sectionEl) {
+  if (!sectionEl) return false;
+  const sid = String(sectionEl.id || '').toLowerCase();
+  if (sid.includes('media-card-carousel')) return true;
+  if (String(sectionEl.dataset?.wbCarousel || '') === '1') return true;
+  const heading = (sectionEl.querySelector('h1,h2,h3')?.textContent || '').trim().toLowerCase();
+  return heading === 'media showcase';
+}
+
+function _findMediaCardCarouselContainer(sectionEl) {
+  if (!sectionEl) return null;
+  const containers = [...sectionEl.querySelectorAll('div,section,article,ul,ol')];
+  const scored = containers.map((c) => {
+    const cs = sectionEl.ownerDocument.defaultView.getComputedStyle(c);
+    const hasHorizontal = cs.overflowX === 'auto' || cs.overflowX === 'scroll' || /(auto|scroll)/.test(String(c.style.overflowX || '').toLowerCase());
+    const isLayout = cs.display.includes('grid') || cs.display.includes('flex');
+    const kids = [...c.children].filter(k => ['DIV', 'ARTICLE', 'LI', 'SECTION'].includes(k.tagName));
+    return { c, score: (hasHorizontal ? 100 : 0) + (isLayout ? 10 : 0) + kids.length, hasHorizontal, kids };
+  }).filter(x => x.kids.length >= 2).sort((a, b) => b.score - a.score);
+  return scored.length ? scored[0].c : null;
+}
+
+function _gridCardEditor(cardIdx, data, opts = {}) {
+  const includeImage = !!opts.includeImage;
   const tFid = `grid-${cardIdx}-title`;
   const bFid = `grid-${cardIdx}-body`;
+  const iFid = `grid-${cardIdx}-image`;
+  const aFid = `${iFid}-alt`;
+  const titleAlign = _normalizeTextAlignValue(data.titleAlign || 'left');
+  const titleAlignOpts = ['left', 'center', 'right', 'justify']
+    .map((v) => `<option value="${v}"${titleAlign === v ? ' selected' : ''}>${v.charAt(0).toUpperCase() + v.slice(1)}</option>`)
+    .join('');
+  const imgSrc = _normalizeStagingAssetUrl(data.imageSrc || '');
+  const imgPreview = imgSrc
+    ? `<img src="${_esc(_toPreviewMediaUrl(imgSrc))}" style="height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px">`
+    : `<div style="height:54px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;margin-top:6px">No image selected</div>`;
   return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 8px;margin-bottom:8px;background:var(--bg)">
     <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin-bottom:6px">Grid Item ${cardIdx + 1}</label>
     <div style="display:grid;grid-template-columns:1fr;gap:6px">
       <label style="font-size:.7rem;color:var(--muted)">Title / Label</label>
       <input data-fid="${tFid}" type="text" value="${_esc(data.title || '')}" placeholder="Card title"
+        oninput="_previewMediaCarouselGridItem(${cardIdx})"
         style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      ${includeImage ? _styleBar(tFid, data.titleInit || {}) : ''}
+      ${includeImage ? `<div style="margin-top:6px">
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Title alignment</label>
+        <select data-fid="${tFid}-align" onchange="_previewMediaCarouselGridItem(${cardIdx})" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">${titleAlignOpts}</select>
+      </div>` : ''}
+      ${includeImage ? _clickActionField(tFid, data.titleClick || {}) : ''}
 
       <label style="font-size:.7rem;color:var(--muted)">Body</label>
       <textarea data-fid="${bFid}" rows="2" placeholder="Card text"
+        oninput="_previewMediaCarouselGridItem(${cardIdx})"
         style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none;resize:vertical"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">${_esc(data.body || '')}</textarea>
+      ${includeImage ? `
+      <label style="font-size:.7rem;color:var(--muted)">Card Image</label>
+      <div data-fid="${iFid}">
+      <input data-fid="${iFid}-src" type="text" value="${_esc(imgSrc)}" placeholder="assets/images/your-image.jpg"
+        oninput="_updateGridImagePreview('${iFid}');_previewMediaCarouselGridItem(${cardIdx})"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <input type="hidden" data-fid="${iFid}-media-type" value="image">
+      <label style="font-size:.7rem;color:var(--muted)">Image Alt Text</label>
+      <input data-fid="${aFid}" type="text" value="${_esc(data.imageAlt || '')}" placeholder="Image description"
+        oninput="_previewMediaCarouselGridItem(${cardIdx})"
+        style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <div data-fid="${iFid}-preview">${imgPreview}</div>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="openImageFieldMediaPicker('${iFid}')" style="margin-top:2px">🗂 Choose From Media Library</button>
+      ${_clickActionField(iFid, data.imageClick || {})}
+      </div>
+      ` : ''}
     </div>
   </div>`;
+}
+
+function _gridAddCardEditor() {
+  return `<div style="display:flex;justify-content:flex-end;margin:8px 0 10px">
+    <button class="btn btn-secondary btn-sm" type="button" onclick="addGridCardToActiveSection()">＋ Add Grid Card</button>
+  </div>`;
+}
+
+function _gridCarouselOptionsField(init = {}) {
+  const enabled = !!init.enabled;
+  const delaySec = Math.max(2, Math.min(60, Number(init.delaySec || 4) || 4));
+  const styleKey = _normalizeMediaCarouselStyle(init.styleKey || 'classic');
+  const controlPos = _normalizeMediaCarouselControlPos(init.controlPos || 'bottom-center');
+  const showOnHover = !!init.showOnHover;
+  const styleOpts = [
+    ['classic', 'Classic'],
+    ['glass', 'Glass'],
+    ['elevated', 'Elevated'],
+    ['contrast', 'High Contrast'],
+    ['minimal', 'Minimal'],
+  ].map(([k, l]) => `<option value="${k}"${styleKey === k ? ' selected' : ''}>${l}</option>`).join('');
+  const posOpts = [
+    ['bottom-center', 'Bottom Center'],
+    ['top-center', 'Top Center'],
+    ['side-overlay', 'Side Overlay'],
+  ].map(([k, l]) => `<option value="${k}"${controlPos === k ? ' selected' : ''}>${l}</option>`).join('');
+  return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin:0 0 8px;background:var(--bg)">
+    <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin-bottom:6px">↔ Carousel Behavior</label>
+    <label style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--text);margin-bottom:8px">
+      <input type="checkbox" data-fid="grid-carousel-auto" ${enabled ? 'checked' : ''} onchange="_previewMediaCarouselBehavior()">
+      Enable auto-carousel (infinite loop)
+    </label>
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:.72rem;color:var(--muted)">Delay</label>
+      <input type="number" min="2" max="60" step="1" data-fid="grid-carousel-delay" value="${delaySec}"
+        oninput="_previewMediaCarouselBehavior()"
+        style="width:92px;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+      <span style="font-size:.72rem;color:var(--muted)">seconds</span>
+    </div>
+    <div style="margin-top:8px">
+      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Carousel style</label>
+      <select data-fid="grid-carousel-style" onchange="_previewMediaCarouselBehavior()"
+        style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">${styleOpts}</select>
+    </div>
+    <div style="margin-top:8px">
+      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Control position</label>
+      <select data-fid="grid-carousel-control-pos" onchange="_previewMediaCarouselBehavior()"
+        style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">${posOpts}</select>
+    </div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--text);margin-top:8px">
+      <input type="checkbox" data-fid="grid-carousel-hover" ${showOnHover ? 'checked' : ''} onchange="_previewMediaCarouselBehavior()">
+      Show controls on mouse hover
+    </label>
+  </div>`;
+}
+
+function _normalizeMediaCarouselControlPos(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (['bottom-center', 'top-center', 'side-overlay'].includes(v)) return v;
+  return 'bottom-center';
+}
+
+function _normalizeMediaCarouselStyle(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (['classic', 'glass', 'elevated', 'contrast', 'minimal'].includes(v)) return v;
+  return 'classic';
+}
+
+function _mediaCarouselStyleTokens(styleKey) {
+  const style = _normalizeMediaCarouselStyle(styleKey);
+  const table = {
+    classic: {
+      cardBg: 'var(--panel,#f8fafc)', cardBorder: 'var(--border,#e2e8f0)', cardShadow: 'none', cardRadius: '14px',
+      btnBg: 'var(--panel,#ffffff)', btnBorder: 'var(--border,#cbd5e1)', btnColor: 'var(--text,#0f172a)',
+      dotActive: 'var(--accent,#2563eb)', dotInactive: 'var(--muted,#94a3b8)', controlsGap: '10px',
+    },
+    glass: {
+      cardBg: 'color-mix(in srgb, var(--panel,#ffffff) 74%, transparent)', cardBorder: 'color-mix(in srgb, var(--border,#94a3b8) 55%, transparent)', cardShadow: '0 12px 24px rgba(15,23,42,.1)', cardRadius: '16px',
+      btnBg: 'color-mix(in srgb, var(--panel,#ffffff) 86%, transparent)', btnBorder: 'color-mix(in srgb, var(--border,#94a3b8) 60%, transparent)', btnColor: 'var(--text,#0f172a)',
+      dotActive: 'var(--accent,#0ea5e9)', dotInactive: 'color-mix(in srgb, var(--muted,#a3b8cc) 75%, transparent)', controlsGap: '12px',
+      cardBackdrop: 'blur(8px)',
+    },
+    elevated: {
+      cardBg: 'var(--panel,#ffffff)', cardBorder: 'color-mix(in srgb, var(--border,#dbe6f2) 85%, transparent)', cardShadow: '0 14px 28px rgba(15,23,42,.14)', cardRadius: '16px',
+      btnBg: 'var(--panel,#ffffff)', btnBorder: 'color-mix(in srgb, var(--border,#c9d7e8) 85%, transparent)', btnColor: 'var(--text,#0f172a)',
+      dotActive: 'var(--accent,#1d4ed8)', dotInactive: 'color-mix(in srgb, var(--muted,#9fb0c6) 80%, transparent)', controlsGap: '12px',
+    },
+    contrast: {
+      cardBg: 'var(--text,#0f172a)', cardBorder: 'color-mix(in srgb, var(--text,#334155) 65%, var(--bg,#fff))', cardShadow: '0 10px 22px rgba(2,6,23,.35)', cardRadius: '12px',
+      btnBg: 'var(--text,#0f172a)', btnBorder: 'color-mix(in srgb, var(--text,#475569) 60%, var(--bg,#fff))', btnColor: 'var(--bg,#e2e8f0)',
+      dotActive: 'var(--accent,#22d3ee)', dotInactive: 'color-mix(in srgb, var(--muted,#64748b) 80%, transparent)', controlsGap: '10px',
+    },
+    minimal: {
+      cardBg: 'var(--panel,#ffffff)', cardBorder: 'var(--border,#e5e7eb)', cardShadow: 'none', cardRadius: '10px',
+      btnBg: 'transparent', btnBorder: 'var(--border,#cbd5e1)', btnColor: 'var(--text,#334155)',
+      dotActive: 'var(--text,#334155)', dotInactive: 'var(--border,#cbd5e1)', controlsGap: '8px',
+    },
+  };
+  return table[style];
+}
+
+function _applyMediaCarouselStyle(containerEl, controlsEl, styleKey) {
+  if (!containerEl) return;
+  const key = _normalizeMediaCarouselStyle(styleKey);
+  const cfg = _mediaCarouselStyleTokens(key);
+  containerEl.dataset.wbCarouselStyle = key;
+  containerEl.dataset.wbCarouselDotActive = cfg.dotActive;
+  containerEl.dataset.wbCarouselDotInactive = cfg.dotInactive;
+
+  const cards = [...containerEl.children].filter(el => ['ARTICLE', 'DIV', 'LI', 'SECTION'].includes(el.tagName));
+  cards.forEach((card) => {
+    card.style.setProperty('background', cfg.cardBg, 'important');
+    card.style.setProperty('border', `1px solid ${cfg.cardBorder}`, 'important');
+    card.style.setProperty('box-shadow', cfg.cardShadow, 'important');
+    card.style.setProperty('border-radius', cfg.cardRadius, 'important');
+    if (cfg.cardBackdrop) {
+      card.style.setProperty('backdrop-filter', cfg.cardBackdrop, 'important');
+      card.style.setProperty('-webkit-backdrop-filter', cfg.cardBackdrop, 'important');
+    } else {
+      card.style.removeProperty('backdrop-filter');
+      card.style.removeProperty('-webkit-backdrop-filter');
+    }
+  });
+
+  if (controlsEl) {
+    controlsEl.style.setProperty('gap', cfg.controlsGap, 'important');
+    controlsEl.querySelectorAll('button').forEach((btn) => {
+      btn.style.setProperty('background', cfg.btnBg, 'important');
+      btn.style.setProperty('border-color', cfg.btnBorder, 'important');
+      btn.style.setProperty('color', cfg.btnColor, 'important');
+    });
+    const dots = controlsEl.querySelectorAll('[data-wb-carousel-dots="1"] button');
+    dots.forEach((dot, i) => {
+      dot.style.setProperty('background', i === 0 ? cfg.dotActive : cfg.dotInactive, 'important');
+    });
+  }
+}
+
+function _wireMediaCarouselInteractions(containerEl, controlsEl) {
+  if (!containerEl || !controlsEl) return;
+  const win = containerEl.ownerDocument?.defaultView;
+  const runtimeManaged = !!(win && typeof win.wbMediaCardCarouselInitAll === 'function');
+
+  // When runtime exists in iframe, let it own click/dot/autoplay wiring to avoid duplicate timers.
+  if (runtimeManaged) {
+    if (controlsEl.__wbClickHandler) {
+      controlsEl.removeEventListener('click', controlsEl.__wbClickHandler);
+      controlsEl.__wbClickHandler = null;
+    }
+    if (containerEl.__wbDotSync) {
+      containerEl.removeEventListener('scroll', containerEl.__wbDotSync);
+      containerEl.__wbDotSync = null;
+    }
+    if (containerEl.__wbAutoTimer) {
+      clearInterval(containerEl.__wbAutoTimer);
+      containerEl.__wbAutoTimer = null;
+    }
+    return;
+  }
+
+  const dotActive = containerEl.dataset.wbCarouselDotActive || '#2563eb';
+  const dotInactive = containerEl.dataset.wbCarouselDotInactive || '#94a3b8';
+
+  const getCards = () => [...containerEl.children].filter(el => ['ARTICLE', 'DIV', 'LI', 'SECTION'].includes(el.tagName));
+  const ensureCardOrigins = () => {
+    getCards().forEach((card, idx) => {
+      if (!card.dataset.wbCardOrigin) card.dataset.wbCardOrigin = String(idx);
+    });
+  };
+  ensureCardOrigins();
+
+  const syncDots = () => {
+    const dots = [...controlsEl.querySelectorAll('[data-wb-carousel-dots="1"] button[data-wb-go]')];
+    if (!dots.length) return;
+    const cards = getCards();
+    if (!cards.length) return;
+    const active = Math.max(0, parseInt(cards[0].dataset.wbCardOrigin || '0', 10) || 0);
+    dots.forEach((dot, idx) => {
+      dot.style.setProperty('background', idx === active ? dotActive : dotInactive, 'important');
+    });
+    containerEl.dataset.wbCarouselIndex = String(active);
+  };
+
+  const rotateBy = (dir, times = 1) => {
+    let cards = getCards();
+    if (cards.length < 2) return;
+    const count = Math.max(1, Math.abs(Number(times) || 1));
+    for (let step = 0; step < count; step++) {
+      cards = getCards();
+      if (!cards.length) break;
+      if (Number(dir) >= 0) containerEl.appendChild(cards[0]);
+      else containerEl.insertBefore(cards[cards.length - 1], cards[0]);
+    }
+    containerEl.scrollLeft = 0;
+    syncDots();
+  };
+
+  const goTo = (idx) => {
+    const cards = getCards();
+    if (!cards.length) return;
+    const nextIdx = Math.max(0, Math.min(cards.length - 1, Number(idx) || 0));
+    const pos = cards.findIndex(card => Number(card.dataset.wbCardOrigin || '-1') === nextIdx);
+    if (pos < 0) return;
+    if (pos === 0) {
+      syncDots();
+      return;
+    }
+    rotateBy(1, pos);
+  };
+
+  const shiftBy = (dir) => {
+    rotateBy(Number(dir) >= 0 ? 1 : -1, 1);
+  };
+
+  if (controlsEl.__wbClickHandler) controlsEl.removeEventListener('click', controlsEl.__wbClickHandler);
+  controlsEl.__wbClickHandler = (ev) => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    const dir = btn.getAttribute('data-wb-dir');
+    const go = btn.getAttribute('data-wb-go');
+    if (dir !== null) {
+      ev.preventDefault();
+      shiftBy(Number(dir));
+      return;
+    }
+    if (go !== null) {
+      ev.preventDefault();
+      goTo(Number(go));
+    }
+  };
+  controlsEl.addEventListener('click', controlsEl.__wbClickHandler);
+
+  if (containerEl.__wbDotSync) containerEl.removeEventListener('scroll', containerEl.__wbDotSync);
+  containerEl.__wbDotSync = () => syncDots();
+  containerEl.addEventListener('scroll', containerEl.__wbDotSync, { passive: true });
+
+  if (containerEl.__wbAutoTimer) {
+    clearInterval(containerEl.__wbAutoTimer);
+    containerEl.__wbAutoTimer = null;
+  }
+  const auto = containerEl.dataset.wbCarouselAuto === '1';
+  const delaySec = Math.max(2, parseInt(containerEl.dataset.wbCarouselDelaySec || '4', 10) || 4);
+  if (auto && getCards().length > 1) {
+    containerEl.__wbAutoTimer = setInterval(() => rotateBy(1, 1), delaySec * 1000);
+  }
+
+  syncDots();
+}
+
+function _updateGridImagePreview(fid) {
+  const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
+  const wrap = document.querySelector(`[data-fid="${fid}-preview"]`);
+  if (!srcEl || !wrap) return;
+  const raw = String(srcEl.value || '').trim();
+  const src = _normalizeStagingAssetUrl(raw);
+  if (!src) {
+    wrap.innerHTML = '<div style="height:54px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;margin-top:6px">No image selected</div>';
+    return;
+  }
+  wrap.innerHTML = `<img src="${_esc(_toPreviewMediaUrl(src))}" style="height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px">`;
+}
+
+function _previewMediaCarouselGridItem(cardIdx) {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame?.contentDocument || activeSectionIndex === null || !stagingSections[activeSectionIndex]) return;
+  const fieldsEl = document.getElementById('secEditorFields');
+  const gridMeta = fieldsEl?._gridMeta;
+  if (!gridMeta || !Array.isArray(gridMeta.items)) return;
+  const item = gridMeta.items[Number(cardIdx) || 0];
+  if (!item) return;
+
+  const titleVal = fieldsEl.querySelector(`[data-fid="grid-${cardIdx}-title"]`)?.value ?? '';
+  const bodyVal = fieldsEl.querySelector(`[data-fid="grid-${cardIdx}-body"]`)?.value ?? '';
+  const imageVal = _normalizeStagingAssetUrl(fieldsEl.querySelector(`[data-fid="grid-${cardIdx}-image-src"]`)?.value?.trim() || '');
+  const imageAlt = fieldsEl.querySelector(`[data-fid="grid-${cardIdx}-image-alt"]`)?.value?.trim() || '';
+  const titleAlign = fieldsEl.querySelector(`[data-fid="grid-${cardIdx}-title-align"]`)?.value || 'left';
+
+  if (item.titleEl) {
+    _setText(item.titleEl, titleVal);
+    _applyStyleBarToEl(fieldsEl, `grid-${cardIdx}-title`, item.titleEl);
+    item.titleEl.style.setProperty('text-align', titleAlign, 'important');
+    _applyClickActionFromField(fieldsEl, `grid-${cardIdx}-title`, item.titleEl);
+  }
+  if (item.bodyEl) {
+    _setParagraphText(item.bodyEl, bodyVal);
+  }
+  if (item.imageEl) {
+    if (imageVal) {
+      item.imageEl.src = imageVal;
+      item.imageEl.setAttribute('src', imageVal);
+      item.imageEl.style.removeProperty('display');
+      delete item.imageEl.dataset.wbEditorHidden;
+    }
+    if (imageAlt) {
+      item.imageEl.alt = imageAlt;
+    }
+    _applyClickActionFromField(fieldsEl, `grid-${cardIdx}-image`, item.imageEl);
+  }
+
+  const status = document.getElementById('stagingStatusBar');
+  if (status) status.textContent = 'Preview updated — unsaved. Click 💾 Save Changes.';
+}
+
+function _previewMediaCarouselBehavior() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame?.contentDocument || activeSectionIndex === null || !stagingSections[activeSectionIndex]) return;
+  const fieldsEl = document.getElementById('secEditorFields');
+  const gridMeta = fieldsEl?._gridMeta;
+  if (!gridMeta?.isMediaCarousel || !gridMeta.container) return;
+
+  const autoEnabled = !!fieldsEl.querySelector('[data-fid="grid-carousel-auto"]')?.checked;
+  const delaySec = Math.max(2, Math.min(60,
+    parseInt(fieldsEl.querySelector('[data-fid="grid-carousel-delay"]')?.value || '4', 10) || 4
+  ));
+  const styleKey = _normalizeMediaCarouselStyle(fieldsEl.querySelector('[data-fid="grid-carousel-style"]')?.value || 'classic');
+  const controlPos = _normalizeMediaCarouselControlPos(fieldsEl.querySelector('[data-fid="grid-carousel-control-pos"]')?.value || 'bottom-center');
+  const hoverOnly = !!fieldsEl.querySelector('[data-fid="grid-carousel-hover"]')?.checked;
+
+  gridMeta.container.dataset.wbCarousel = '1';
+  gridMeta.container.dataset.wbCarouselAuto = autoEnabled ? '1' : '0';
+  gridMeta.container.dataset.wbCarouselDelaySec = String(delaySec);
+  gridMeta.container.dataset.wbCarouselStyle = styleKey;
+  gridMeta.container.dataset.wbCarouselControlPos = controlPos;
+  gridMeta.container.dataset.wbCarouselHoverOnly = hoverOnly ? '1' : '0';
+  _syncMediaCarouselControls(stagingSections[activeSectionIndex].el, gridMeta.container);
+  frame.contentDocument.defaultView?.wbMediaCardCarouselInitAll?.(frame.contentDocument);
+
+  const status = document.getElementById('stagingStatusBar');
+  if (status) status.textContent = 'Preview updated — unsaved. Click 💾 Save Changes.';
+}
+
+function _ensureMediaCardCarouselRuntime(doc) {
+  if (!doc) return;
+  const prev = doc.getElementById('__wb_media_card_carousel_runtime');
+  if (prev) prev.remove();
+  try {
+    if (doc.defaultView) {
+      doc.defaultView.__wbMediaCardCarouselRuntime = false;
+      delete doc.defaultView.__wbMediaCardCarouselRuntime;
+      delete doc.defaultView.__wbMediaCardCarouselRuntimeVersion;
+    }
+  } catch (_) {}
+
+  const script = doc.createElement('script');
+  script.id = '__wb_media_card_carousel_runtime';
+  script.textContent = `(function(){
+      if (window.__wbMediaCardCarouselRuntimeVersion === 'v2') return;
+      window.__wbMediaCardCarouselRuntime = true;
+      window.__wbMediaCardCarouselRuntimeVersion = 'v2';
+      function getCards(c){
+        return Array.from(c.children).filter(function(el){ return ['ARTICLE','DIV','LI','SECTION'].includes(el.tagName); });
+      }
+      function ensureId(c){
+        if (!c.id) c.id = 'wb-media-carousel-' + Math.random().toString(36).slice(2,8);
+        return c.id;
+      }
+      function ensureCardOrigins(c){
+        getCards(c).forEach(function(card, idx){
+          if (!card.dataset.wbCardOrigin) card.dataset.wbCardOrigin = String(idx);
+        });
+      }
+      function rotateBy(c, dir, times){
+        var steps = Math.max(1, Math.abs(Number(times) || 1));
+        for (var i = 0; i < steps; i++) {
+          var cards = getCards(c);
+          if (cards.length < 2) return;
+          if (Number(dir) >= 0) c.appendChild(cards[0]);
+          else c.insertBefore(cards[cards.length - 1], cards[0]);
+        }
+        c.scrollLeft = 0;
+        syncDots(c);
+      }
+      function syncDots(c){
+        var controls = c.parentElement && c.parentElement.querySelector('[data-wb-carousel-controls="1"][data-target="'+c.id+'"]');
+        if (!controls) return;
+        var dots = controls.querySelector('[data-wb-carousel-dots="1"]');
+        if (!dots) return;
+        var cards = getCards(c);
+        if (!cards.length) return;
+        var active = Math.max(0, parseInt(cards[0].dataset.wbCardOrigin || '0', 10) || 0);
+        var dotActive = c.dataset.wbCarouselDotActive || '#2563eb';
+        var dotInactive = c.dataset.wbCarouselDotInactive || '#94a3b8';
+        Array.from(dots.querySelectorAll('button')).forEach(function(btn, idx){
+          btn.style.background = idx === active ? dotActive : dotInactive;
+        });
+        c.dataset.wbCarouselIndex = String(active);
+      }
+      window.wbMediaCarouselGo = function(id, idx){
+        var c = document.getElementById(id);
+        if (!c) return;
+        var cards = getCards(c);
+        if (!cards.length) return;
+        var nextIdx = Math.max(0, Math.min(cards.length - 1, Number(idx) || 0));
+        var pos = cards.findIndex(function(card){ return Number(card.dataset.wbCardOrigin || '-1') === nextIdx; });
+        if (pos < 0) return;
+        if (pos === 0) {
+          syncDots(c);
+          return;
+        }
+        rotateBy(c, 1, pos);
+      };
+      window.wbMediaCarouselShift = function(id, dir){
+        var c = document.getElementById(id);
+        if (!c) return;
+        var cards = getCards(c);
+        if (!cards.length) return;
+        rotateBy(c, Number(dir) >= 0 ? 1 : -1, 1);
+      };
+      function bindControls(c){
+        var controls = c.parentElement && c.parentElement.querySelector('[data-wb-carousel-controls="1"][data-target="'+c.id+'"]');
+        if (!controls) return;
+
+        if (controls.__wbClickHandler) controls.removeEventListener('click', controls.__wbClickHandler);
+        controls.__wbClickHandler = function(ev){
+          var btn = ev.target && ev.target.closest ? ev.target.closest('button') : null;
+          if (!btn) return;
+          var dir = btn.getAttribute('data-wb-dir');
+          var go = btn.getAttribute('data-wb-go');
+          if (dir !== null) {
+            ev.preventDefault();
+            window.wbMediaCarouselShift(c.id, Number(dir));
+            return;
+          }
+          if (go !== null) {
+            ev.preventDefault();
+            window.wbMediaCarouselGo(c.id, Number(go));
+          }
+        };
+        controls.addEventListener('click', controls.__wbClickHandler);
+
+        var hoverOnly = c.dataset.wbCarouselHoverOnly === '1';
+        if (hoverOnly) {
+          controls.style.opacity = '0';
+          controls.style.transition = 'opacity .2s ease';
+          if (c.__wbHoverIn) c.removeEventListener('mouseenter', c.__wbHoverIn);
+          if (c.__wbHoverOut) c.removeEventListener('mouseleave', c.__wbHoverOut);
+          c.__wbHoverIn = function(){ controls.style.opacity = '1'; };
+          c.__wbHoverOut = function(){ controls.style.opacity = '0'; };
+          c.addEventListener('mouseenter', c.__wbHoverIn);
+          c.addEventListener('mouseleave', c.__wbHoverOut);
+        } else {
+          controls.style.opacity = '1';
+          if (c.__wbHoverIn) c.removeEventListener('mouseenter', c.__wbHoverIn);
+          if (c.__wbHoverOut) c.removeEventListener('mouseleave', c.__wbHoverOut);
+          c.__wbHoverIn = null;
+          c.__wbHoverOut = null;
+        }
+      }
+      function startAuto(c){
+        if (c.__wbAutoTimer) { clearInterval(c.__wbAutoTimer); c.__wbAutoTimer = null; }
+        var auto = c.dataset.wbCarouselAuto === '1';
+        var cards = getCards(c);
+        if (!auto || cards.length < 2) return;
+        var delaySec = Math.max(2, parseInt(c.dataset.wbCarouselDelaySec || '4', 10) || 4);
+        c.__wbAutoTimer = setInterval(function(){ rotateBy(c, 1, 1); }, delaySec * 1000);
+      }
+      window.wbMediaCardCarouselInitAll = function(root){
+        var scope = root || document;
+        var list = scope.querySelectorAll('[data-wb-carousel="1"]');
+        list.forEach(function(c){
+          ensureId(c);
+          ensureCardOrigins(c);
+          bindControls(c);
+          c.removeEventListener('scroll', c.__wbDotSync || function(){});
+          c.__wbDotSync = function(){ syncDots(c); };
+          c.addEventListener('scroll', c.__wbDotSync, { passive: true });
+          syncDots(c);
+          startAuto(c);
+        });
+      };
+      document.addEventListener('DOMContentLoaded', function(){ window.wbMediaCardCarouselInitAll(document); });
+      window.wbMediaCardCarouselInitAll(document);
+    })();`;
+  doc.body.appendChild(script);
+}
+
+function _syncMediaCarouselControls(sectionEl, containerEl) {
+  if (!sectionEl || !containerEl) return;
+  containerEl.dataset.wbCarousel = '1';
+  const styleKey = _normalizeMediaCarouselStyle(containerEl.dataset.wbCarouselStyle || 'classic');
+  const controlPos = _normalizeMediaCarouselControlPos(containerEl.dataset.wbCarouselControlPos || 'bottom-center');
+  const hoverOnly = String(containerEl.dataset.wbCarouselHoverOnly || '') === '1';
+  const cfg = _mediaCarouselStyleTokens(styleKey);
+  if (!containerEl.id) containerEl.id = `media-carousel-${Math.random().toString(36).slice(2, 8)}`;
+  containerEl.style.setProperty('overflow-x', 'hidden', 'important');
+  containerEl.style.setProperty('scrollbar-width', 'none', 'important');
+  const cards = [...containerEl.children].filter(el => ['ARTICLE', 'DIV', 'LI', 'SECTION'].includes(el.tagName));
+  // Remove legacy static controls that come from the original template markup.
+  const legacySibling = containerEl.nextElementSibling;
+  if (legacySibling
+    && String(legacySibling.getAttribute('data-wb-carousel-controls') || '') !== '1'
+    && legacySibling.querySelector('[aria-label="Scroll left"], [aria-label="Scroll right"]')
+    && legacySibling.querySelector('a[aria-label^="Slide"], button[aria-label^="Slide"]')) {
+    legacySibling.remove();
+  }
+
+  const allControls = [...sectionEl.querySelectorAll(`[data-wb-carousel-controls="1"][data-target="${containerEl.id}"]`)];
+  let controls = allControls[0] || null;
+  if (allControls.length > 1) {
+    allControls.slice(1).forEach(el => el.remove());
+  }
+  if (!controls) {
+    controls = sectionEl.ownerDocument.createElement('div');
+    containerEl.insertAdjacentElement('afterend', controls);
+  }
+  controls.setAttribute('data-wb-carousel-controls', '1');
+  controls.setAttribute('data-target', containerEl.id);
+  controls.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px';
+  if (controlPos === 'top-center') {
+    controls.style.setProperty('margin-top', '0', 'important');
+    controls.style.setProperty('margin-bottom', '10px', 'important');
+    containerEl.insertAdjacentElement('beforebegin', controls);
+  } else if (controlPos === 'side-overlay') {
+    controls.style.setProperty('display', 'grid', 'important');
+    controls.style.setProperty('grid-template-columns', '1fr auto 1fr', 'important');
+    controls.style.setProperty('align-items', 'center', 'important');
+    controls.style.setProperty('width', '100%', 'important');
+    controls.style.setProperty('margin-top', '10px', 'important');
+    controls.style.setProperty('margin-bottom', '0', 'important');
+    containerEl.insertAdjacentElement('afterend', controls);
+  } else {
+    controls.style.removeProperty('position');
+    controls.style.removeProperty('inset');
+    controls.style.removeProperty('width');
+    controls.style.removeProperty('grid-template-columns');
+    controls.style.removeProperty('padding');
+    controls.style.removeProperty('z-index');
+    controls.style.removeProperty('pointer-events');
+    controls.style.removeProperty('margin-bottom');
+    controls.style.setProperty('margin-top', '14px', 'important');
+    containerEl.insertAdjacentElement('afterend', controls);
+  }
+  controls.innerHTML = `<button type="button" data-wb-dir="-1" aria-label="Scroll left" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid ${cfg.btnBorder};border-radius:999px;background:${cfg.btnBg};text-decoration:none;color:${cfg.btnColor};cursor:pointer">◀</button>
+    <div data-wb-carousel-dots="1" style="display:flex;align-items:center;gap:8px">${cards.map((_, idx) => `<button type="button" data-wb-go="${idx}" aria-label="Slide ${idx + 1}" style="width:9px;height:9px;background:${idx===0?cfg.dotActive:cfg.dotInactive};border-radius:999px;border:none;cursor:pointer;padding:0"></button>`).join('')}</div>
+    <button type="button" data-wb-dir="1" aria-label="Scroll right" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid ${cfg.btnBorder};border-radius:999px;background:${cfg.btnBg};text-decoration:none;color:${cfg.btnColor};cursor:pointer">▶</button>`;
+
+  if (controlPos === 'side-overlay') {
+    const leftBtn = controls.querySelector('button[data-wb-dir="-1"]');
+    const rightBtn = controls.querySelector('button[data-wb-dir="1"]');
+    const dots = controls.querySelector('[data-wb-carousel-dots="1"]');
+    if (leftBtn) leftBtn.style.setProperty('justify-self', 'start', 'important');
+    if (rightBtn) rightBtn.style.setProperty('justify-self', 'end', 'important');
+    if (dots) dots.style.setProperty('justify-self', 'center', 'important');
+  }
+
+  if (hoverOnly) {
+    controls.style.setProperty('opacity', '0', 'important');
+    controls.style.setProperty('transition', 'opacity .2s ease', 'important');
+    if (containerEl.__wbHoverIn) containerEl.removeEventListener('mouseenter', containerEl.__wbHoverIn);
+    if (containerEl.__wbHoverOut) containerEl.removeEventListener('mouseleave', containerEl.__wbHoverOut);
+    containerEl.__wbHoverIn = () => controls.style.setProperty('opacity', '1', 'important');
+    containerEl.__wbHoverOut = () => controls.style.setProperty('opacity', '0', 'important');
+    containerEl.addEventListener('mouseenter', containerEl.__wbHoverIn);
+    containerEl.addEventListener('mouseleave', containerEl.__wbHoverOut);
+  } else {
+    controls.style.setProperty('opacity', '1', 'important');
+    if (containerEl.__wbHoverIn) containerEl.removeEventListener('mouseenter', containerEl.__wbHoverIn);
+    if (containerEl.__wbHoverOut) containerEl.removeEventListener('mouseleave', containerEl.__wbHoverOut);
+    containerEl.__wbHoverIn = null;
+    containerEl.__wbHoverOut = null;
+  }
+
+  _applyMediaCarouselStyle(containerEl, controls, styleKey);
+  _wireMediaCarouselInteractions(containerEl, controls);
+}
+
+function addGridCardToActiveSection() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame.contentDocument || activeSectionIndex === null || !stagingSections[activeSectionIndex]) return;
+  const fieldsEl = document.getElementById('secEditorFields');
+  const gridMeta = fieldsEl?._gridMeta;
+  if (!gridMeta || !gridMeta.container) {
+    toast('No editable grid found in this section', false);
+    return;
+  }
+
+  const container = gridMeta.container;
+  const cards = [...container.children].filter(el => ['ARTICLE', 'DIV', 'LI', 'SECTION'].includes(el.tagName));
+  const template = cards[cards.length - 1] || cards[0];
+  if (!template) {
+    toast('Unable to add card: no template card found', false);
+    return;
+  }
+
+  _historyPush();
+  const newCard = template.cloneNode(true);
+  const nextNum = cards.length + 1;
+  const titleEl = newCard.querySelector('h1,h2,h3,h4,h5,strong,b,.title,[class*="title"],[class*="label"]');
+  const bodyEl = newCard.querySelector('p,small,span,div');
+  const imageEl = newCard.querySelector('img');
+  if (titleEl) _setText(titleEl, `Card ${nextNum}`);
+  if (bodyEl && bodyEl !== titleEl) _setParagraphText(bodyEl, 'Add description here.');
+  if (imageEl) {
+    const seed = `media-card-${Date.now()}-${nextNum}`;
+    imageEl.src = `https://picsum.photos/seed/${seed}/640/420`;
+    imageEl.setAttribute('src', imageEl.src);
+    imageEl.alt = `Media item ${nextNum}`;
+  }
+
+  if (newCard.id) {
+    const sectionId = stagingSections[activeSectionIndex].el.id || `section-${activeSectionIndex + 1}`;
+    newCard.id = `${sectionId}-item-${nextNum}`;
+  }
+
+  container.appendChild(newCard);
+  if (gridMeta.isMediaCarousel) {
+    const styleKey = _normalizeMediaCarouselStyle(container.dataset.wbCarouselStyle || 'classic');
+    _applyMediaCarouselStyle(container, null, styleKey);
+  }
+  if (gridMeta.isMediaCarousel) _syncMediaCarouselControls(stagingSections[activeSectionIndex].el, container);
+  openSecEditor(activeSectionIndex);
+  toast('Grid card added — click Save to persist', true);
 }
 
 function _normalizeTextAlignValue(v) {
@@ -7008,6 +7767,7 @@ function applySecEdits() {
 
   const { el } = stagingSections[activeSectionIndex];
   const fieldsEl = document.getElementById('secEditorFields');
+  const isMediaCardCarousel = _isMediaCardCarouselSection(el);
 
   // Rebuild editable element lists from the section
   const headings  = [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
@@ -7091,25 +7851,28 @@ function applySecEdits() {
   }
 
   // Headings — apply text + styles
-  headings.forEach(h => {
-    fieldNum++;
-    const fid = `txt-${fieldNum}`;
-    const inp = fieldsEl.querySelector(`input[data-fid="${fid}"]`);
-    if (inp) _setText(h, inp.value);
-    _applyStyleBarToEl(fieldsEl, fid, h);
-    _applyClickActionFromField(fieldsEl, fid, h);
-  });
+  if (!isMediaCardCarousel) {
+    headings.forEach(h => {
+      fieldNum++;
+      const fid = `txt-${fieldNum}`;
+      const inp = fieldsEl.querySelector(`input[data-fid="${fid}"]`);
+      if (inp) _setText(h, inp.value);
+      _applyStyleBarToEl(fieldsEl, fid, h);
+      _applyClickActionFromField(fieldsEl, fid, h);
+    });
 
-  // Paragraphs — apply text + styles
-  paras.forEach(p => {
-    fieldNum++;
-    const fid = `para-${fieldNum}`;
-    const ta = fieldsEl.querySelector(`textarea[data-fid="${fid}"]`);
-    if (ta) _setParagraphText(p, ta.value);
-    _applyStyleBarToEl(fieldsEl, fid, p);
-  });
+    // Paragraphs — apply text + styles
+    paras.forEach(p => {
+      fieldNum++;
+      const fid = `para-${fieldNum}`;
+      const ta = fieldsEl.querySelector(`textarea[data-fid="${fid}"]`);
+      if (ta) _setParagraphText(p, ta.value);
+      _applyStyleBarToEl(fieldsEl, fid, p);
+    });
+  }
 
   // Links — iterate by current field order (supports add/remove/reorder)
+  if (!isMediaCardCarousel) {
   const linkDivs = [...fieldsEl.querySelectorAll('[data-type="link"]')];
   const originalAnchors = fieldsEl._anchorEls || [];
 
@@ -7226,6 +7989,7 @@ function applySecEdits() {
 
   // Advance fieldNum past link fields so image fids align with openSecEditor numbering
   fieldNum += linkDivs.length;
+  }
 
   const _replaceMediaNodeType = (node, targetType) => {
     if (!node || !node.ownerDocument) return node;
@@ -7369,8 +8133,27 @@ function applySecEdits() {
     gridMeta.items.forEach((item, idx2) => {
       const titleVal = fieldsEl.querySelector(`[data-fid="grid-${idx2}-title"]`)?.value?.trim() || '';
       const bodyVal = fieldsEl.querySelector(`[data-fid="grid-${idx2}-body"]`)?.value || '';
+      const imageValRaw = fieldsEl.querySelector(`[data-fid="grid-${idx2}-image-src"]`)?.value?.trim() || '';
+      const imageVal = _normalizeStagingAssetUrl(imageValRaw);
+      const imageAlt = fieldsEl.querySelector(`[data-fid="grid-${idx2}-image-alt"]`)?.value?.trim() || "";
+      const titleAlign = fieldsEl.querySelector(`[data-fid="grid-${idx2}-title-align"]`)?.value || 'left';
       if (item.titleEl && titleVal) _setText(item.titleEl, titleVal);
       if (item.bodyEl && bodyVal.trim()) _setParagraphText(item.bodyEl, bodyVal);
+      if (item.imageEl && imageVal) {
+        item.imageEl.src = imageVal;
+        item.imageEl.setAttribute('src', imageVal);
+      }
+      if (item.imageEl && imageAlt) {
+        item.imageEl.alt = imageAlt;
+      }
+      if (item.titleEl) {
+        _applyStyleBarToEl(fieldsEl, `grid-${idx2}-title`, item.titleEl);
+        item.titleEl.style.setProperty('text-align', titleAlign, 'important');
+        _applyClickActionFromField(fieldsEl, `grid-${idx2}-title`, item.titleEl);
+      }
+      if (item.imageEl) {
+        _applyClickActionFromField(fieldsEl, `grid-${idx2}-image`, item.imageEl);
+      }
       if (!item.titleEl && titleVal) {
         const tgt = item.cardEl.querySelector('h1,h2,h3,h4,h5,strong,b') || item.cardEl;
         _setText(tgt, titleVal);
@@ -7380,6 +8163,25 @@ function applySecEdits() {
         _setParagraphText(p, bodyVal);
       }
     });
+
+    if (gridMeta.isMediaCarousel) {
+      const autoEnabled = !!fieldsEl.querySelector('[data-fid="grid-carousel-auto"]')?.checked;
+      const delaySec = Math.max(2, Math.min(60,
+        parseInt(fieldsEl.querySelector('[data-fid="grid-carousel-delay"]')?.value || '4', 10) || 4
+      ));
+      const styleKey = _normalizeMediaCarouselStyle(fieldsEl.querySelector('[data-fid="grid-carousel-style"]')?.value || 'classic');
+      const controlPos = _normalizeMediaCarouselControlPos(fieldsEl.querySelector('[data-fid="grid-carousel-control-pos"]')?.value || 'bottom-center');
+      const hoverOnly = !!fieldsEl.querySelector('[data-fid="grid-carousel-hover"]')?.checked;
+      gridMeta.container.dataset.wbCarousel = '1';
+      gridMeta.container.dataset.wbCarouselAuto = autoEnabled ? '1' : '0';
+      gridMeta.container.dataset.wbCarouselDelaySec = String(delaySec);
+      gridMeta.container.dataset.wbCarouselStyle = styleKey;
+      gridMeta.container.dataset.wbCarouselControlPos = controlPos;
+      gridMeta.container.dataset.wbCarouselHoverOnly = hoverOnly ? '1' : '0';
+      _syncMediaCarouselControls(el, gridMeta.container);
+      _ensureMediaCardCarouselRuntime(doc);
+      doc.defaultView?.wbMediaCardCarouselInitAll?.(doc);
+    }
   }
 
   // Hero/Intro layout controls
@@ -7589,6 +8391,8 @@ function clearSectionImage(fid) {
 function closeSecEditor() {
   activeSectionIndex = null;
   document.getElementById('secEditor').style.display = 'none';
+  const modeNoteEl = document.getElementById('secEditorModeNote');
+  if (modeNoteEl) modeNoteEl.style.display = 'none';
   document.getElementById('secList').style.display = '';
   // Remove highlight from iframe
   const frame = document.getElementById('stagingIframe');
@@ -7750,7 +8554,13 @@ function stagingRefresh() {
   loading.style.display = 'flex';
   frame.onload = () => {
     loading.style.display = 'none'; btn.disabled = false; btn.textContent = '⟳ Refresh';
-    try { if (frame.contentDocument) _injectResponsiveEnhancements(frame.contentDocument); } catch(_) {}
+    try {
+      if (frame.contentDocument) {
+        _injectResponsiveEnhancements(frame.contentDocument);
+        _ensureMediaCardCarouselRuntime(frame.contentDocument);
+        frame.contentDocument.defaultView?.wbMediaCardCarouselInitAll?.(frame.contentDocument);
+      }
+    } catch(_) {}
   };
   frame.src = _cacheBustUrl(currentStagingUrl);
 }
@@ -7864,6 +8674,18 @@ function _getFidTargets(el, fid) {
   const paras    = fieldsEl._paraEls    || [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
   const headStart = fieldsEl._headingStart || 1;
   const paraStart = fieldsEl._paraStart   || (headStart + headings.length);
+
+  const gridMatch = fid.match(/^grid-(\d+)-(title|image)$/);
+  if (gridMatch) {
+    const idx = parseInt(gridMatch[1], 10);
+    const kind = gridMatch[2];
+    const gridMeta = fieldsEl?._gridMeta;
+    const item = gridMeta?.items?.[idx];
+    if (!item) return [];
+    if (kind === 'title' && item.titleEl) return [item.titleEl];
+    if (kind === 'image' && item.imageEl) return [item.imageEl];
+    return [];
+  }
 
   // Brand Name field (section 0 only) — stored by reference, not in headings list
   if (fieldsEl._brandFid === fid && fieldsEl._brandEl) return [fieldsEl._brandEl];

@@ -74,6 +74,46 @@ Alternative (development mode with auto-reload):
 uvicorn app:app --reload --port 8000
 ```
 
+## Startup Modes (HTTP/HTTPS)
+
+The `app.py` entrypoint now supports both HTTP and HTTPS startup.
+
+Default HTTP startup:
+
+```bash
+python app.py
+```
+
+Local HTTPS startup (uses `certs/dev.key` and `certs/dev.crt` if present):
+
+```bash
+python app.py --https --port 8443
+```
+
+HTTPS with explicit certificate files:
+
+```bash
+python app.py --https --ssl-keyfile /path/to/tls.key --ssl-certfile /path/to/tls.crt --port 8443
+```
+
+Environment-variable based startup:
+
+```env
+APP_HTTPS=true
+APP_HOST=0.0.0.0
+APP_PORT=8443
+SSL_KEYFILE=/path/to/tls.key
+SSL_CERTFILE=/path/to/tls.crt
+UVICORN_RELOAD=false
+```
+
+Behavior and safety:
+
+- If HTTPS is not enabled, startup remains the same as before (HTTP on port 8000 by default).
+- If HTTPS is enabled without cert paths, startup falls back to `certs/dev.key` and `certs/dev.crt`.
+- If no certs are available while HTTPS is enabled, startup fails fast with a clear error.
+- For test/prod behind Nginx/ALB/Ingress, continue terminating TLS at the proxy and run app HTTP internally unless your environment explicitly requires end-to-end TLS.
+
 ## Local URLs
 
 - App root: http://localhost:8000
