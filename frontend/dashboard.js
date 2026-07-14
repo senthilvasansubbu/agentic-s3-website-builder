@@ -4300,6 +4300,7 @@ function openSecEditor(idx) {
         font:   domEl.style.fontFamily || '',
         size:   domEl.style.fontSize   || '',
         weight: domEl.style.fontWeight || '',
+        align:  _normalizeTextAlignValue(domEl.style.textAlign || cs.textAlign || 'left'),
         color:  rawColor ? _rgbToHex(rawColor) : '#111827',
         bold:   (cs.fontWeight >= 600) || domEl.style.fontWeight === 'bold',
         italic: cs.fontStyle === 'italic' || domEl.style.fontStyle === 'italic',
@@ -4384,21 +4385,32 @@ function openSecEditor(idx) {
       htmlChunks.push(_textField(fieldIdx, 'Brand Name / Site Title', brandEl ? brandEl.textContent.trim() : '', brandFid, _elInit(brandEl)));
     }
 
-    // Headings — track each one so _getFidTargets can map by index
-    const _headingEls = isMediaCardCarousel ? [] : [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
+    // Headings — track each one so _getFidTargets can map by index.
+    // For media-card carousel sections, expose only the intro heading above the card rail.
+    const _allHeadingEls = [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
+    const _mediaCarouselContainer = isMediaCardCarousel ? _findMediaCardCarouselContainer(el) : null;
+    const _headingEls = isMediaCardCarousel
+      ? _allHeadingEls.filter(h => !_mediaCarouselContainer || !_mediaCarouselContainer.contains(h)).slice(0, 1)
+      : _allHeadingEls;
     const _headingStartField = fieldIdx + 1;
     _headingEls.forEach(h => {
       fieldIdx++;
-      htmlChunks.push(_textField(fieldIdx, h.tagName, h.innerText.trim(), `txt-${fieldIdx}`, _elInit(h), { clickable: true, clickInit: _clickInit(h) }));
+      const headingTag = isMediaCardCarousel ? 'Carousel Title' : h.tagName;
+      htmlChunks.push(_textField(fieldIdx, headingTag, h.innerText.trim(), `txt-${fieldIdx}`, _elInit(h), { clickable: true, clickInit: _clickInit(h) }));
     });
 
-    // Paragraphs — track start field
+    // Paragraphs — track start field.
+    // For media-card carousel sections, expose only the intro paragraph above the card rail.
     const _paraStartField = fieldIdx + 1;
-    const _paraEls = isMediaCardCarousel ? [] : [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
+    const _allParaEls = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
+    const _paraEls = isMediaCardCarousel
+      ? _allParaEls.filter(p => !_mediaCarouselContainer || !_mediaCarouselContainer.contains(p)).slice(0, 1)
+      : _allParaEls;
     _paraEls.forEach(p => {
       const text = p.innerText.trim();
       fieldIdx++;
-      htmlChunks.push(_textareaField(fieldIdx, 'Paragraph', text.slice(0, 600), `para-${fieldIdx}`, _elInit(p)));
+      const paraTag = isMediaCardCarousel ? 'Carousel Subtitle' : 'Paragraph';
+      htmlChunks.push(_textareaField(fieldIdx, paraTag, text.slice(0, 600), `para-${fieldIdx}`, _elInit(p)));
     });
 
     // Nav links / anchor texts — collect anchor refs before any innerHTML write
@@ -4608,9 +4620,12 @@ function openSecEditor(idx) {
           const delaySec = Math.max(2, parseInt(best.c.dataset.wbCarouselDelaySec || '4', 10) || 4);
           const styleKey = _normalizeMediaCarouselStyle(best.c.dataset.wbCarouselStyle || 'classic');
           const controlPos = _normalizeMediaCarouselControlPos(best.c.dataset.wbCarouselControlPos || 'bottom-center');
-          const showOnHover = String(best.c.dataset.wbCarouselHoverOnly || '') === '1';
+          const controlsVisibility = _normalizeMediaCarouselControlsVisibility(
+            best.c.dataset.wbCarouselControlsVisibility
+              || (String(best.c.dataset.wbCarouselHoverOnly || '') === '1' ? 'hover' : 'always')
+          );
           htmlChunks.push(_gridAddCardEditor());
-          htmlChunks.push(_gridCarouselOptionsField({ enabled: autoEnabled, delaySec, styleKey, controlPos, showOnHover }));
+          htmlChunks.push(_gridCarouselOptionsField({ enabled: autoEnabled, delaySec, styleKey, controlPos, controlsVisibility }));
         }
       }
     }
@@ -6282,6 +6297,10 @@ function _styleBar(fid, init = {}) {
     ['600','SemiBold'],['700','Bold'],['800','ExtraBold'],['900','Black'],
   ];
   const wOpts = weights.map(([v,l]) => `<option value="${v}"${init.weight===v?' selected':''}>${l}</option>`).join('');
+  const align = _normalizeTextAlignValue(init.align || 'left');
+  const alignOpts = ['left', 'center', 'right', 'justify']
+    .map((v) => `<option value="${v}"${align === v ? ' selected' : ''}>${v.charAt(0).toUpperCase() + v.slice(1)}</option>`)
+    .join('');
   return `<div data-stylebar="${fid}" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;align-items:center;background:rgba(99,102,241,.04);border:1px solid var(--border);border-radius:7px;padding:7px 8px">
     <select data-fid="${fid}-font" title="Font family"
       style="padding:3px 5px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.72rem;flex:2;min-width:110px"
@@ -6292,6 +6311,9 @@ function _styleBar(fid, init = {}) {
     <select data-fid="${fid}-weight" title="Font weight"
       style="padding:3px 5px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.72rem;width:84px"
       onchange="previewFieldStyle('${fid}')">${wOpts}</select>
+    <select data-fid="${fid}-align" title="Text alignment"
+      style="padding:3px 5px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.72rem;width:86px"
+      onchange="previewFieldStyle('${fid}')">${alignOpts}</select>
     <input type="color" data-fid="${fid}-color" value="${initColor}" title="Text colour"
       oninput="_previewFieldStyleDebounced('${fid}')" onchange="previewFieldStyle('${fid}')"
       style="width:30px;height:26px;padding:1px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:var(--bg)">
@@ -6942,7 +6964,10 @@ function _gridCardEditor(cardIdx, data, opts = {}) {
     ? `<img src="${_esc(_toPreviewMediaUrl(imgSrc))}" style="height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px">`
     : `<div style="height:54px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;margin-top:6px">No image selected</div>`;
   return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 8px;margin-bottom:8px;background:var(--bg)">
-    <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin-bottom:6px">Grid Item ${cardIdx + 1}</label>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin:0">Grid Item ${cardIdx + 1}</label>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="removeGridCardFromActiveSection(${cardIdx})" title="Delete this grid card">🗑 Delete</button>
+    </div>
     <div style="display:grid;grid-template-columns:1fr;gap:6px">
       <label style="font-size:.7rem;color:var(--muted)">Title / Label</label>
       <input data-fid="${tFid}" type="text" value="${_esc(data.title || '')}" placeholder="Card title"
@@ -6994,7 +7019,9 @@ function _gridCarouselOptionsField(init = {}) {
   const delaySec = Math.max(2, Math.min(60, Number(init.delaySec || 4) || 4));
   const styleKey = _normalizeMediaCarouselStyle(init.styleKey || 'classic');
   const controlPos = _normalizeMediaCarouselControlPos(init.controlPos || 'bottom-center');
-  const showOnHover = !!init.showOnHover;
+  const controlsVisibility = _normalizeMediaCarouselControlsVisibility(
+    init.controlsVisibility || (init.showOnHover ? 'hover' : 'always')
+  );
   const styleOpts = [
     ['classic', 'Classic'],
     ['glass', 'Glass'],
@@ -7007,6 +7034,11 @@ function _gridCarouselOptionsField(init = {}) {
     ['top-center', 'Top Center'],
     ['side-overlay', 'Side Overlay'],
   ].map(([k, l]) => `<option value="${k}"${controlPos === k ? ' selected' : ''}>${l}</option>`).join('');
+  const visibilityOpts = [
+    ['always', 'Always show controls'],
+    ['hover', 'Show controls on hover'],
+    ['hidden', 'Hide controls'],
+  ].map(([k, l]) => `<option value="${k}"${controlsVisibility === k ? ' selected' : ''}>${l}</option>`).join('');
   return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin:0 0 8px;background:var(--bg)">
     <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin-bottom:6px">↔ Carousel Behavior</label>
     <label style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--text);margin-bottom:8px">
@@ -7030,10 +7062,11 @@ function _gridCarouselOptionsField(init = {}) {
       <select data-fid="grid-carousel-control-pos" onchange="_previewMediaCarouselBehavior()"
         style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">${posOpts}</select>
     </div>
-    <label style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--text);margin-top:8px">
-      <input type="checkbox" data-fid="grid-carousel-hover" ${showOnHover ? 'checked' : ''} onchange="_previewMediaCarouselBehavior()">
-      Show controls on mouse hover
-    </label>
+    <div style="margin-top:8px">
+      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Controls visibility</label>
+      <select data-fid="grid-carousel-controls-visibility" onchange="_previewMediaCarouselBehavior()"
+        style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">${visibilityOpts}</select>
+    </div>
   </div>`;
 }
 
@@ -7047,6 +7080,12 @@ function _normalizeMediaCarouselStyle(value) {
   const v = String(value || '').trim().toLowerCase();
   if (['classic', 'glass', 'elevated', 'contrast', 'minimal'].includes(v)) return v;
   return 'classic';
+}
+
+function _normalizeMediaCarouselControlsVisibility(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (['always', 'hover', 'hidden'].includes(v)) return v;
+  return 'always';
 }
 
 function _mediaCarouselStyleTokens(styleKey) {
@@ -7297,13 +7336,17 @@ function _previewMediaCarouselBehavior() {
   ));
   const styleKey = _normalizeMediaCarouselStyle(fieldsEl.querySelector('[data-fid="grid-carousel-style"]')?.value || 'classic');
   const controlPos = _normalizeMediaCarouselControlPos(fieldsEl.querySelector('[data-fid="grid-carousel-control-pos"]')?.value || 'bottom-center');
-  const hoverOnly = !!fieldsEl.querySelector('[data-fid="grid-carousel-hover"]')?.checked;
+  const controlsVisibility = _normalizeMediaCarouselControlsVisibility(
+    fieldsEl.querySelector('[data-fid="grid-carousel-controls-visibility"]')?.value || 'always'
+  );
+  const hoverOnly = controlsVisibility === 'hover';
 
   gridMeta.container.dataset.wbCarousel = '1';
   gridMeta.container.dataset.wbCarouselAuto = autoEnabled ? '1' : '0';
   gridMeta.container.dataset.wbCarouselDelaySec = String(delaySec);
   gridMeta.container.dataset.wbCarouselStyle = styleKey;
   gridMeta.container.dataset.wbCarouselControlPos = controlPos;
+  gridMeta.container.dataset.wbCarouselControlsVisibility = controlsVisibility;
   gridMeta.container.dataset.wbCarouselHoverOnly = hoverOnly ? '1' : '0';
   _syncMediaCarouselControls(stagingSections[activeSectionIndex].el, gridMeta.container);
   frame.contentDocument.defaultView?.wbMediaCardCarouselInitAll?.(frame.contentDocument);
@@ -7392,6 +7435,7 @@ function _ensureMediaCardCarouselRuntime(doc) {
       function bindControls(c){
         var controls = c.parentElement && c.parentElement.querySelector('[data-wb-carousel-controls="1"][data-target="'+c.id+'"]');
         if (!controls) return;
+        var layout = String(controls.getAttribute('data-wb-layout') || 'flex').toLowerCase() === 'grid' ? 'grid' : 'flex';
 
         if (controls.__wbClickHandler) controls.removeEventListener('click', controls.__wbClickHandler);
         controls.__wbClickHandler = function(ev){
@@ -7411,8 +7455,21 @@ function _ensureMediaCardCarouselRuntime(doc) {
         };
         controls.addEventListener('click', controls.__wbClickHandler);
 
-        var hoverOnly = c.dataset.wbCarouselHoverOnly === '1';
-        if (hoverOnly) {
+        var visibility = String(c.dataset.wbCarouselControlsVisibility || '').toLowerCase();
+        if (visibility !== 'always' && visibility !== 'hover' && visibility !== 'hidden') {
+          visibility = c.dataset.wbCarouselHoverOnly === '1' ? 'hover' : 'always';
+        }
+        var hoverOnly = visibility === 'hover';
+        var hidden = visibility === 'hidden';
+        if (hidden) {
+          controls.style.display = 'none';
+          controls.style.opacity = '0';
+          if (c.__wbHoverIn) c.removeEventListener('mouseenter', c.__wbHoverIn);
+          if (c.__wbHoverOut) c.removeEventListener('mouseleave', c.__wbHoverOut);
+          c.__wbHoverIn = null;
+          c.__wbHoverOut = null;
+        } else if (hoverOnly) {
+          controls.style.display = layout;
           controls.style.opacity = '0';
           controls.style.transition = 'opacity .2s ease';
           if (c.__wbHoverIn) c.removeEventListener('mouseenter', c.__wbHoverIn);
@@ -7422,6 +7479,7 @@ function _ensureMediaCardCarouselRuntime(doc) {
           c.addEventListener('mouseenter', c.__wbHoverIn);
           c.addEventListener('mouseleave', c.__wbHoverOut);
         } else {
+          controls.style.display = layout;
           controls.style.opacity = '1';
           if (c.__wbHoverIn) c.removeEventListener('mouseenter', c.__wbHoverIn);
           if (c.__wbHoverOut) c.removeEventListener('mouseleave', c.__wbHoverOut);
@@ -7462,12 +7520,20 @@ function _syncMediaCarouselControls(sectionEl, containerEl) {
   containerEl.dataset.wbCarousel = '1';
   const styleKey = _normalizeMediaCarouselStyle(containerEl.dataset.wbCarouselStyle || 'classic');
   const controlPos = _normalizeMediaCarouselControlPos(containerEl.dataset.wbCarouselControlPos || 'bottom-center');
-  const hoverOnly = String(containerEl.dataset.wbCarouselHoverOnly || '') === '1';
+  const controlsVisibility = _normalizeMediaCarouselControlsVisibility(
+    containerEl.dataset.wbCarouselControlsVisibility
+      || (String(containerEl.dataset.wbCarouselHoverOnly || '') === '1' ? 'hover' : 'always')
+  );
+  const hoverOnly = controlsVisibility === 'hover';
+  const controlsHidden = controlsVisibility === 'hidden';
   const cfg = _mediaCarouselStyleTokens(styleKey);
   if (!containerEl.id) containerEl.id = `media-carousel-${Math.random().toString(36).slice(2, 8)}`;
   containerEl.style.setProperty('overflow-x', 'hidden', 'important');
   containerEl.style.setProperty('scrollbar-width', 'none', 'important');
   const cards = [...containerEl.children].filter(el => ['ARTICLE', 'DIV', 'LI', 'SECTION'].includes(el.tagName));
+  cards.forEach((card, idx) => {
+    card.dataset.wbCardOrigin = String(idx);
+  });
   // Remove legacy static controls that come from the original template markup.
   const legacySibling = containerEl.nextElementSibling;
   if (legacySibling
@@ -7488,12 +7554,14 @@ function _syncMediaCarouselControls(sectionEl, containerEl) {
   }
   controls.setAttribute('data-wb-carousel-controls', '1');
   controls.setAttribute('data-target', containerEl.id);
-  controls.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px';
+  controls.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;width:100%';
   if (controlPos === 'top-center') {
+    controls.setAttribute('data-wb-layout', 'flex');
     controls.style.setProperty('margin-top', '0', 'important');
     controls.style.setProperty('margin-bottom', '10px', 'important');
     containerEl.insertAdjacentElement('beforebegin', controls);
   } else if (controlPos === 'side-overlay') {
+    controls.setAttribute('data-wb-layout', 'grid');
     controls.style.setProperty('display', 'grid', 'important');
     controls.style.setProperty('grid-template-columns', '1fr auto 1fr', 'important');
     controls.style.setProperty('align-items', 'center', 'important');
@@ -7502,9 +7570,9 @@ function _syncMediaCarouselControls(sectionEl, containerEl) {
     controls.style.setProperty('margin-bottom', '0', 'important');
     containerEl.insertAdjacentElement('afterend', controls);
   } else {
+    controls.setAttribute('data-wb-layout', 'flex');
     controls.style.removeProperty('position');
     controls.style.removeProperty('inset');
-    controls.style.removeProperty('width');
     controls.style.removeProperty('grid-template-columns');
     controls.style.removeProperty('padding');
     controls.style.removeProperty('z-index');
@@ -7526,7 +7594,15 @@ function _syncMediaCarouselControls(sectionEl, containerEl) {
     if (dots) dots.style.setProperty('justify-self', 'center', 'important');
   }
 
-  if (hoverOnly) {
+  if (controlsHidden) {
+    controls.style.setProperty('display', 'none', 'important');
+    controls.style.setProperty('opacity', '0', 'important');
+    if (containerEl.__wbHoverIn) containerEl.removeEventListener('mouseenter', containerEl.__wbHoverIn);
+    if (containerEl.__wbHoverOut) containerEl.removeEventListener('mouseleave', containerEl.__wbHoverOut);
+    containerEl.__wbHoverIn = null;
+    containerEl.__wbHoverOut = null;
+  } else if (hoverOnly) {
+    controls.style.setProperty('display', controls.getAttribute('data-wb-layout') === 'grid' ? 'grid' : 'flex', 'important');
     controls.style.setProperty('opacity', '0', 'important');
     controls.style.setProperty('transition', 'opacity .2s ease', 'important');
     if (containerEl.__wbHoverIn) containerEl.removeEventListener('mouseenter', containerEl.__wbHoverIn);
@@ -7536,6 +7612,7 @@ function _syncMediaCarouselControls(sectionEl, containerEl) {
     containerEl.addEventListener('mouseenter', containerEl.__wbHoverIn);
     containerEl.addEventListener('mouseleave', containerEl.__wbHoverOut);
   } else {
+    controls.style.setProperty('display', controls.getAttribute('data-wb-layout') === 'grid' ? 'grid' : 'flex', 'important');
     controls.style.setProperty('opacity', '1', 'important');
     if (containerEl.__wbHoverIn) containerEl.removeEventListener('mouseenter', containerEl.__wbHoverIn);
     if (containerEl.__wbHoverOut) containerEl.removeEventListener('mouseleave', containerEl.__wbHoverOut);
@@ -7593,6 +7670,50 @@ function addGridCardToActiveSection() {
   if (gridMeta.isMediaCarousel) _syncMediaCarouselControls(stagingSections[activeSectionIndex].el, container);
   openSecEditor(activeSectionIndex);
   toast('Grid card added — click Save to persist', true);
+}
+
+async function removeGridCardFromActiveSection(cardIdx) {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame?.contentDocument || activeSectionIndex === null || !stagingSections[activeSectionIndex]) return;
+  const fieldsEl = document.getElementById('secEditorFields');
+  const gridMeta = fieldsEl?._gridMeta;
+  if (!gridMeta || !Array.isArray(gridMeta.items) || !gridMeta.container) {
+    toast('No editable grid found in this section', false);
+    return;
+  }
+
+  const idx = Number(cardIdx) || 0;
+  if (gridMeta.items.length <= 1) {
+    toast('At least one grid card is required', false);
+    return;
+  }
+  const item = gridMeta.items[idx];
+  if (!item?.cardEl) {
+    toast('Unable to delete this grid card', false);
+    return;
+  }
+
+  const ok = await styledConfirm(
+    `Delete Grid Item ${idx + 1}? This action can be undone only with Undo.`,
+    {
+      title: 'Delete Grid Card',
+      okLabel: 'Delete',
+      okClass: 'btn-danger',
+      icon: '🗑',
+    }
+  );
+  if (!ok) return;
+
+  _historyPush();
+  item.cardEl.remove();
+
+  if (gridMeta.isMediaCarousel) {
+    _syncMediaCarouselControls(stagingSections[activeSectionIndex].el, gridMeta.container);
+    frame.contentDocument.defaultView?.wbMediaCardCarouselInitAll?.(frame.contentDocument);
+  }
+
+  openSecEditor(activeSectionIndex);
+  toast('Grid card deleted — click Save to persist', true);
 }
 
 function _normalizeTextAlignValue(v) {
@@ -7745,12 +7866,14 @@ function _applyStyleBarToEl(fieldsEl, fid, domEl) {
   const font   = fieldsEl.querySelector(`[data-fid="${fid}-font"]`)?.value   || '';
   const size   = fieldsEl.querySelector(`[data-fid="${fid}-size"]`)?.value   || '';
   const weight = fieldsEl.querySelector(`[data-fid="${fid}-weight"]`)?.value || '';
+  const align  = fieldsEl.querySelector(`[data-fid="${fid}-align"]`)?.value  || '';
   const color  = fieldsEl.querySelector(`[data-fid="${fid}-color"]`)?.value  || '';
   const boldActive   = fieldsEl.querySelector(`[data-fid="${fid}-bold"]`)?.dataset.active === '1';
   const italicActive = fieldsEl.querySelector(`[data-fid="${fid}-italic"]`)?.dataset.active === '1';
   // Use setProperty with 'important' so styles override template !important CSS rules
   if (font)   domEl.style.setProperty('font-family',  font,               'important');
   if (size)   domEl.style.setProperty('font-size',    size,               'important');
+  if (align)  domEl.style.setProperty('text-align',   align,              'important');
   if (color)  domEl.style.setProperty('color',        color,              'important');
   if (weight) domEl.style.setProperty('font-weight',  weight,             'important');
   else if (boldActive) domEl.style.setProperty('font-weight', 'bold',     'important');
@@ -7769,9 +7892,10 @@ function applySecEdits() {
   const fieldsEl = document.getElementById('secEditorFields');
   const isMediaCardCarousel = _isMediaCardCarouselSection(el);
 
-  // Rebuild editable element lists from the section
-  const headings  = [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
-  const paras     = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
+  // Rebuild editable element lists from the section.
+  // Prefer the exact targets captured when opening the editor so field order stays stable.
+  const headings  = fieldsEl._headingEls || [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
+  const paras     = fieldsEl._paraEls || [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
   const links     = [...el.querySelectorAll('a')].filter(a => {
     if (String(a?.dataset?.wbMediaType || '').toLowerCase() === 'social') return false;
     const text = (a.textContent || '').trim();
@@ -7851,25 +7975,23 @@ function applySecEdits() {
   }
 
   // Headings — apply text + styles
-  if (!isMediaCardCarousel) {
-    headings.forEach(h => {
-      fieldNum++;
-      const fid = `txt-${fieldNum}`;
-      const inp = fieldsEl.querySelector(`input[data-fid="${fid}"]`);
-      if (inp) _setText(h, inp.value);
-      _applyStyleBarToEl(fieldsEl, fid, h);
-      _applyClickActionFromField(fieldsEl, fid, h);
-    });
+  headings.forEach(h => {
+    fieldNum++;
+    const fid = `txt-${fieldNum}`;
+    const inp = fieldsEl.querySelector(`input[data-fid="${fid}"]`);
+    if (inp) _setText(h, inp.value);
+    _applyStyleBarToEl(fieldsEl, fid, h);
+    _applyClickActionFromField(fieldsEl, fid, h);
+  });
 
-    // Paragraphs — apply text + styles
-    paras.forEach(p => {
-      fieldNum++;
-      const fid = `para-${fieldNum}`;
-      const ta = fieldsEl.querySelector(`textarea[data-fid="${fid}"]`);
-      if (ta) _setParagraphText(p, ta.value);
-      _applyStyleBarToEl(fieldsEl, fid, p);
-    });
-  }
+  // Paragraphs — apply text + styles
+  paras.forEach(p => {
+    fieldNum++;
+    const fid = `para-${fieldNum}`;
+    const ta = fieldsEl.querySelector(`textarea[data-fid="${fid}"]`);
+    if (ta) _setParagraphText(p, ta.value);
+    _applyStyleBarToEl(fieldsEl, fid, p);
+  });
 
   // Links — iterate by current field order (supports add/remove/reorder)
   if (!isMediaCardCarousel) {
@@ -8171,12 +8293,16 @@ function applySecEdits() {
       ));
       const styleKey = _normalizeMediaCarouselStyle(fieldsEl.querySelector('[data-fid="grid-carousel-style"]')?.value || 'classic');
       const controlPos = _normalizeMediaCarouselControlPos(fieldsEl.querySelector('[data-fid="grid-carousel-control-pos"]')?.value || 'bottom-center');
-      const hoverOnly = !!fieldsEl.querySelector('[data-fid="grid-carousel-hover"]')?.checked;
+      const controlsVisibility = _normalizeMediaCarouselControlsVisibility(
+        fieldsEl.querySelector('[data-fid="grid-carousel-controls-visibility"]')?.value || 'always'
+      );
+      const hoverOnly = controlsVisibility === 'hover';
       gridMeta.container.dataset.wbCarousel = '1';
       gridMeta.container.dataset.wbCarouselAuto = autoEnabled ? '1' : '0';
       gridMeta.container.dataset.wbCarouselDelaySec = String(delaySec);
       gridMeta.container.dataset.wbCarouselStyle = styleKey;
       gridMeta.container.dataset.wbCarouselControlPos = controlPos;
+      gridMeta.container.dataset.wbCarouselControlsVisibility = controlsVisibility;
       gridMeta.container.dataset.wbCarouselHoverOnly = hoverOnly ? '1' : '0';
       _syncMediaCarouselControls(el, gridMeta.container);
       _ensureMediaCardCarouselRuntime(doc);
@@ -8648,6 +8774,7 @@ function previewFieldStyle(fid) {
   const font   = fieldsEl.querySelector(`[data-fid="${fid}-font"]`)?.value   || '';
   const size   = fieldsEl.querySelector(`[data-fid="${fid}-size"]`)?.value   || '';
   const weight = fieldsEl.querySelector(`[data-fid="${fid}-weight"]`)?.value || '';
+  const align  = fieldsEl.querySelector(`[data-fid="${fid}-align"]`)?.value  || '';
   const color  = fieldsEl.querySelector(`[data-fid="${fid}-color"]`)?.value  || '';
   const boldBtn   = fieldsEl.querySelector(`[data-fid="${fid}-bold"]`);
   const italicBtn = fieldsEl.querySelector(`[data-fid="${fid}-italic"]`);
@@ -8659,6 +8786,7 @@ function previewFieldStyle(fid) {
     // Use setProperty with 'important' so styles override template !important CSS rules
     if (font)   t.style.setProperty('font-family',  font,            'important');
     if (size)   t.style.setProperty('font-size',    size,            'important');
+    if (align)  t.style.setProperty('text-align',   align,           'important');
     if (color)  t.style.setProperty('color',        color,           'important');
     if (weight) t.style.setProperty('font-weight',  weight,          'important');
     else if (isBold) t.style.setProperty('font-weight', 'bold',      'important');
