@@ -1,7 +1,0 @@
-INFO     apscheduler.scheduler:base.py:507 Adding job tentatively -- it will be properly scheduled when the scheduler starts
-INFO     apscheduler.scheduler:base.py:507 Adding job tentatively -- it will be properly scheduled when the scheduler starts
-INFO     apscheduler.scheduler:base.py:1092 Added job "run_all_checks" to job store "default"
-INFO     apscheduler.scheduler:base.py:1092 Added job "run_payment_reminders" to job store "default"
-INFO     apscheduler.scheduler:base.py:214 Scheduler started
-INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/shop/cart/69ab838f-a626-4180-95dc-56d667c1dd36 "HTTP/1.1 422 Unprocessable Entity"
-INFO     apscheduler.scheduler:base.py:245 Scheduler has been shut down

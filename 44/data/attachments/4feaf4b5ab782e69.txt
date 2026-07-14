@@ -1,8 +1,0 @@
-2026-07-02 05:59:45  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-07-02 05:59:45  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-07-02 05:59:45  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
-2026-07-02 05:59:45  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
-2026-07-02 05:59:45  INFO      apscheduler.scheduler  Scheduler started
-✅ Scheduler started — monitoring every 5min | reminders daily
-2026-07-02 05:59:46  INFO      httpx  HTTP Request: PATCH http://testserver/api/v1/clients/86980a90-11f4-4f08-966a-8e3084c965d4/services "HTTP/1.1 404 Not Found"
-2026-07-02 05:59:46  INFO      apscheduler.scheduler  Scheduler has been shut down
