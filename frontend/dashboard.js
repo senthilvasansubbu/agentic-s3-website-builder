@@ -3917,7 +3917,12 @@ function _injectOverlay(doc) {
     const anchor = id ? `#${id}` : '';
     idx++;
     const i = idx;
-      stagingSections.push({ el, label: `${i}. ${label}${anchor ? ' ' + anchor : ''}` });
+      stagingSections.push({
+        el,
+        baseLabel: label,
+        anchorId: String(id || '').trim(),
+        label: _sectionEntryLabel(i - 1, label, id),
+      });
 
       // Position badge at top-left of element
       el.style.position = el.style.position || 'relative';
@@ -4117,6 +4122,7 @@ const SEC_TEMPLATES = [
   { label: '📢 Call to Action', id: 'cta',           html: (id) => `<section id="${id}" style="padding:80px 5%;text-align:center;background:#6366f1;color:#fff"><div style="max-width:700px;margin:0 auto"><h2 style="font-size:2.2rem;margin-bottom:16px">Ready to Get Started?</h2><p style="opacity:.85;font-size:1.05rem;margin-bottom:32px">Join us today and experience the difference.</p><a href="#contact" style="display:inline-block;padding:14px 36px;background:#fff;color:#6366f1;border-radius:8px;font-weight:700;font-size:1rem;text-decoration:none">Get Started</a></div></section>` },
   { label: '❓ FAQ',            id: 'faq',            html: (id) => `<section id="${id}" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:800px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:32px">Frequently Asked Questions</h2><details style="background:#fff;border-radius:8px;padding:16px 20px;text-align:left;margin-bottom:10px"><summary style="font-weight:700;cursor:pointer">Question one?</summary><p style="margin-top:10px;color:#555">Answer goes here.</p></details><details style="background:#fff;border-radius:8px;padding:16px 20px;text-align:left;margin-bottom:10px"><summary style="font-weight:700;cursor:pointer">Question two?</summary><p style="margin-top:10px;color:#555">Answer goes here.</p></details></div></section>` },
   { label: '🖼 Gallery',        id: 'gallery',        html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:1100px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:40px">Gallery</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"></div></div></section>` },
+  { label: '🧩 Photo Mosaic Mix', id: 'photo-mosaic-mix', html: (id) => `<section id="${id}" data-wb-collage="1" style="padding:80px 5%;background:#fff"><div style="max-width:1120px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:10px">Photo Mosaic Mix</h2><p style="text-align:center;color:#64748b;margin:0 0 24px">Blend multiple photos in one expressive collage with variable emphasis.</p><div data-wb-collage-grid="1" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:clamp(70px,9vw,110px);gap:10px"><figure data-wb-collage-item="1" data-wb-collage-weight="4" style="margin:0;grid-column:span 2;grid-row:span 2;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-a/920/740" alt="Mosaic highlight" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="2" style="margin:0;grid-column:span 2;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-b/920/700" alt="Mosaic frame" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="3" style="margin:0;grid-column:span 1;grid-row:span 2;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-c/640/920" alt="Mosaic portrait" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="1" style="margin:0;grid-column:span 1;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-d/680/620" alt="Mosaic detail" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="2" style="margin:0;grid-column:span 2;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-e/920/680" alt="Mosaic landscape" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure></div></div></section>` },
 ];
 
 let _selectedTemplate = null;
@@ -4257,7 +4263,12 @@ function openSecEditor(idx) {
   if (!frame.contentDocument || !stagingSections[idx]) return;
 
   activeSectionIndex = idx;
-  const { el, label } = stagingSections[idx];
+  const sectionEntry = stagingSections[idx];
+  const { el } = sectionEntry;
+  const sectionLabel = _sectionEntryLabel(idx, sectionEntry.baseLabel || 'Section', el.id || sectionEntry.anchorId || '');
+  const label = sectionLabel;
+  sectionEntry.anchorId = String(el.id || sectionEntry.anchorId || '').trim();
+  sectionEntry.label = sectionLabel;
 
   // Highlight selected section
   frame.contentDocument.querySelectorAll('.__wb_hi').forEach(n => {
@@ -4269,7 +4280,41 @@ function openSecEditor(idx) {
   // Scroll iframe section into view
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  document.getElementById('secEditorTitle').textContent = label;
+  document.getElementById('secEditorTitle').textContent = sectionLabel;
+  const anchorBarEl = document.getElementById('secEditorAnchorBar');
+  const anchorInputEl = document.getElementById('secEditorAnchorName');
+  const anchorPreviewEl = document.getElementById('secEditorAnchorPreview');
+  const currentAnchorId = String(el.id || sectionEntry.anchorId || '').trim();
+  const currentAnchorName = String(el.dataset?.wbAnchorName || '').trim() || _friendlyAnchorName(currentAnchorId || sectionEntry.baseLabel || 'section');
+  if (anchorBarEl) anchorBarEl.style.display = '';
+  if (anchorInputEl) {
+    anchorInputEl.value = _sanitizeAnchorFriendlyName(currentAnchorName);
+    anchorInputEl.setAttribute('maxlength', '60');
+    anchorInputEl.setAttribute('pattern', '[A-Za-z0-9 -]+');
+    anchorInputEl.onbeforeinput = (ev) => {
+      const t = String(ev?.data || '');
+      if (!t) return;
+      if (/[^A-Za-z0-9\s-]/.test(t)) ev.preventDefault();
+    };
+    anchorInputEl.onpaste = (ev) => {
+      ev.preventDefault();
+      const pasted = ev.clipboardData?.getData('text') || '';
+      const sanitized = _sanitizeAnchorFriendlyName(pasted);
+      const start = anchorInputEl.selectionStart ?? anchorInputEl.value.length;
+      const end = anchorInputEl.selectionEnd ?? anchorInputEl.value.length;
+      const combined = `${anchorInputEl.value.slice(0, start)}${sanitized}${anchorInputEl.value.slice(end)}`;
+      anchorInputEl.value = _sanitizeAnchorFriendlyName(combined);
+      anchorInputEl.dispatchEvent(new Event('input'));
+    };
+    anchorInputEl.oninput = () => {
+      const cleaned = _sanitizeAnchorFriendlyName(anchorInputEl.value || '');
+      if (cleaned !== anchorInputEl.value) anchorInputEl.value = cleaned;
+      const raw = String(anchorInputEl.value || '').trim();
+      const previewId = _slugifyAnchorName(raw || currentAnchorId || `section-${idx + 1}`) || `section-${idx + 1}`;
+      if (anchorPreviewEl) anchorPreviewEl.textContent = `#${previewId}`;
+    };
+    anchorInputEl.oninput();
+  }
   const modeNoteEl = document.getElementById('secEditorModeNote');
   const isMediaCardMode = _isMediaCardCarouselSection(el);
   if (modeNoteEl) {
@@ -4347,15 +4392,88 @@ function openSecEditor(idx) {
       };
     }
 
+    function _textWithoutEditorBadges(domEl, opts = {}) {
+      if (!domEl) return '';
+      const clone = domEl.cloneNode(true);
+      clone.querySelectorAll('.__wb_badge, .__wb_badge_anchor').forEach(n => n.remove());
+      if (opts.excludeAnchors) clone.querySelectorAll('a').forEach(n => n.remove());
+      return (clone.innerText || '').trim();
+    }
+
+    function _ensureFooterParagraph(sectionEl) {
+      if (!sectionEl) return;
+      const _singleLine = (txt) => String(txt || '')
+        .replace(/\s*\r?\n+\s*/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      const existing = [...sectionEl.querySelectorAll('p')].find((p) => {
+        const txt = _singleLine(_textWithoutEditorBadges(p, { excludeAnchors: true }));
+        return txt.length >= 2;
+      });
+      if (existing) {
+        existing.dataset.wbFooterText = '1';
+        existing.textContent = _singleLine(_textWithoutEditorBadges(existing, { excludeAnchors: true }));
+        existing.style.setProperty('white-space', 'normal', 'important');
+        return;
+      }
+
+      const candidates = [...sectionEl.querySelectorAll('div,span,small,strong,em,b')].filter((node) => {
+        const txt = _textWithoutEditorBadges(node, { excludeAnchors: true });
+        if (!txt || txt.length < 2 || txt.length > 260) return false;
+        if (node.querySelector('a,button,input,select,textarea,table,ul,ol,form')) return false;
+        const blockKids = [...node.children].filter(c => ['DIV', 'SECTION', 'ARTICLE', 'TABLE', 'UL', 'OL', 'FORM'].includes(c.tagName));
+        if (blockKids.length > 0) return false;
+        return true;
+      }).sort((a, b) => {
+        const aLen = _textWithoutEditorBadges(a, { excludeAnchors: true }).length;
+        const bLen = _textWithoutEditorBadges(b, { excludeAnchors: true }).length;
+        return bLen - aLen;
+      });
+
+      const best = candidates[0] || null;
+      if (best) {
+        const txt = _singleLine(_textWithoutEditorBadges(best, { excludeAnchors: true }));
+        if (!txt) return;
+        const p = sectionEl.ownerDocument.createElement('p');
+        p.dataset.wbFooterText = '1';
+        p.textContent = txt;
+        p.style.cssText = best.style.cssText || '';
+        p.style.setProperty('white-space', 'normal', 'important');
+        best.replaceWith(p);
+        return;
+      }
+
+      const rootTxt = _singleLine(_textWithoutEditorBadges(sectionEl, { excludeAnchors: true }));
+      if (rootTxt && rootTxt.length <= 260 && !sectionEl.querySelector('a')) {
+        const p = sectionEl.ownerDocument.createElement('p');
+        p.dataset.wbFooterText = '1';
+        p.textContent = rootTxt;
+        p.style.setProperty('white-space', 'normal', 'important');
+        sectionEl.prepend(p);
+      }
+    }
+
     // ── Gather editable elements ───────────────────────────────────────────
     // Collect all HTML into one string — avoids O(n²) innerHTML re-parses
     const htmlChunks = [];
     let fieldIdx = 0;
     let allianceMeta = null;
     let gridMeta = null;
+    let collageMeta = null;
     let heroMeta = null;
     let sectionBoxMeta = null;
+    let sectionAnchorMeta = { target: el };
     const isMediaCardCarousel = _isMediaCardCarouselSection(el);
+    const isImageCollage = _isImageCollageSection(el);
+    const isFooterSection = (
+      String(el.tagName || '').toUpperCase() === 'FOOTER'
+      || /footer/i.test(String(el.id || ''))
+      || /footer/i.test(String(el.className || ''))
+      || /footer/i.test(String(label || ''))
+    );
+    if (isFooterSection) {
+      _ensureFooterParagraph(el);
+    }
     const _imgFidToEl = new Map();
 
     // Metadata to store on fields after single innerHTML set
@@ -4402,20 +4520,79 @@ function openSecEditor(idx) {
     // Paragraphs — track start field.
     // For media-card carousel sections, expose only the intro paragraph above the card rail.
     const _paraStartField = fieldIdx + 1;
-    const _allParaEls = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
+    let _allParaEls = [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
+    if (isFooterSection) {
+      const _footerRootText = _textWithoutEditorBadges(el);
+      const _footerTextEls = [...el.querySelectorAll('div,span,small,strong,em,b')].filter((node) => {
+        const txt = _textWithoutEditorBadges(node);
+        if (!txt || txt.length < 2 || txt.length > 260) return false;
+        if (node.closest('a,button,input,select,textarea,script,style,table,thead,tbody,tr,td,th')) return false;
+        // Allow light inline children so full footer lines like "© 2026 ..." are editable as one field.
+        if (node.querySelector('a,button,input,select,textarea,table,ul,ol,form')) return false;
+        const blockKids = [...node.children].filter(c => ['DIV', 'SECTION', 'ARTICLE', 'TABLE', 'UL', 'OL', 'FORM'].includes(c.tagName));
+        if (blockKids.length > 0) return false;
+        return true;
+      });
+
+      const _rootContentChildren = [...el.children].filter((c) => {
+        const cls = String(c.className || '');
+        if (cls.includes('__wb_badge') || cls.includes('__wb_badge_anchor')) return false;
+        return true;
+      });
+
+      // Prefer broader line containers and suppress nested leaf duplicates (like year-only span).
+      const _footerCandidates = [...new Set([
+        ..._allParaEls,
+        ..._footerTextEls,
+        ...((_footerRootText && _footerRootText.length <= 260 && !el.querySelector('a') && _rootContentChildren.length === 0) ? [el] : []),
+      ])]
+        .sort((a, b) => {
+          const aLen = _textWithoutEditorBadges(a).length;
+          const bLen = _textWithoutEditorBadges(b).length;
+          return bLen - aLen;
+        });
+      const _footerSelected = [];
+      _footerCandidates.forEach((node) => {
+        const txt = _textWithoutEditorBadges(node);
+        const covered = _footerSelected.some(parent => {
+          if (!parent.contains(node)) return false;
+          const pTxt = _textWithoutEditorBadges(parent);
+          return pTxt.length >= txt.length;
+        });
+        if (!covered) _footerSelected.push(node);
+      });
+      _allParaEls = _footerSelected;
+
+      if (!_allParaEls.length) {
+        const rawFooterText = _textWithoutEditorBadges(el);
+        if (rawFooterText && rawFooterText.length <= 260 && !el.querySelector('a')) {
+          _allParaEls = [el];
+        }
+      }
+    }
     const _paraEls = isMediaCardCarousel
       ? _allParaEls.filter(p => !_mediaCarouselContainer || !_mediaCarouselContainer.contains(p)).slice(0, 1)
       : _allParaEls;
+    const _paraEntries = [];
     _paraEls.forEach(p => {
-      const text = p.innerText.trim();
-      fieldIdx++;
-      const paraTag = isMediaCardCarousel ? 'Carousel Subtitle' : 'Paragraph';
-      htmlChunks.push(_textareaField(fieldIdx, paraTag, text.slice(0, 600), `para-${fieldIdx}`, _elInit(p)));
+      const rawText = isFooterSection ? _textWithoutEditorBadges(p) : p.innerText.trim();
+      const parts = isFooterSection ? [rawText] : (_getLogicalParagraphText(p).length > 1 ? _getLogicalParagraphText(p) : [rawText]);
+      parts.forEach((partText, partIndex) => {
+        fieldIdx++;
+        const paraTag = isMediaCardCarousel
+          ? 'Carousel Subtitle'
+          : (isFooterSection
+            ? 'Footer Text'
+            : (parts.length > 1 ? `Paragraph ${partIndex + 1}` : 'Paragraph'));
+        const fid = `para-${fieldIdx}`;
+        htmlChunks.push(_textareaField(fieldIdx, paraTag, String(partText || '').slice(0, 600), fid, _elInit(p)));
+        _paraEntries.push({ el: p, fid, parts, partIndex, isSplit: parts.length > 1 });
+      });
     });
 
     // Nav links / anchor texts — collect anchor refs before any innerHTML write
     const _linkFidToAnchor = new Map();
-    if (!isMediaCardCarousel) {
+    if (!isMediaCardCarousel && !isImageCollage && !isFooterSection) {
       el.querySelectorAll('a').forEach((a) => {
         if (String(a?.dataset?.wbMediaType || '').toLowerCase() === 'social') return;
         const text = (a.textContent || '').trim();
@@ -4429,7 +4606,7 @@ function openSecEditor(idx) {
     }
 
     // Additional media blocks (skip already-shown logo image only on section 0)
-    if (!isMediaCardCarousel) {
+    if (!isMediaCardCarousel && !isImageCollage) {
       const mediaNodes = [...el.querySelectorAll('img,video,a[data-wb-media-type="social"]')];
       let mediaIdx = 0;
       mediaNodes.forEach((mediaNode) => {
@@ -4462,7 +4639,7 @@ function openSecEditor(idx) {
     let widthPct = 100;
     let align = 'center';
 
-    if (!isMediaCardCarousel) {
+    if (!isMediaCardCarousel && !isImageCollage) {
       // Section layout controls (available for standard sections)
       const textTarget = _findHeroTextTarget(el) || el;
       const imageTarget = _findHeroImageTarget(el);
@@ -4543,7 +4720,9 @@ function openSecEditor(idx) {
     }
 
     // Generic grid/card item editing (for repeated info cards)
-    const gridCandidates = isMediaCardCarousel
+    const gridCandidates = isImageCollage
+      ? []
+      : (isMediaCardCarousel
       ? [_findMediaCardCarouselContainer(el)].filter(Boolean)
       : [...el.querySelectorAll('div,section,article,ul,ol')].filter(container => {
           const cs = iframeView.getComputedStyle(container);
@@ -4553,7 +4732,7 @@ function openSecEditor(idx) {
           if (kids.length < 2 || kids.length > 12) return false;
           const populated = kids.filter(k => (k.innerText || '').trim().length >= 2);
           return populated.length >= 2;
-        });
+        }));
 
     if (gridCandidates.length) {
       const scored = gridCandidates.map(c => {
@@ -4573,7 +4752,19 @@ function openSecEditor(idx) {
           bodyEl = textEls.find(x => x !== titleEl) || null;
         }
         const title = titleEl ? (titleEl.textContent || '').trim() : '';
-        const body = bodyEl ? (bodyEl.textContent || '').trim() : '';
+        // Preserve manual line breaks when reopening the editor.
+        let body = bodyEl ? (bodyEl.innerText || '').trim() : '';
+        // Some info-cards store value text as a direct text node (no <p>/<div> wrapper).
+        // Capture that text so reopening the editor does not show an empty body.
+        if (!body) {
+          const directText = [...cardEl.childNodes]
+            .filter(node => node && node.nodeType === 3)
+            .map(node => String(node.textContent || '').trim())
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+          if (directText) body = directText;
+        }
         const imageSrc = imageEl ? (imageEl.getAttribute('src') || imageEl.src || '') : '';
         const imageAlt = imageEl ? (imageEl.alt || imageEl.getAttribute('aria-label') || '') : '';
         const titleInit = titleEl ? _elInit(titleEl) : {};
@@ -4602,6 +4793,7 @@ function openSecEditor(idx) {
 
       if (items.length >= 2) {
         gridMeta = { container: best.c, items, isMediaCarousel: isMediaCardCarousel };
+        const showImageFields = isMediaCardCarousel || items.some(item => !!item.imageEl);
         htmlChunks.push('<div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:6px"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);display:block;margin-bottom:8px">🔳 Grid / Card Content</label></div>');
         items.forEach((item, idx2) => {
           htmlChunks.push(_gridCardEditor(idx2, {
@@ -4613,8 +4805,11 @@ function openSecEditor(idx) {
             titleAlign: item.titleAlign,
             titleClick: item.titleClick,
             imageClick: item.imageClick,
-          }, { includeImage: isMediaCardCarousel }));
+          }, { includeImage: showImageFields }));
         });
+        if (showImageFields) {
+          htmlChunks.push(_gridAddCardEditor());
+        }
         if (isMediaCardCarousel) {
           const autoEnabled = String(best.c.dataset.wbCarouselAuto || '') === '1';
           const delaySec = Math.max(2, parseInt(best.c.dataset.wbCarouselDelaySec || '4', 10) || 4);
@@ -4624,9 +4819,59 @@ function openSecEditor(idx) {
             best.c.dataset.wbCarouselControlsVisibility
               || (String(best.c.dataset.wbCarouselHoverOnly || '') === '1' ? 'hover' : 'always')
           );
-          htmlChunks.push(_gridAddCardEditor());
           htmlChunks.push(_gridCarouselOptionsField({ enabled: autoEnabled, delaySec, styleKey, controlPos, controlsVisibility }));
         }
+      }
+    }
+
+    // Image collage editor (order + weight + focus + media library)
+    const collageContainer = isImageCollage ? _findImageCollageContainer(el) : null;
+    if (collageContainer) {
+      const collageOpts = _readImageCollageOptions(collageContainer);
+      _applyImageCollageLayout(collageContainer, collageOpts);
+      const itemEls = [...collageContainer.children].filter(node => ['FIGURE', 'DIV', 'ARTICLE', 'LI'].includes(node.tagName));
+      const items = itemEls.map((itemEl) => {
+        const imageEl = itemEl.querySelector('img') || null;
+        if (!imageEl) return null;
+        const focus = _readImageCollageFocus(imageEl);
+        return {
+          itemEl,
+          imageEl,
+          src: imageEl.getAttribute('src') || imageEl.src || '',
+          alt: imageEl.alt || imageEl.getAttribute('aria-label') || '',
+          weight: _readImageCollageWeight(itemEl),
+          focusX: focus.x,
+          focusY: focus.y,
+        };
+      }).filter(Boolean);
+
+      if (items.length) {
+        collageMeta = {
+          container: collageContainer,
+          items,
+          fidToItem: new Map(),
+          autoFit: collageOpts.autoFit,
+          centered: collageOpts.centered,
+          styleKey: collageOpts.styleKey,
+          breathing: collageOpts.breathing,
+          fillStrategy: collageOpts.fillStrategy,
+        };
+        htmlChunks.push('<div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:6px"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);display:block;margin-bottom:8px">🧩 Photo Mosaic Mix</label></div>');
+        htmlChunks.push(_imageCollageOptionsField(collageOpts));
+        items.forEach((item, idx2) => {
+          const fid = `collage-${idx2}-image`;
+          collageMeta.fidToItem.set(fid, item.itemEl);
+          htmlChunks.push(_imageCollageItemEditor(idx2, {
+            src: item.src,
+            alt: item.alt,
+            weight: item.weight,
+            focusX: item.focusX,
+            focusY: item.focusY,
+            autoFit: collageOpts.autoFit,
+            styleKey: collageOpts.styleKey,
+          }));
+        });
+        htmlChunks.push(_imageCollageAddItemEditor());
       }
     }
 
@@ -4639,7 +4884,7 @@ function openSecEditor(idx) {
     let carouselSpeedMs = 900;
     let bgMotion = 'none';
 
-    if (!isMediaCardCarousel) {
+    if (!isMediaCardCarousel && !isImageCollage) {
       // ── Background editor (shown for standard sections) ───────────────────
       const bgTarget = _bgTarget(el);
       const computed = iframeView.getComputedStyle(bgTarget);
@@ -4661,12 +4906,12 @@ function openSecEditor(idx) {
       htmlChunks.push(_bgField(bgUrl, bgColor, bgUrls, carouselEnabled, carouselIntervalSec, carouselStyle, carouselSpeedMs, bgMotion, sectionLabel, activeSectionIndex));
     }
 
-    if (fieldIdx === 0 && !bgUrl && !bgColorInput) {
+    if (htmlChunks.length === 0) {
       fields.innerHTML = '<p style="font-size:.82rem;color:var(--muted);text-align:center;padding:24px">No editable text or images detected in this section.</p>';
     } else {
       // Single innerHTML write — eliminates O(n²) DOM rebuilds from repeated +=
       fields.innerHTML = htmlChunks.join('');
-      if (!isMediaCardCarousel) {
+      if (!isMediaCardCarousel && !isImageCollage) {
         _refreshBgNameList();
         loadExistingBgImages();
       }
@@ -4679,7 +4924,8 @@ function openSecEditor(idx) {
     }
     fields._headingEls   = _headingEls;
     fields._headingStart = _headingStartField;
-    fields._paraEls      = _paraEls;
+    fields._paraEls      = _paraEntries.map(entry => entry.el);
+    fields._paraEntries  = _paraEntries;
     fields._paraStart    = _paraStartField;
 
     // Stamp _anchorEl on each link field div
@@ -4694,7 +4940,14 @@ function openSecEditor(idx) {
     fields._anchorEls = _anchorElsList;
     fields._allianceMeta = allianceMeta;
     fields._gridMeta = gridMeta;
+    fields._collageMeta = collageMeta;
     fields._heroMeta = heroMeta;
+    fields._sectionAnchorMeta = sectionAnchorMeta;
+    fields._sectionAnchorInit = {
+      anchorName: String(el.dataset?.wbAnchorName || '').trim() || _friendlyAnchorName(el.id || sectionEntry.baseLabel || 'section'),
+      anchorId: String(el.id || sectionEntry.anchorId || '').trim(),
+      baseLabel: sectionEntry.baseLabel || 'Section',
+    };
     fields._sectionBoxMeta = sectionBoxMeta;
     fields._sectionBoxInit = {
       borderStyle,
@@ -4723,6 +4976,15 @@ function openSecEditor(idx) {
       const div = fields.querySelector(`div[data-fid="${fid}"]`);
       if (div) div._imgEl = imgEl;
     });
+    if (collageMeta && Array.isArray(collageMeta.items)) {
+      collageMeta.items.forEach((item, idx2) => {
+        const fid = `collage-${idx2}-image`;
+        const div = fields.querySelector(`[data-fid="${fid}"]`);
+        if (div) div._collageItemEl = item.itemEl;
+      });
+      _renumberImageCollageEditorCards();
+      _syncCollageStyleThumbSelection(collageMeta.styleKey || 'professional');
+    }
 
     fields._sectionEl = el;
     editor._sectionEl = el;
@@ -5125,6 +5387,13 @@ function _friendlyMediaSourceLabel(rawPath = '') {
   return _assetFileName(norm) || norm;
 }
 
+function _truncateMediaLabel(label = '', maxChars = 32) {
+  const text = String(label || '').trim();
+  if (!text) return '';
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, Math.max(0, maxChars - 1)).trimEnd()}…`;
+}
+
 function _toPreviewMediaUrl(rawUrl = '') {
   const raw = String(rawUrl || '').trim();
   if (!raw) return '';
@@ -5484,6 +5753,15 @@ function _applySelectedMediaToImageField(media, fid) {
     }
   }
   _syncImageMediaFieldUI(safeFid);
+  const gridMatch = safeFid.match(/^grid-(\d+)-image$/);
+  if (gridMatch) {
+    _updateGridImagePreview(safeFid);
+    _previewMediaCarouselGridItem(parseInt(gridMatch[1], 10) || 0);
+  }
+  const collageMatch = safeFid.match(/^collage-(\d+)-image$/);
+  if (collageMatch) {
+    _updateImageCollageItemPreview(safeFid);
+  }
   const displayName = String(media.name || '').trim() || _displayBgImageName(srcVal);
   toast(`Selected ${displayName} ✅`);
 }
@@ -5588,20 +5866,22 @@ function renderExistingBgImagePicker() {
     const provider = String(it.provider || '').trim() || _deriveSocialProvider(it.url || it.path || '');
     const pal = _socialProviderPalette(provider);
     const selected = mediaId && chosenId === mediaId;
+    const fullName = String(it.name || _friendlyImageName('', it.path || it.url || '')).trim() || 'Uploaded image';
+    const displayName = _truncateMediaLabel(fullName, 32);
     const tag = mediaType === 'image'
       ? (it.folder === 'images' ? 'image • finalized' : 'image • uploaded')
       : mediaType === 'video'
         ? 'video'
         : `social${provider ? ` • ${provider}` : ''}`;
     const cover = mediaType === 'image'
-      ? `<img src="${_esc(_toPreviewMediaUrl(it.path || ''))}" loading="lazy" alt="${_esc(it.name || 'Uploaded image')}">`
+      ? `<img src="${_esc(_toPreviewMediaUrl(it.path || ''))}" loading="lazy" alt="${_esc(fullName)}" title="${_esc(fullName)}">`
       : mediaType === 'video'
         ? `<video data-media-preview="video" src="${_esc(_toPreviewMediaUrl(it.path || ''))}" muted loop playsinline preload="metadata" style="width:100%;height:96px;object-fit:cover;border-bottom:1px solid var(--border);background:#0f172a"></video>`
         : `<div style="height:96px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,${pal.from},${pal.to});font-size:2rem;color:#fff">${_socialProviderGlyph(provider)}</div>`;
-    return `<button type="button" class="existing-bg-card ${selected ? 'selected' : ''}" data-id="${_esc(mediaId)}" onclick="selectExistingBgImageCard(this)" ${mediaType === 'video' ? 'onmouseenter="_mediaPickerVideoHover(this)" onmouseleave="_mediaPickerVideoLeave(this)"' : ''} title="${_esc(it.name || '')}">
+    return `<button type="button" class="existing-bg-card ${selected ? 'selected' : ''}" data-id="${_esc(mediaId)}" onclick="selectExistingBgImageCard(this)" ${mediaType === 'video' ? 'onmouseenter="_mediaPickerVideoHover(this)" onmouseleave="_mediaPickerVideoLeave(this)"' : ''} title="${_esc(fullName)}">
       ${cover}
       <div class="existing-bg-card-body">
-        <div class="existing-bg-card-name">${_esc(it.name || _friendlyImageName('', it.path || it.url || ''))}</div>
+        <div class="existing-bg-card-name" title="${_esc(fullName)}">${_esc(displayName)}</div>
         <div class="existing-bg-card-tag">${_esc(tag)}</div>
       </div>
     </button>`;
@@ -6832,6 +7112,32 @@ function _setParagraphText(el, text) {
   }
 }
 
+function _splitParagraphText(rawText) {
+  const normalized = String(rawText || '').replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+  return normalized
+    .split(/(?:\n\s*){2,}/)
+    .map(part => part.replace(/\n+/g, ' ').trim())
+    .filter(Boolean);
+}
+
+function _getLogicalParagraphText(el) {
+  const rawHtml = String(el?.innerHTML || '');
+  const rawText = rawHtml
+    ? (() => {
+        const tmp = el?.ownerDocument?.createElement('div');
+        if (!tmp) return String(el?.innerText || el?.textContent || '').replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n');
+        tmp.innerHTML = rawHtml.replace(/<br\s*\/?\s*>/gi, '\n');
+        return String(tmp.textContent || '').replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n');
+      })()
+    : String(el?.innerText || el?.textContent || '').replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n');
+  return _splitParagraphText(rawText);
+}
+
+function _paragraphDisplayText(parts) {
+  return parts.join('\n\n');
+}
+
 function _normalizeStagingAssetUrl(rawUrl) {
   const raw = String(rawUrl || '').trim();
   if (!raw) return '';
@@ -6932,8 +7238,709 @@ function _isMediaCardCarouselSection(sectionEl) {
   const sid = String(sectionEl.id || '').toLowerCase();
   if (sid.includes('media-card-carousel')) return true;
   if (String(sectionEl.dataset?.wbCarousel || '') === '1') return true;
+  if (sectionEl.querySelector('[data-wb-carousel="1"], [data-wb-carousel-controls="1"]')) return true;
+
+  const containers = [...sectionEl.querySelectorAll('div,section,article,ul,ol')];
+  const hasCarouselRail = containers.some((c) => {
+    const cs = sectionEl.ownerDocument.defaultView.getComputedStyle(c);
+    const style = c.style || {};
+    const gridAutoFlow = String(style.gridAutoFlow || cs.gridAutoFlow || '').toLowerCase();
+    const scrollSnap = String(style.scrollSnapType || cs.scrollSnapType || '').toLowerCase();
+    const overflowX = String(style.overflowX || cs.overflowX || '').toLowerCase();
+    const isLayout = String(cs.display || '').includes('grid') || String(cs.display || '').includes('flex');
+    if (!isLayout) return false;
+    const kids = [...c.children].filter(k => ['DIV', 'ARTICLE', 'LI', 'SECTION'].includes(k.tagName));
+    if (kids.length < 2) return false;
+    const imageCards = kids.filter(k => !!k.querySelector('img')).length;
+    const textCards = kids.filter(k => !!k.querySelector('h1,h2,h3,h4,h5,p,small')).length;
+    if (imageCards < 2 || textCards < 2) return false;
+    return gridAutoFlow.includes('column')
+      || scrollSnap.includes('x')
+      || ['hidden', 'auto', 'scroll', 'clip'].includes(overflowX);
+  });
+  if (hasCarouselRail) return true;
+
   const heading = (sectionEl.querySelector('h1,h2,h3')?.textContent || '').trim().toLowerCase();
-  return heading === 'media showcase';
+  return heading.includes('media showcase') || heading.includes('media carousel');
+}
+
+function _isImageCollageSection(sectionEl) {
+  if (!sectionEl) return false;
+  const sid = String(sectionEl.id || '').toLowerCase();
+  if (sid.includes('photo-mosaic-mix') || sid.includes('image-collage')) return true;
+  if (String(sectionEl.dataset?.wbCollage || '') === '1') return true;
+  return !!sectionEl.querySelector('[data-wb-collage-grid="1"]');
+}
+
+function _findImageCollageContainer(sectionEl) {
+  if (!sectionEl) return null;
+  const tagged = sectionEl.querySelector('[data-wb-collage-grid="1"]');
+  if (tagged) return tagged;
+  const candidates = [...sectionEl.querySelectorAll('div,section,article,ul,ol')].filter((container) => {
+    const kids = [...container.children].filter(k => ['FIGURE', 'DIV', 'ARTICLE', 'LI'].includes(k.tagName));
+    if (kids.length < 3) return false;
+    const imgCount = kids.filter(k => k.querySelector('img')).length;
+    if (imgCount < 3) return false;
+    const cs = sectionEl.ownerDocument.defaultView.getComputedStyle(container);
+    return cs.display.includes('grid') || cs.display.includes('flex');
+  });
+  return candidates[0] || null;
+}
+
+function _readImageCollageWeight(itemEl) {
+  const ds = parseInt(String(itemEl?.dataset?.wbCollageWeight || ''), 10);
+  if (Number.isFinite(ds) && ds >= 1 && ds <= 4) return ds;
+  const colSpan = parseInt(String(itemEl?.style?.gridColumn || '').match(/span\s*(\d+)/i)?.[1] || '1', 10) || 1;
+  const rowSpan = parseInt(String(itemEl?.style?.gridRow || '').match(/span\s*(\d+)/i)?.[1] || '1', 10) || 1;
+  if (colSpan >= 2 && rowSpan >= 2) return 4;
+  if (rowSpan >= 2) return 3;
+  if (colSpan >= 2) return 2;
+  return 1;
+}
+
+function _applyImageCollageWeight(itemEl, weight) {
+  if (!itemEl) return;
+  const w = Math.max(1, Math.min(4, parseInt(String(weight || '1'), 10) || 1));
+  const map = {
+    1: { col: 1, row: 1, minH: '90px' },
+    2: { col: 2, row: 1, minH: '100px' },
+    3: { col: 1, row: 2, minH: '150px' },
+    4: { col: 2, row: 2, minH: '170px' },
+  };
+  const cfg = map[w];
+  itemEl.dataset.wbCollageWeight = String(w);
+  itemEl.style.setProperty('grid-column', `span ${cfg.col}`, 'important');
+  itemEl.style.setProperty('grid-row', `span ${cfg.row}`, 'important');
+  itemEl.style.setProperty('min-height', cfg.minH, 'important');
+}
+
+function _readImageCollageFocus(imgEl) {
+  const raw = String(imgEl?.style?.objectPosition || '').trim();
+  const m = raw.match(/([\d.]+)%\s+([\d.]+)%/);
+  const x = m ? Number(m[1]) : 50;
+  const y = m ? Number(m[2]) : 50;
+  return {
+    x: Math.max(0, Math.min(100, Number.isFinite(x) ? x : 50)),
+    y: Math.max(0, Math.min(100, Number.isFinite(y) ? y : 50)),
+  };
+}
+
+function _readImageCollageOptions(containerEl) {
+  const autoFitRaw = String(containerEl?.dataset?.wbCollageAutofit || '').trim();
+  const centeredRaw = String(containerEl?.dataset?.wbCollageCentered || '').trim();
+  const styleRaw = String(containerEl?.dataset?.wbCollageStyle || '').trim().toLowerCase();
+  const breathingRaw = String(containerEl?.dataset?.wbCollageBreathing || '').trim().toLowerCase();
+  const strategyRaw = String(containerEl?.dataset?.wbCollageFillStrategy || '').trim().toLowerCase();
+  const firstImg = containerEl?.querySelector('img');
+  const inferredAutoFit = firstImg ? String(firstImg.style.objectFit || '').toLowerCase() === 'contain' : true;
+  const styleKey = [
+    'professional', 'artistic', 'cinematic', 'banner',
+    'boomer', 'playful', 'kidzee', 'editorial', 'minimal', 'retro'
+  ].includes(styleRaw) ? styleRaw : 'professional';
+  const breathing = ['tight', 'normal', 'airy'].includes(breathingRaw) ? breathingRaw : 'normal';
+  const fillStrategy = ['balanced', 'left-heavy', 'right-heavy', 'top-heavy'].includes(strategyRaw)
+    ? strategyRaw
+    : 'balanced';
+  return {
+    autoFit: autoFitRaw ? autoFitRaw !== '0' : inferredAutoFit,
+    centered: centeredRaw ? centeredRaw !== '0' : true,
+    styleKey,
+    breathing,
+    fillStrategy,
+  };
+}
+
+function _applyImageCollageLayout(containerEl, opts = {}) {
+  if (!containerEl) return;
+  const autoFit = opts.autoFit !== false;
+  const centered = opts.centered !== false;
+  const styleKey = [
+    'professional', 'artistic', 'cinematic', 'banner',
+    'boomer', 'playful', 'kidzee', 'editorial', 'minimal', 'retro'
+  ].includes(String(opts.styleKey || '').toLowerCase())
+    ? String(opts.styleKey || '').toLowerCase()
+    : 'professional';
+  const breathing = ['tight', 'normal', 'airy'].includes(String(opts.breathing || '').toLowerCase())
+    ? String(opts.breathing || '').toLowerCase()
+    : 'normal';
+  const fillStrategy = ['balanced', 'left-heavy', 'right-heavy', 'top-heavy'].includes(String(opts.fillStrategy || '').toLowerCase())
+    ? String(opts.fillStrategy || '').toLowerCase()
+    : 'balanced';
+  const breathingPad = breathing === 'tight' ? '0' : (breathing === 'airy' ? '14px' : '6px');
+  const styleCfg = {
+    professional: {
+      columns: 'repeat(6,minmax(0,1fr))',
+      rows: 'clamp(72px,8.5vw,108px)',
+      gap: '12px',
+      maxWidth: '980px',
+      radius: '14px',
+      shadow: '0 6px 18px rgba(15,23,42,.08)',
+      panelBg: autoFit ? '#f8fafc' : '#e5e7eb',
+      panelPad: autoFit ? '8px' : '0',
+      imgFilter: 'none',
+    },
+    boomer: {
+      columns: 'repeat(5,minmax(0,1fr))',
+      rows: 'clamp(84px,9.6vw,128px)',
+      gap: '16px',
+      maxWidth: '980px',
+      radius: '22px',
+      shadow: '0 12px 24px rgba(15,23,42,.17)',
+      panelBg: autoFit ? '#ffffff' : '#dbeafe',
+      panelPad: autoFit ? '12px' : '2px',
+      imgFilter: 'contrast(1.06) saturate(1.04)',
+    },
+    playful: {
+      columns: 'repeat(6,minmax(0,1fr))',
+      rows: 'clamp(76px,9.2vw,122px)',
+      gap: '14px',
+      maxWidth: '1020px',
+      radius: '20px',
+      shadow: '0 10px 24px rgba(99,102,241,.18)',
+      panelBg: autoFit ? '#eef2ff' : '#dbeafe',
+      panelPad: autoFit ? '10px' : '2px',
+      imgFilter: 'saturate(1.12) contrast(1.03)',
+    },
+    kidzee: {
+      columns: 'repeat(6,minmax(0,1fr))',
+      rows: 'clamp(82px,9.8vw,132px)',
+      gap: '16px',
+      maxWidth: '1000px',
+      radius: '26px',
+      shadow: '0 12px 26px rgba(244,114,182,.20)',
+      panelBg: autoFit ? '#fff7ed' : '#ffedd5',
+      panelPad: autoFit ? '12px' : '4px',
+      imgFilter: 'saturate(1.16) brightness(1.02)',
+    },
+    editorial: {
+      columns: 'repeat(7,minmax(0,1fr))',
+      rows: 'clamp(68px,8vw,104px)',
+      gap: '12px',
+      maxWidth: '1060px',
+      radius: '8px',
+      shadow: '0 8px 18px rgba(15,23,42,.13)',
+      panelBg: autoFit ? '#f8fafc' : '#e2e8f0',
+      panelPad: autoFit ? '7px' : '0',
+      imgFilter: 'contrast(1.06)',
+    },
+    minimal: {
+      columns: 'repeat(6,minmax(0,1fr))',
+      rows: 'clamp(70px,8.4vw,104px)',
+      gap: '8px',
+      maxWidth: '980px',
+      radius: '6px',
+      shadow: 'none',
+      panelBg: autoFit ? '#f8fafc' : '#e2e8f0',
+      panelPad: autoFit ? '5px' : '0',
+      imgFilter: 'none',
+    },
+    retro: {
+      columns: 'repeat(6,minmax(0,1fr))',
+      rows: 'clamp(74px,8.8vw,112px)',
+      gap: '13px',
+      maxWidth: '1000px',
+      radius: '12px',
+      shadow: '0 10px 0 rgba(15,23,42,.12)',
+      panelBg: autoFit ? '#fff7ed' : '#fde68a',
+      panelPad: autoFit ? '8px' : '2px',
+      imgFilter: 'sepia(.12) saturate(1.08)',
+    },
+    artistic: {
+      columns: 'repeat(6,minmax(0,1fr))',
+      rows: 'clamp(76px,9vw,118px)',
+      gap: '14px',
+      maxWidth: '1000px',
+      radius: '18px',
+      shadow: '0 10px 24px rgba(30,41,59,.16)',
+      panelBg: autoFit ? '#f8fafc' : '#dbeafe',
+      panelPad: autoFit ? '10px' : '2px',
+      imgFilter: 'saturate(1.06) contrast(1.04)',
+    },
+    cinematic: {
+      columns: 'repeat(8,minmax(0,1fr))',
+      rows: 'clamp(66px,7vw,96px)',
+      gap: '10px',
+      maxWidth: '1040px',
+      radius: '10px',
+      shadow: '0 14px 28px rgba(2,6,23,.24)',
+      panelBg: autoFit ? '#111827' : '#0f172a',
+      panelPad: autoFit ? '8px' : '0',
+      imgFilter: 'contrast(1.08) saturate(1.02)',
+    },
+    banner: {
+      columns: 'repeat(12,minmax(0,1fr))',
+      rows: 'clamp(54px,5.8vw,78px)',
+      gap: '8px',
+      maxWidth: '1120px',
+      radius: '10px',
+      shadow: '0 4px 14px rgba(15,23,42,.09)',
+      panelBg: autoFit ? '#f8fafc' : '#e2e8f0',
+      panelPad: autoFit ? '6px' : '0',
+      imgFilter: 'none',
+    },
+  }[styleKey];
+  containerEl.dataset.wbCollageGrid = '1';
+  containerEl.dataset.wbCollageAutofit = autoFit ? '1' : '0';
+  containerEl.dataset.wbCollageCentered = centered ? '1' : '0';
+  containerEl.dataset.wbCollageStyle = styleKey;
+  containerEl.dataset.wbCollageBreathing = breathing;
+  containerEl.dataset.wbCollageFillStrategy = fillStrategy;
+  containerEl.style.setProperty('display', 'grid', 'important');
+  containerEl.style.setProperty('grid-template-columns', styleCfg.columns, 'important');
+  containerEl.style.setProperty('grid-auto-rows', styleCfg.rows, 'important');
+  containerEl.style.setProperty('gap', styleCfg.gap, 'important');
+  containerEl.style.setProperty('grid-auto-flow', 'dense', 'important');
+  containerEl.style.setProperty('width', '100%', 'important');
+  containerEl.style.setProperty('align-items', 'stretch', 'important');
+  containerEl.style.setProperty('justify-items', 'stretch', 'important');
+  if (centered) {
+    containerEl.style.setProperty('max-width', styleCfg.maxWidth, 'important');
+    containerEl.style.setProperty('margin-left', 'auto', 'important');
+    containerEl.style.setProperty('margin-right', 'auto', 'important');
+    containerEl.style.setProperty('justify-content', 'center', 'important');
+    containerEl.style.setProperty('align-content', 'start', 'important');
+    containerEl.style.setProperty('padding', breathingPad, 'important');
+  } else {
+    containerEl.style.setProperty('max-width', '100%', 'important');
+    containerEl.style.setProperty('margin-left', '0', 'important');
+    containerEl.style.setProperty('margin-right', '0', 'important');
+    containerEl.style.setProperty('justify-content', 'stretch', 'important');
+    containerEl.style.setProperty('align-content', 'start', 'important');
+    containerEl.style.setProperty('padding', breathing === 'tight' ? '0' : '4px', 'important');
+  }
+
+  const itemEls = [...containerEl.children].filter(node => ['FIGURE', 'DIV', 'ARTICLE', 'LI'].includes(node.tagName));
+  const placementList = itemEls.map((itemEl, idx) => ({
+    itemEl,
+    idx,
+    weight: _readImageCollageWeight(itemEl),
+  }));
+  if (fillStrategy === 'top-heavy' || fillStrategy === 'left-heavy') {
+    placementList.sort((a, b) => (b.weight - a.weight) || (a.idx - b.idx));
+  } else if (fillStrategy === 'right-heavy') {
+    placementList.sort((a, b) => (a.weight - b.weight) || (a.idx - b.idx));
+  }
+  const ordered = fillStrategy === 'balanced' ? placementList : placementList;
+  ordered.forEach((entry, orderIdx) => {
+    entry.itemEl.style.setProperty('order', String(orderIdx), 'important');
+  });
+
+  itemEls.forEach((itemEl) => {
+    itemEl.style.setProperty('margin', '0', 'important');
+    itemEl.style.setProperty('border-radius', styleCfg.radius, 'important');
+    itemEl.style.setProperty('overflow', 'hidden', 'important');
+    itemEl.style.setProperty('display', 'flex', 'important');
+    itemEl.style.setProperty('align-items', 'center', 'important');
+    itemEl.style.setProperty('justify-content', 'center', 'important');
+    itemEl.style.setProperty('background', styleCfg.panelBg, 'important');
+    itemEl.style.setProperty('padding', styleCfg.panelPad, 'important');
+    itemEl.style.setProperty('box-shadow', styleCfg.shadow, 'important');
+    if (styleKey === 'artistic' || styleKey === 'playful' || styleKey === 'kidzee') {
+      const n = [...containerEl.children].indexOf(itemEl);
+      const rot = styleKey === 'kidzee'
+        ? ((n % 4 === 0) ? '-1.8deg' : (n % 4 === 1 ? '1.4deg' : (n % 4 === 2 ? '-0.8deg' : '0.6deg')))
+        : ((n % 3 === 0) ? '-1.2deg' : (n % 3 === 1 ? '0.8deg' : '0deg'));
+      itemEl.style.setProperty('transform', `rotate(${rot})`, 'important');
+    } else {
+      itemEl.style.removeProperty('transform');
+    }
+    const imgEl = itemEl.querySelector('img');
+    if (!imgEl) return;
+    imgEl.style.setProperty('width', '100%', 'important');
+    imgEl.style.setProperty('height', '100%', 'important');
+    imgEl.style.setProperty('display', 'block', 'important');
+    imgEl.style.setProperty('object-fit', autoFit ? 'contain' : 'cover', 'important');
+    imgEl.style.setProperty('filter', styleCfg.imgFilter, 'important');
+    if (autoFit) {
+      imgEl.style.setProperty('object-position', '50% 50%', 'important');
+    }
+  });
+}
+
+function _imageCollageOptionsField(init = {}) {
+  const autoFit = init.autoFit !== false;
+  const centered = init.centered !== false;
+  const styleKey = [
+    'professional', 'artistic', 'cinematic', 'banner',
+    'boomer', 'playful', 'kidzee', 'editorial', 'minimal', 'retro'
+  ].includes(String(init.styleKey || '').toLowerCase())
+    ? String(init.styleKey || '').toLowerCase()
+    : 'professional';
+  const breathing = ['tight', 'normal', 'airy'].includes(String(init.breathing || '').toLowerCase())
+    ? String(init.breathing || '').toLowerCase()
+    : 'normal';
+  const fillStrategy = ['balanced', 'left-heavy', 'right-heavy', 'top-heavy'].includes(String(init.fillStrategy || '').toLowerCase())
+    ? String(init.fillStrategy || '').toLowerCase()
+    : 'balanced';
+  const thumb = (key, label, bg, accent) => `<button type="button" data-collage-style-thumb="${key}" onclick="_selectCollageStyleThumb('${key}')" title="${label}" style="padding:0;border:1.5px solid var(--border);border-radius:8px;background:${bg};cursor:pointer;overflow:hidden">
+    <div style="height:42px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:6px;background:${bg}">
+      <span style="display:block;border-radius:3px;background:${accent};opacity:.95;grid-column:span 2"></span>
+      <span style="display:block;border-radius:3px;background:${accent};opacity:.78"></span>
+      <span style="display:block;border-radius:3px;background:${accent};opacity:.62"></span>
+      <span style="display:block;border-radius:3px;background:${accent};opacity:.7"></span>
+      <span style="display:block;border-radius:3px;background:${accent};opacity:.9;grid-column:span 2"></span>
+      <span style="display:block;border-radius:3px;background:${accent};opacity:.55"></span>
+    </div>
+    <div style="padding:4px 6px;font-size:.65rem;color:var(--text);text-align:center;border-top:1px solid var(--border)">${label}</div>
+  </button>`;
+  const thumbs = [
+    ['professional', 'Professional', '#f8fafc', '#64748b'],
+    ['artistic', 'Artistic', '#eef2ff', '#6366f1'],
+    ['cinematic', 'Cinematic', '#0f172a', '#94a3b8'],
+    ['banner', 'Banner', '#ecfeff', '#0ea5e9'],
+    ['boomer', 'Boomer', '#eff6ff', '#2563eb'],
+    ['playful', 'Playful', '#f5f3ff', '#8b5cf6'],
+    ['kidzee', 'Kidzee', '#fff7ed', '#f97316'],
+    ['editorial', 'Editorial', '#f8fafc', '#334155'],
+    ['minimal', 'Minimal', '#f8fafc', '#9ca3af'],
+    ['retro', 'Retro', '#fff7ed', '#d97706'],
+  ].map(([k, l, bg, ac]) => thumb(k, l, bg, ac)).join('');
+  return `<div data-type="collage-options" style="border:1px solid var(--border);border-radius:8px;padding:10px;margin:0 0 8px;background:var(--bg)">
+    <label style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin-bottom:6px">Layout Options</label>
+    <div style="margin-bottom:6px">
+      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Collage style</label>
+      <select id="collageStyleKey" onchange="_previewImageCollageLayout()" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+        <option value="professional" ${styleKey === 'professional' ? 'selected' : ''}>Professional</option>
+        <option value="artistic" ${styleKey === 'artistic' ? 'selected' : ''}>Artistic</option>
+        <option value="cinematic" ${styleKey === 'cinematic' ? 'selected' : ''}>Cinematic</option>
+        <option value="banner" ${styleKey === 'banner' ? 'selected' : ''}>Banner</option>
+        <option value="boomer" ${styleKey === 'boomer' ? 'selected' : ''}>Boomer</option>
+        <option value="playful" ${styleKey === 'playful' ? 'selected' : ''}>Playful</option>
+        <option value="kidzee" ${styleKey === 'kidzee' ? 'selected' : ''}>Kidzee</option>
+        <option value="editorial" ${styleKey === 'editorial' ? 'selected' : ''}>Editorial</option>
+        <option value="minimal" ${styleKey === 'minimal' ? 'selected' : ''}>Minimal</option>
+        <option value="retro" ${styleKey === 'retro' ? 'selected' : ''}>Retro</option>
+      </select>
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Style thumbnails</label>
+      <div id="collageStyleThumbGrid" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">${thumbs}</div>
+    </div>
+    <div style="margin-bottom:6px">
+      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Corner breathing</label>
+      <select id="collageBreathing" onchange="_previewImageCollageLayout()" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+        <option value="tight" ${breathing === 'tight' ? 'selected' : ''}>Tight (edge-to-edge)</option>
+        <option value="normal" ${breathing === 'normal' ? 'selected' : ''}>Normal</option>
+        <option value="airy" ${breathing === 'airy' ? 'selected' : ''}>Airy</option>
+      </select>
+    </div>
+    <div style="margin-bottom:6px">
+      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Fill strategy</label>
+      <select id="collageFillStrategy" onchange="_previewImageCollageLayout()" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+        <option value="balanced" ${fillStrategy === 'balanced' ? 'selected' : ''}>Balanced</option>
+        <option value="left-heavy" ${fillStrategy === 'left-heavy' ? 'selected' : ''}>Left-heavy</option>
+        <option value="right-heavy" ${fillStrategy === 'right-heavy' ? 'selected' : ''}>Right-heavy</option>
+        <option value="top-heavy" ${fillStrategy === 'top-heavy' ? 'selected' : ''}>Top-heavy</option>
+      </select>
+    </div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--text);margin-bottom:6px">
+      <input type="checkbox" id="collageAutoFit" ${autoFit ? 'checked' : ''} onchange="_previewImageCollageLayout()">
+      Auto-fit (no crop / no distortion)
+    </label>
+    <label style="display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--text)">
+      <input type="checkbox" id="collageCenterSection" ${centered ? 'checked' : ''} onchange="_previewImageCollageLayout()">
+      Center collage within section
+    </label>
+  </div>`;
+}
+
+function _syncCollageStyleThumbSelection(styleKey) {
+  const key = String(styleKey || '').toLowerCase();
+  const thumbs = [...document.querySelectorAll('[data-collage-style-thumb]')];
+  thumbs.forEach((btn) => {
+    const active = String(btn.getAttribute('data-collage-style-thumb') || '') === key;
+    btn.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
+    btn.style.boxShadow = active ? '0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent)' : 'none';
+    btn.style.transform = active ? 'translateY(-1px)' : 'none';
+  });
+}
+
+function _selectCollageStyleThumb(styleKey) {
+  const sel = document.getElementById('collageStyleKey');
+  if (!sel) return;
+  sel.value = String(styleKey || 'professional').toLowerCase();
+  _previewImageCollageLayout();
+}
+
+function _imageCollageItemEditor(itemIdx, data) {
+  const fid = `collage-${itemIdx}-image`;
+  const src = _normalizeStagingAssetUrl(data.src || '');
+  const srcDisplay = _friendlyMediaSourceLabel(src) || src;
+  const alt = String(data.alt || '').trim();
+  const weight = Math.max(1, Math.min(4, parseInt(String(data.weight || '1'), 10) || 1));
+  const focusX = Math.max(0, Math.min(100, Number(data.focusX ?? 50) || 50));
+  const focusY = Math.max(0, Math.min(100, Number(data.focusY ?? 50) || 50));
+  const autoFit = data.autoFit === true;
+  const previewFit = autoFit ? 'contain' : 'cover';
+  const preview = src
+    ? `<img src="${_esc(_toPreviewMediaUrl(src))}" style="height:54px;width:80px;object-fit:${previewFit};border-radius:5px;border:1px solid var(--border);margin-top:6px;object-position:${focusX}% ${focusY}%">`
+    : `<div style="height:54px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;margin-top:6px">No image selected</div>`;
+  return `<div data-type="collage-item" data-fid="${fid}" draggable="true" ondragstart="_onImageCollageDragStart(event)" ondragover="_onImageCollageDragOver(event)" ondrop="_onImageCollageDrop(event)" ondragend="_onImageCollageDragEnd(event)" style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 8px;margin-bottom:8px;background:var(--bg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span title="Drag to reorder" style="cursor:grab;font-size:.95rem;line-height:1;color:var(--muted)">⋮⋮</span>
+        <label data-collage-label="1" style="font-size:.72rem;font-weight:700;color:var(--accent);display:block;margin:0">Collage Image ${itemIdx + 1}</label>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" type="button" onclick="moveImageCollageItemInEditor(${itemIdx}, -1)" title="Move up">↑</button>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="moveImageCollageItemInEditor(${itemIdx}, 1)" title="Move down">↓</button>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="removeCollageImageFromActiveSection(${itemIdx})" title="Delete this image">🗑</button>
+      </div>
+    </div>
+    <input data-fid="${fid}-src" type="hidden" value="${_esc(src)}" oninput="_updateImageCollageItemPreview('${fid}')">
+    <input data-fid="${fid}-src-display" type="text" value="${_esc(srcDisplay)}" placeholder="No image selected" readonly title="${_esc(src)}"
+      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+    <label style="font-size:.7rem;color:var(--muted);display:block;margin-top:4px">Alt text</label>
+    <input data-fid="${fid}-alt" type="text" value="${_esc(alt)}" placeholder="Image description" oninput="_updateImageCollageItemPreview('${fid}')"
+      style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Weight (size)</label>
+        <select data-fid="${fid}-weight" onchange="_updateImageCollageItemPreview('${fid}')" style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+          <option value="1" ${weight === 1 ? 'selected' : ''}>Small</option>
+          <option value="2" ${weight === 2 ? 'selected' : ''}>Wide</option>
+          <option value="3" ${weight === 3 ? 'selected' : ''}>Tall</option>
+          <option value="4" ${weight === 4 ? 'selected' : ''}>Hero</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:3px">Focus point</label>
+        <div style="display:flex;gap:6px">
+          <input data-fid="${fid}-focus-x" type="number" min="0" max="100" value="${Math.round(focusX)}" oninput="_updateImageCollageItemPreview('${fid}')"
+            style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem" title="Horizontal focus %">
+          <input data-fid="${fid}-focus-y" type="number" min="0" max="100" value="${Math.round(focusY)}" oninput="_updateImageCollageItemPreview('${fid}')"
+            style="width:100%;padding:6px 8px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem" title="Vertical focus %">
+        </div>
+      </div>
+    </div>
+    <div data-fid="${fid}-preview">${preview}</div>
+    <button class="btn btn-secondary btn-sm" type="button" onclick="openImageFieldMediaPicker('${fid}')" style="margin-top:6px">🗂 Choose From Media Library</button>
+  </div>`;
+}
+
+function _imageCollageAddItemEditor() {
+  return `<div style="display:flex;justify-content:flex-end;margin:8px 0 10px">
+    <button class="btn btn-secondary btn-sm" type="button" onclick="addCollageImageToActiveSection()">＋ Add Collage Image</button>
+  </div>`;
+}
+
+function _renumberImageCollageEditorCards() {
+  const fieldsEl = document.getElementById('secEditorFields');
+  if (!fieldsEl) return;
+  const cards = [...fieldsEl.querySelectorAll('[data-type="collage-item"]')];
+  cards.forEach((card, idx) => {
+    card.dataset.orderIndex = String(idx);
+    const labelEl = card.querySelector('[data-collage-label="1"]');
+    if (labelEl) labelEl.textContent = `Collage Image ${idx + 1}`;
+    const upBtn = card.querySelector('button[title="Move up"]');
+    const downBtn = card.querySelector('button[title="Move down"]');
+    const delBtn = card.querySelector('button[title="Delete this image"]');
+    if (upBtn) upBtn.setAttribute('onclick', `moveImageCollageItemInEditor(${idx}, -1)`);
+    if (downBtn) downBtn.setAttribute('onclick', `moveImageCollageItemInEditor(${idx}, 1)`);
+    if (delBtn) delBtn.setAttribute('onclick', `removeCollageImageFromActiveSection(${idx})`);
+  });
+}
+
+function _imageCollageCards() {
+  const fieldsEl = document.getElementById('secEditorFields');
+  if (!fieldsEl) return [];
+  return [...fieldsEl.querySelectorAll('[data-type="collage-item"]')];
+}
+
+function _clearImageCollageDropMarkers() {
+  _imageCollageCards().forEach((card) => {
+    card.style.removeProperty('border-top-color');
+    card.style.removeProperty('border-bottom-color');
+    card.style.removeProperty('border-top-width');
+    card.style.removeProperty('border-bottom-width');
+    card.style.removeProperty('opacity');
+  });
+}
+
+function _onImageCollageDragStart(event) {
+  const card = event?.currentTarget;
+  if (!card) return;
+  card.dataset.dragging = '1';
+  card.style.setProperty('opacity', '.55');
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', card.getAttribute('data-fid') || '');
+  }
+}
+
+function _onImageCollageDragOver(event) {
+  event.preventDefault();
+  const card = event?.currentTarget;
+  if (!card || card.dataset.dragging === '1') return;
+  _clearImageCollageDropMarkers();
+  const rect = card.getBoundingClientRect();
+  const before = (event.clientY - rect.top) < (rect.height / 2);
+  if (before) {
+    card.style.setProperty('border-top-color', 'var(--accent)', 'important');
+    card.style.setProperty('border-top-width', '2px', 'important');
+  } else {
+    card.style.setProperty('border-bottom-color', 'var(--accent)', 'important');
+    card.style.setProperty('border-bottom-width', '2px', 'important');
+  }
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+}
+
+function _onImageCollageDrop(event) {
+  event.preventDefault();
+  const target = event?.currentTarget;
+  const fieldsEl = document.getElementById('secEditorFields');
+  if (!target || !fieldsEl) return;
+  const dragging = fieldsEl.querySelector('[data-type="collage-item"][data-dragging="1"]');
+  if (!dragging || dragging === target) {
+    _clearImageCollageDropMarkers();
+    return;
+  }
+  const rect = target.getBoundingClientRect();
+  const before = (event.clientY - rect.top) < (rect.height / 2);
+  if (before) {
+    target.parentNode.insertBefore(dragging, target);
+  } else {
+    target.parentNode.insertBefore(dragging, target.nextSibling);
+  }
+  delete dragging.dataset.dragging;
+  _clearImageCollageDropMarkers();
+  _renumberImageCollageEditorCards();
+}
+
+function _onImageCollageDragEnd(event) {
+  const card = event?.currentTarget;
+  if (card) delete card.dataset.dragging;
+  _clearImageCollageDropMarkers();
+}
+
+function _previewImageCollageLayout() {
+  const fieldsEl = document.getElementById('secEditorFields');
+  const collageMeta = fieldsEl?._collageMeta;
+  if (!collageMeta?.container) return;
+  const autoFit = !!document.getElementById('collageAutoFit')?.checked;
+  const centered = !!document.getElementById('collageCenterSection')?.checked;
+  const styleKey = document.getElementById('collageStyleKey')?.value || 'professional';
+  const breathing = document.getElementById('collageBreathing')?.value || 'normal';
+  const fillStrategy = document.getElementById('collageFillStrategy')?.value || 'balanced';
+  _syncCollageStyleThumbSelection(styleKey);
+  _applyImageCollageLayout(collageMeta.container, { autoFit, centered, styleKey, breathing, fillStrategy });
+  const cards = [...fieldsEl.querySelectorAll('[data-type="collage-item"]')];
+  cards.forEach((card, idx2) => {
+    const fid = String(card.getAttribute('data-fid') || `collage-${idx2}-image`);
+    _updateImageCollageItemPreview(fid);
+  });
+}
+
+function moveImageCollageItemInEditor(idx, direction) {
+  const fieldsEl = document.getElementById('secEditorFields');
+  if (!fieldsEl) return;
+  const cards = [...fieldsEl.querySelectorAll('[data-type="collage-item"]')];
+  const at = Number(idx) || 0;
+  const target = cards[at];
+  if (!target) return;
+  if (direction < 0 && target.previousElementSibling && target.previousElementSibling.getAttribute('data-type') === 'collage-item') {
+    target.parentNode.insertBefore(target, target.previousElementSibling);
+  } else if (direction > 0 && target.nextElementSibling && target.nextElementSibling.getAttribute('data-type') === 'collage-item') {
+    target.parentNode.insertBefore(target.nextElementSibling, target);
+  }
+  _renumberImageCollageEditorCards();
+}
+
+function _updateImageCollageItemPreview(fid) {
+  const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
+  const srcDisplayEl = document.querySelector(`[data-fid="${fid}-src-display"]`);
+  const altEl = document.querySelector(`[data-fid="${fid}-alt"]`);
+  const focusXEl = document.querySelector(`[data-fid="${fid}-focus-x"]`);
+  const focusYEl = document.querySelector(`[data-fid="${fid}-focus-y"]`);
+  const weightEl = document.querySelector(`[data-fid="${fid}-weight"]`);
+  const wrap = document.querySelector(`[data-fid="${fid}-preview"]`);
+  if (!srcEl || !wrap) return;
+  const autoFit = !!document.getElementById('collageAutoFit')?.checked;
+  const src = _normalizeStagingAssetUrl(srcEl.value || '');
+  const focusX = Math.max(0, Math.min(100, parseInt(focusXEl?.value || '50', 10) || 50));
+  const focusY = Math.max(0, Math.min(100, parseInt(focusYEl?.value || '50', 10) || 50));
+  if (srcDisplayEl) {
+    srcDisplayEl.value = _friendlyMediaSourceLabel(src) || src;
+    srcDisplayEl.title = src;
+  }
+  if (!src) {
+    wrap.innerHTML = '<div style="height:54px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;margin-top:6px">No image selected</div>';
+    return;
+  }
+  const fit = autoFit ? 'contain' : 'cover';
+  const pos = autoFit ? '50% 50%' : `${focusX}% ${focusY}%`;
+  wrap.innerHTML = `<img src="${_esc(_toPreviewMediaUrl(src))}" style="height:54px;width:80px;object-fit:${fit};border-radius:5px;border:1px solid var(--border);margin-top:6px;object-position:${pos}">`;
+
+  const fieldsEl = document.getElementById('secEditorFields');
+  const itemEl = fieldsEl?._collageMeta?.fidToItem?.get(fid);
+  if (!itemEl) return;
+  const imgEl = itemEl.querySelector('img') || itemEl;
+  const alt = String(altEl?.value || '').trim();
+  const weight = Math.max(1, Math.min(4, parseInt(weightEl?.value || '1', 10) || 1));
+  _applyImageCollageWeight(itemEl, weight);
+  if (imgEl && imgEl.tagName === 'IMG') {
+    if (src) {
+      imgEl.src = src;
+      imgEl.setAttribute('src', src);
+    }
+    imgEl.style.setProperty('object-fit', autoFit ? 'contain' : 'cover', 'important');
+    imgEl.style.setProperty('object-position', autoFit ? '50% 50%' : `${focusX}% ${focusY}%`, 'important');
+    if (alt) imgEl.alt = alt;
+  }
+}
+
+function addCollageImageToActiveSection() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame?.contentDocument || activeSectionIndex === null || !stagingSections[activeSectionIndex]) return;
+  const fieldsEl = document.getElementById('secEditorFields');
+  const collageMeta = fieldsEl?._collageMeta;
+  if (!collageMeta?.container) {
+    toast('No collage found in this section', false);
+    return;
+  }
+
+  _historyPush();
+  const doc = frame.contentDocument;
+  const figure = doc.createElement('figure');
+  figure.setAttribute('data-wb-collage-item', '1');
+  figure.style.cssText = 'margin:0;border-radius:14px;overflow:hidden;background:#e2e8f0';
+  _applyImageCollageWeight(figure, 1);
+
+  const img = doc.createElement('img');
+  img.setAttribute('src', `https://picsum.photos/seed/collage-${Date.now()}/920/740`);
+  img.alt = 'Collage image';
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block';
+  figure.appendChild(img);
+  collageMeta.container.appendChild(figure);
+  const autoFit = !!document.getElementById('collageAutoFit')?.checked;
+  const centered = !!document.getElementById('collageCenterSection')?.checked;
+  const styleKey = document.getElementById('collageStyleKey')?.value || 'professional';
+  const breathing = document.getElementById('collageBreathing')?.value || 'normal';
+  const fillStrategy = document.getElementById('collageFillStrategy')?.value || 'balanced';
+  _applyImageCollageLayout(collageMeta.container, { autoFit, centered, styleKey, breathing, fillStrategy });
+  openSecEditor(activeSectionIndex);
+  toast('Collage image added — choose media from library and save changes', true);
+}
+
+function removeCollageImageFromActiveSection(idx) {
+  const fieldsEl = document.getElementById('secEditorFields');
+  const collageMeta = fieldsEl?._collageMeta;
+  if (!collageMeta?.container || !Array.isArray(collageMeta.items)) {
+    toast('No collage found in this section', false);
+    return;
+  }
+  if (collageMeta.items.length <= 1) {
+    toast('At least one collage image is required', false);
+    return;
+  }
+  const item = collageMeta.items[Number(idx) || 0];
+  if (!item?.itemEl) return;
+  _historyPush();
+  item.itemEl.remove();
+  openSecEditor(activeSectionIndex);
+  toast('Collage image removed — click Save to persist', true);
 }
 
 function _findMediaCardCarouselContainer(sectionEl) {
@@ -6960,6 +7967,7 @@ function _gridCardEditor(cardIdx, data, opts = {}) {
     .map((v) => `<option value="${v}"${titleAlign === v ? ' selected' : ''}>${v.charAt(0).toUpperCase() + v.slice(1)}</option>`)
     .join('');
   const imgSrc = _normalizeStagingAssetUrl(data.imageSrc || '');
+  const imgDisplay = _friendlyMediaSourceLabel(imgSrc) || imgSrc;
   const imgPreview = imgSrc
     ? `<img src="${_esc(_toPreviewMediaUrl(imgSrc))}" style="height:54px;width:80px;object-fit:cover;border-radius:5px;border:1px solid var(--border);margin-top:6px">`
     : `<div style="height:54px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;margin-top:6px">No image selected</div>`;
@@ -6989,8 +7997,10 @@ function _gridCardEditor(cardIdx, data, opts = {}) {
       ${includeImage ? `
       <label style="font-size:.7rem;color:var(--muted)">Card Image</label>
       <div data-fid="${iFid}">
-      <input data-fid="${iFid}-src" type="text" value="${_esc(imgSrc)}" placeholder="assets/images/your-image.jpg"
+      <input data-fid="${iFid}-src" type="hidden" value="${_esc(imgSrc)}"
         oninput="_updateGridImagePreview('${iFid}');_previewMediaCarouselGridItem(${cardIdx})"
+        >
+      <input data-fid="${iFid}-src-display" type="text" value="${_esc(imgDisplay)}" placeholder="No image selected" readonly title="${_esc(imgSrc)}"
         style="width:100%;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;outline:none"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
       <input type="hidden" data-fid="${iFid}-media-type" value="image">
@@ -7135,6 +8145,11 @@ function _applyMediaCarouselStyle(containerEl, controlsEl, styleKey) {
     card.style.setProperty('border', `1px solid ${cfg.cardBorder}`, 'important');
     card.style.setProperty('box-shadow', cfg.cardShadow, 'important');
     card.style.setProperty('border-radius', cfg.cardRadius, 'important');
+    card.style.setProperty('display', 'flex', 'important');
+    card.style.setProperty('flex-direction', 'column', 'important');
+    card.style.setProperty('align-items', 'stretch', 'important');
+    card.style.setProperty('justify-content', 'flex-start', 'important');
+    card.style.setProperty('overflow', 'hidden', 'important');
     if (cfg.cardBackdrop) {
       card.style.setProperty('backdrop-filter', cfg.cardBackdrop, 'important');
       card.style.setProperty('-webkit-backdrop-filter', cfg.cardBackdrop, 'important');
@@ -7271,10 +8286,15 @@ function _wireMediaCarouselInteractions(containerEl, controlsEl) {
 
 function _updateGridImagePreview(fid) {
   const srcEl = document.querySelector(`[data-fid="${fid}-src"]`);
+  const srcDisplayEl = document.querySelector(`[data-fid="${fid}-src-display"]`);
   const wrap = document.querySelector(`[data-fid="${fid}-preview"]`);
   if (!srcEl || !wrap) return;
   const raw = String(srcEl.value || '').trim();
   const src = _normalizeStagingAssetUrl(raw);
+  if (srcDisplayEl) {
+    srcDisplayEl.value = _friendlyMediaSourceLabel(src) || src;
+    srcDisplayEl.title = src;
+  }
   if (!src) {
     wrap.innerHTML = '<div style="height:54px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;margin-top:6px">No image selected</div>';
     return;
@@ -7302,9 +8322,15 @@ function _previewMediaCarouselGridItem(cardIdx) {
     _applyStyleBarToEl(fieldsEl, `grid-${cardIdx}-title`, item.titleEl);
     item.titleEl.style.setProperty('text-align', titleAlign, 'important');
     _applyClickActionFromField(fieldsEl, `grid-${cardIdx}-title`, item.titleEl);
+  } else if (item.cardEl) {
+    const tgt = item.cardEl.querySelector('h1,h2,h3,h4,h5,strong,b,.title,[class*="title"],[class*="label"]') || item.cardEl;
+    _setText(tgt, titleVal);
   }
   if (item.bodyEl) {
     _setParagraphText(item.bodyEl, bodyVal);
+  } else if (item.cardEl) {
+    const p = item.cardEl.querySelector('p,small,span,div') || item.cardEl;
+    _setParagraphText(p, bodyVal);
   }
   if (item.imageEl) {
     if (imageVal) {
@@ -7312,10 +8338,12 @@ function _previewMediaCarouselGridItem(cardIdx) {
       item.imageEl.setAttribute('src', imageVal);
       item.imageEl.style.removeProperty('display');
       delete item.imageEl.dataset.wbEditorHidden;
+    } else {
+      item.imageEl.removeAttribute('src');
+      item.imageEl.style.setProperty('display', 'none', 'important');
+      item.imageEl.dataset.wbEditorHidden = '1';
     }
-    if (imageAlt) {
-      item.imageEl.alt = imageAlt;
-    }
+    item.imageEl.alt = imageAlt || '';
     _applyClickActionFromField(fieldsEl, `grid-${cardIdx}-image`, item.imageEl);
   }
 
@@ -7851,6 +8879,91 @@ function _sectionBoxField(init = {}) {
   </div>`;
 }
 
+function _slugifyAnchorName(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function _friendlyAnchorName(value = '') {
+  return _toTitleWords(String(value || '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim());
+}
+
+function _sanitizeAnchorFriendlyName(value = '') {
+  return String(value || '')
+    .replace(/[^A-Za-z0-9\s-]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/-+/g, '-')
+    .trim()
+    .slice(0, 60);
+}
+
+function _sectionEntryLabel(index, baseLabel, anchorId) {
+  const slug = _slugifyAnchorName(anchorId || '');
+  return `${index + 1}. ${baseLabel}${slug ? ` #${slug}` : ''}`;
+}
+
+function _applySectionAnchorRename(fieldsEl, doc, el, index) {
+  if (!fieldsEl || !doc || !el) return false;
+  const init = fieldsEl._sectionAnchorInit || {};
+  const inputEl = document.getElementById('secEditorAnchorName');
+  const rawName = String(inputEl?.value || '').trim();
+  const nextName = rawName || '';
+  const nextId = _slugifyAnchorName(nextName || init.anchorId || el.id || `section-${index + 1}`) || `section-${index + 1}`;
+  const prevId = String(init.anchorId || el.id || '').trim();
+
+  if (prevId === nextId && nextName === String(init.anchorName || '').trim()) return false;
+
+  if (prevId && prevId !== nextId) {
+    [...doc.querySelectorAll('a')].forEach((a) => {
+      if (String(a.getAttribute('href') || '').trim() === `#${prevId}`) {
+        a.setAttribute('href', `#${nextId}`);
+      }
+    });
+  }
+
+  el.id = nextId;
+  if (nextName) el.dataset.wbAnchorName = nextName;
+  else delete el.dataset.wbAnchorName;
+
+  const sectionEntry = stagingSections[index];
+  if (sectionEntry) {
+    sectionEntry.baseLabel = sectionEntry.baseLabel || init.baseLabel || 'Section';
+    sectionEntry.anchorId = nextId;
+    sectionEntry.label = _sectionEntryLabel(index, sectionEntry.baseLabel, nextId);
+  }
+
+  const editorTitle = document.getElementById('secEditorTitle');
+  if (editorTitle && sectionEntry) editorTitle.textContent = sectionEntry.label;
+  const anchorPreviewEl = document.getElementById('secEditorAnchorPreview');
+  if (anchorPreviewEl) anchorPreviewEl.textContent = `#${nextId}`;
+
+  const badge = el.querySelector('.__wb_badge');
+  if (badge) {
+    const base = sectionEntry?.baseLabel || 'Section';
+    badge.title = `Edit: ${base}${nextId ? ` #${nextId}` : ''}`;
+  }
+  const anchorChip = el.querySelector('.__wb_badge_anchor');
+  if (anchorChip) {
+    anchorChip.textContent = `#${nextId}`;
+    anchorChip.title = `Anchor target: #${nextId}`;
+  }
+
+  fieldsEl._sectionAnchorInit = {
+    anchorName: nextName,
+    anchorId: nextId,
+    baseLabel: sectionEntry?.baseLabel || init.baseLabel || 'Section',
+  };
+  return true;
+}
+
 /* Set text on an element without destroying inner styling spans/em/strong.
    Walks down to the deepest single-child inline element that holds the text,
    so font classes on wrappers like <span class="fancy"> are preserved. */
@@ -7985,13 +9098,22 @@ function applySecEdits() {
   });
 
   // Paragraphs — apply text + styles
-  paras.forEach(p => {
-    fieldNum++;
-    const fid = `para-${fieldNum}`;
+  const paraEntries = fieldsEl._paraEntries || paras.map((p, idx) => ({ el: p, fid: `para-${fieldNum + idx + 1}`, parts: [p.innerText || ''], partIndex: 0, isSplit: false }));
+  const paraGroups = new Map();
+  paraEntries.forEach((entry, idx) => {
+    const fid = entry.fid || `para-${fieldNum + idx + 1}`;
     const ta = fieldsEl.querySelector(`textarea[data-fid="${fid}"]`);
-    if (ta) _setParagraphText(p, ta.value);
-    _applyStyleBarToEl(fieldsEl, fid, p);
+    const groupKey = entry.el;
+    if (!paraGroups.has(groupKey)) paraGroups.set(groupKey, { el: entry.el, entries: [] });
+    paraGroups.get(groupKey).entries.push({ ...entry, fid, ta });
+    _applyStyleBarToEl(fieldsEl, fid, entry.el);
   });
+  paraGroups.forEach(({ el: paraEl, entries: groupEntries }) => {
+    const ordered = groupEntries.sort((a, b) => a.partIndex - b.partIndex);
+    const merged = ordered.map(item => String(item.ta ? item.ta.value : '')).join('\n\n');
+    _setParagraphText(paraEl, merged);
+  });
+  fieldNum += paraEntries.length;
 
   // Links — iterate by current field order (supports add/remove/reorder)
   if (!isMediaCardCarousel) {
@@ -8259,14 +9381,20 @@ function applySecEdits() {
       const imageVal = _normalizeStagingAssetUrl(imageValRaw);
       const imageAlt = fieldsEl.querySelector(`[data-fid="grid-${idx2}-image-alt"]`)?.value?.trim() || "";
       const titleAlign = fieldsEl.querySelector(`[data-fid="grid-${idx2}-title-align"]`)?.value || 'left';
-      if (item.titleEl && titleVal) _setText(item.titleEl, titleVal);
-      if (item.bodyEl && bodyVal.trim()) _setParagraphText(item.bodyEl, bodyVal);
-      if (item.imageEl && imageVal) {
-        item.imageEl.src = imageVal;
-        item.imageEl.setAttribute('src', imageVal);
-      }
-      if (item.imageEl && imageAlt) {
-        item.imageEl.alt = imageAlt;
+      if (item.titleEl) _setText(item.titleEl, titleVal);
+      if (item.bodyEl) _setParagraphText(item.bodyEl, bodyVal);
+      if (item.imageEl) {
+        if (imageVal) {
+          item.imageEl.src = imageVal;
+          item.imageEl.setAttribute('src', imageVal);
+          item.imageEl.style.removeProperty('display');
+          delete item.imageEl.dataset.wbEditorHidden;
+        } else {
+          item.imageEl.removeAttribute('src');
+          item.imageEl.style.setProperty('display', 'none', 'important');
+          item.imageEl.dataset.wbEditorHidden = '1';
+        }
+        item.imageEl.alt = imageAlt || '';
       }
       if (item.titleEl) {
         _applyStyleBarToEl(fieldsEl, `grid-${idx2}-title`, item.titleEl);
@@ -8276,13 +9404,23 @@ function applySecEdits() {
       if (item.imageEl) {
         _applyClickActionFromField(fieldsEl, `grid-${idx2}-image`, item.imageEl);
       }
-      if (!item.titleEl && titleVal) {
+      if (!item.titleEl) {
         const tgt = item.cardEl.querySelector('h1,h2,h3,h4,h5,strong,b') || item.cardEl;
         _setText(tgt, titleVal);
       }
       if (!item.bodyEl && bodyVal.trim()) {
-        const p = item.cardEl.querySelector('p,small,span,div') || item.cardEl;
-        _setParagraphText(p, bodyVal);
+        const p = [...item.cardEl.querySelectorAll('p,small,span,div')].find(n => n !== item.titleEl) || null;
+        if (p) {
+          _setParagraphText(p, bodyVal);
+        } else {
+          let fallback = item.cardEl.querySelector('[data-wb-grid-body="1"]');
+          if (!fallback) {
+            fallback = item.cardEl.ownerDocument.createElement('div');
+            fallback.setAttribute('data-wb-grid-body', '1');
+            item.cardEl.appendChild(fallback);
+          }
+          _setParagraphText(fallback, bodyVal);
+        }
       }
     });
 
@@ -8308,6 +9446,69 @@ function applySecEdits() {
       _ensureMediaCardCarouselRuntime(doc);
       doc.defaultView?.wbMediaCardCarouselInitAll?.(doc);
     }
+  }
+
+  // Image collage edits (order + weight + focus)
+  const collageMeta = fieldsEl._collageMeta;
+  if (collageMeta && collageMeta.container) {
+    const autoFit = !!fieldsEl.querySelector('#collageAutoFit')?.checked;
+    const centered = !!fieldsEl.querySelector('#collageCenterSection')?.checked;
+    const styleKey = fieldsEl.querySelector('#collageStyleKey')?.value || 'professional';
+    const breathing = fieldsEl.querySelector('#collageBreathing')?.value || 'normal';
+    const fillStrategy = fieldsEl.querySelector('#collageFillStrategy')?.value || 'balanced';
+    _applyImageCollageLayout(collageMeta.container, { autoFit, centered, styleKey, breathing, fillStrategy });
+    const collageCards = [...fieldsEl.querySelectorAll('[data-type="collage-item"]')];
+    const nextOrder = [];
+
+    collageCards.forEach((card, idx2) => {
+      const fid = String(card.getAttribute('data-fid') || `collage-${idx2}-image`);
+      const srcRaw = fieldsEl.querySelector(`[data-fid="${fid}-src"]`)?.value || '';
+      const src = _normalizeStagingAssetUrl(String(srcRaw).trim());
+      const alt = String(fieldsEl.querySelector(`[data-fid="${fid}-alt"]`)?.value || '').trim();
+      const weight = Math.max(1, Math.min(4, parseInt(fieldsEl.querySelector(`[data-fid="${fid}-weight"]`)?.value || '1', 10) || 1));
+      const focusX = Math.max(0, Math.min(100, parseInt(fieldsEl.querySelector(`[data-fid="${fid}-focus-x"]`)?.value || '50', 10) || 50));
+      const focusY = Math.max(0, Math.min(100, parseInt(fieldsEl.querySelector(`[data-fid="${fid}-focus-y"]`)?.value || '50', 10) || 50));
+
+      let itemEl = card._collageItemEl || collageMeta.fidToItem?.get(fid) || null;
+      if (!itemEl) {
+        itemEl = el.ownerDocument.createElement('figure');
+        itemEl.setAttribute('data-wb-collage-item', '1');
+        itemEl.style.cssText = 'margin:0;border-radius:14px;overflow:hidden;background:#e2e8f0';
+        collageMeta.container.appendChild(itemEl);
+      }
+
+      let imgEl = itemEl.querySelector('img');
+      if (!imgEl) {
+        imgEl = el.ownerDocument.createElement('img');
+        imgEl.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+        itemEl.appendChild(imgEl);
+      }
+
+      imgEl.style.setProperty('flex', '0 0 auto', 'important');
+      if (src) {
+        imgEl.src = src;
+        imgEl.setAttribute('src', src);
+      }
+      imgEl.alt = alt || imgEl.alt || 'Collage image';
+      imgEl.style.setProperty('object-fit', autoFit ? 'contain' : 'cover', 'important');
+      imgEl.style.setProperty('object-position', autoFit ? '50% 50%' : `${focusX}% ${focusY}%`, 'important');
+      imgEl.dataset.wbFocusX = String(focusX);
+      imgEl.dataset.wbFocusY = String(focusY);
+      _applyImageCollageWeight(itemEl, weight);
+
+      card._collageItemEl = itemEl;
+      if (collageMeta.fidToItem && typeof collageMeta.fidToItem.set === 'function') {
+        collageMeta.fidToItem.set(fid, itemEl);
+      }
+      nextOrder.push(itemEl);
+    });
+
+    const existingItems = [...collageMeta.container.children].filter(node => ['FIGURE', 'DIV', 'ARTICLE', 'LI'].includes(node.tagName));
+    existingItems.forEach((node) => {
+      if (!nextOrder.includes(node)) node.remove();
+    });
+    nextOrder.forEach((node) => collageMeta.container.appendChild(node));
+    collageMeta.items = nextOrder.map((node) => ({ itemEl: node, imageEl: node.querySelector('img') || null }));
   }
 
   // Hero/Intro layout controls
@@ -8371,6 +9572,11 @@ function applySecEdits() {
   }
 
   // Section box controls
+  const sectionAnchorMeta = fieldsEl._sectionAnchorMeta;
+  if (sectionAnchorMeta && sectionAnchorMeta.target) {
+    _applySectionAnchorRename(fieldsEl, doc, sectionAnchorMeta.target, activeSectionIndex);
+  }
+
   const sectionBoxMeta = fieldsEl._sectionBoxMeta;
   if (sectionBoxMeta && sectionBoxMeta.target) {
     if (_isSectionBoxPanelDirty(fieldsEl)) {
@@ -8428,6 +9634,7 @@ function applySecEdits() {
   }
 
   try { if (doc.defaultView && typeof doc.defaultView.__wbApplyClickBindings === 'function') doc.defaultView.__wbApplyClickBindings(); } catch(_) {}
+  _renderSecList();
 
   toast('Changes applied to preview ✅ — click 💾 Save Changes to persist');
   document.getElementById('stagingStatusBar').textContent = 'Preview updated — unsaved. Click 💾 Save Changes.';
@@ -8542,9 +9749,37 @@ function _injectResponsiveEnhancements(doc) {
   style.id = '__wb_responsive';
   style.textContent = `
     .hamburger { display: none !important; background: none; border: none;
-      font-size: 1.6rem; cursor: pointer; color: #fff; padding: 4px 8px; z-index: 1001; position: relative; }
+      font-size: 1.6rem; cursor: pointer; color: #fff; padding: 4px 8px; z-index: 1001; position: relative;
+      min-width: 44px !important; min-height: 44px !important; }
 
-    /* ── Tablet ── */
+    /* ── Fluid media ── */
+    img, video, iframe, embed, object { max-width: 100% !important; height: auto !important; }
+
+    /* ── Overflow guard (emails / long URLs / phone numbers) ── */
+    .grid, .contact-grid { min-width: 0 !important; }
+    .grid > *, .contact-grid > *, .card { min-width: 0 !important; }
+    a, p, li, td, th { overflow-wrap: anywhere !important; word-break: break-word !important; }
+    .card a, .contact-grid a { max-width: 100% !important; display: inline-block !important; }
+
+    /* ── Touch-safe targets (carousel controls excluded) ── */
+    a:not([data-wb-go]):not([data-wb-dir]),
+    button:not([data-wb-go]):not([data-wb-dir]),
+    [role="button"]:not([data-wb-go]):not([data-wb-dir]),
+    input[type="submit"], input[type="button"], select {
+      min-height: 44px !important;
+    }
+    /* ── Carousel controls — explicit sizes, not stretched ── */
+    [data-wb-go] {
+      min-height: unset !important; min-width: unset !important;
+      width: 9px !important; height: 9px !important;
+      padding: 0 !important; border-radius: 999px !important;
+    }
+    [data-wb-dir] {
+      min-height: unset !important; min-width: unset !important;
+      width: 32px !important; height: 32px !important;
+    }
+
+    /* ── Tablet (≤ 900px) ── */
     @media (max-width: 900px) {
       .about-strip, .contact-grid {
         grid-template-columns: 1fr !important; gap: 32px !important;
@@ -8552,30 +9787,64 @@ function _injectResponsiveEnhancements(doc) {
       .about-strip img { height: 240px !important; }
       .footer-grid { grid-template-columns: 1fr 1fr !important; }
       .section { padding: 64px 5% !important; }
+      .hero { padding: 80px 5% !important; }
       .hero h1 { font-size: clamp(1.8rem, 5vw, 3rem) !important; }
       .cat-grid, .testi-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important; }
+      .hero-carousel, .hero-art-placeholder { min-height: 200px; }
+      .hero-carousel__control { opacity: 1; pointer-events: auto; }
     }
 
-    /* ── Mobile ── */
+    /* ── Large phone (≤ 767px) ── */
+    @media (max-width: 767px) {
+      .section { padding: 56px 4% !important; }
+      .hero { padding: 64px 4% !important; }
+      .hero h1 { font-size: clamp(1.7rem, 6vw, 2.6rem) !important; }
+      .cat-grid, .testi-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
+      table { display: block !important; overflow-x: auto !important; white-space: nowrap !important; }
+    }
+
+    /* ── Mobile (≤ 640px) ── */
     @media (max-width: 640px) {
       nav { position: relative !important; }
       .nav-links { display: none !important; }
       .hamburger { display: block !important; }
       .section { padding: 48px 16px !important; }
-      .hero { padding: 60px 16px !important; min-height: 70vh !important; }
-      .hero h1 { font-size: clamp(1.6rem, 7vw, 2.4rem) !important; }
+      .hero { padding: 60px 16px !important; min-height: 60vh !important; }
+      .hero h1 { font-size: clamp(1.5rem, 7vw, 2.2rem) !important; }
       .hero p  { font-size: .95rem !important; }
-      .hero-btns { flex-direction: column !important; align-items: center !important; }
+      .hero-btns { flex-direction: column !important; align-items: center !important; gap: 10px !important; }
       .hero-btns .btn, .hero-btns a {
         width: 100% !important; max-width: 320px !important;
         text-align: center !important; box-sizing: border-box !important;
       }
       .cat-grid, .testi-grid { grid-template-columns: 1fr !important; }
+      .contact-grid, .about-strip { grid-template-columns: 1fr !important; }
       .footer-grid { grid-template-columns: 1fr !important; }
       .footer-bottom { flex-direction: column !important; gap: 12px !important; text-align: center !important; }
       .form-row { grid-template-columns: 1fr !important; }
-      .section-header h2 { font-size: 1.6rem !important; }
+      .section-header h2 { font-size: 1.5rem !important; }
       .booking-form { padding: 24px 16px !important; }
+      nav, .navbar { padding: 8px 12px !important; }
+      .hero-carousel, .hero-art-placeholder { min-height: 170px; }
+      .hero-carousel__control { width: 38px; height: 38px; font-size: 1rem; }
+      [data-wb-go] { width: 7px !important; height: 7px !important; }
+      [data-wb-dir] { width: 26px !important; height: 26px !important; font-size: .8rem !important; }
+      [data-wb-carousel-controls="1"] { gap: 5px !important; }
+      [data-wb-carousel-dots="1"] { gap: 4px !important; }
+    }
+
+    /* ── Small phone (≤ 479px) ── */
+    @media (max-width: 479px) {
+      [data-wb-carousel-enabled="0"] { grid-template-columns: 1fr !important; gap: 16px !important; }
+      .__wb_bg_carousel:not([data-wb-carousel-enabled="1"]) { grid-template-columns: 1fr !important; gap: 16px !important; }
+      .section { padding: 40px 12px !important; }
+      .hero { padding: 48px 12px !important; min-height: 50vh !important; }
+      .hero h1 { font-size: clamp(1.3rem, 8vw, 1.9rem) !important; }
+      .card { padding: 18px 14px !important; }
+      .btn { padding: 12px 20px !important; font-size: .9rem !important; }
+      .product-grid, .card-grid { grid-template-columns: 1fr !important; }
+      footer { padding: 40px 16px 20px !important; }
+      .hero-carousel, .hero-art-placeholder { min-height: 140px; }
     }
   `;
   doc.head.appendChild(style);
@@ -8799,7 +10068,7 @@ function previewFieldStyle(fid) {
 function _getFidTargets(el, fid) {
   const fieldsEl = document.getElementById('secEditorFields');
   const headings = fieldsEl._headingEls || [...el.querySelectorAll('h1,h2,h3,h4')].filter(h => h.innerText.trim());
-  const paras    = fieldsEl._paraEls    || [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3);
+  const paras    = fieldsEl._paraEntries ? fieldsEl._paraEntries.map(entry => entry.el) : (fieldsEl._paraEls || [...el.querySelectorAll('p')].filter(p => p.innerText.trim().length >= 3));
   const headStart = fieldsEl._headingStart || 1;
   const paraStart = fieldsEl._paraStart   || (headStart + headings.length);
 

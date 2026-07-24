@@ -1,6 +1,8 @@
 """Regression tests for folder-organized staging artifacts."""
 
 import json
+import io
+import zipfile
 from pathlib import Path
 
 from agents.wb_websitebuilder import sync_legacy_entrypoint
@@ -152,6 +154,57 @@ def test_output_browser_lists_folders_and_files(client, tmp_path, monkeypatch):
     assert "staging" in response.text
     assert "demo-site" in response.text
     assert "main.css" in response.text
+    assert "Created Date" in response.text
+    assert "Last Updated" in response.text
+    assert "File Size" in response.text
+    assert "Item Count" in response.text
+    assert "Download" in response.text
+
+
+def test_output_browser_sort_by_size_and_item_count(client, tmp_path, monkeypatch):
+    import app as app_module
+
+    output_root = tmp_path / "output"
+    base = output_root / "staging" / "sort-site"
+    (base / "dir-small").mkdir(parents=True)
+    (base / "dir-large").mkdir(parents=True)
+    (base / "dir-large" / "a.txt").write_text("a", encoding="utf-8")
+    (base / "dir-large" / "b.txt").write_text("b", encoding="utf-8")
+
+    (base / "small.txt").write_text("12345", encoding="utf-8")
+    (base / "large.txt").write_text("x" * 100, encoding="utf-8")
+    monkeypatch.setattr(app_module, "_output_dir", output_root)
+
+    response_size = client.get("/output-browser?path=staging/sort-site&sort=size&order=desc")
+    assert response_size.status_code == 200
+    body_size = response_size.text
+    assert body_size.find("large.txt") < body_size.find("small.txt")
+
+    response_count = client.get("/output-browser?path=staging/sort-site&sort=count&order=desc")
+    assert response_count.status_code == 200
+    body_count = response_count.text
+    assert body_count.find("dir-large") < body_count.find("dir-small")
+
+
+def test_output_browser_download_zip_for_folder(client, tmp_path, monkeypatch):
+    import app as app_module
+
+    output_root = tmp_path / "output"
+    folder = output_root / "staging" / "zip-site"
+    (folder / "assets" / "css").mkdir(parents=True)
+    (folder / "assets" / "css" / "main.css").write_text("body{color:#111}", encoding="utf-8")
+    (folder / "index.html").write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setattr(app_module, "_output_dir", output_root)
+
+    response = client.get("/output-browser/download-zip?path=staging/zip-site")
+
+    assert response.status_code == 200
+    assert response.headers.get("content-type", "").startswith("application/zip")
+    payload = io.BytesIO(response.content)
+    with zipfile.ZipFile(payload, "r") as zf:
+        names = set(zf.namelist())
+    assert "index.html" in names
+    assert "assets/css/main.css" in names
 
 
 def test_get_website_dir_suffixes_duplicate_project_dir(tmp_path, monkeypatch):

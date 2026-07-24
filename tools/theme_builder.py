@@ -373,26 +373,61 @@ footer {{ background: #1a202c; color: #a0aec0; padding: 60px 40px 30px; }}
 .footer-bottom {{ border-top: 1px solid #2d3748; padding-top: 24px; text-align: center; font-size: .85rem; }}
 
 /* ── Hamburger button (hidden on desktop) ── */
-.hamburger {{ display: none; background: none; border: none; font-size: 1.35rem; cursor: pointer; color: var(--primary); padding: 6px 8px; border-radius: 8px; }}
+.hamburger {{ display: none; background: none; border: none; font-size: 1.35rem; cursor: pointer; color: var(--primary); padding: 6px 8px; border-radius: 8px; min-width: 44px; min-height: 44px; }}
 .hamburger:focus-visible {{ outline: 2px solid var(--secondary); outline-offset: 2px; }}
 
-/* ── Responsive: tablet ── */
+/* ── Fluid media — always stays inside container ── */
+img, video, iframe, embed, object {{
+  max-width: 100%;
+  height: auto;
+  display: block;
+}}
+img {{ object-fit: cover; }}
+
+/* ── Overflow guard for long tokens (URLs, emails) ── */
+a, p, li, td, th, caption {{
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}}
+
+/* ── Touch-safe interactive targets (carousel controls excluded) ── */
+a:not([data-wb-go]):not([data-wb-dir]),
+button:not([data-wb-go]):not([data-wb-dir]),
+[role="button"]:not([data-wb-go]):not([data-wb-dir]),
+input[type="submit"], input[type="button"], select {{
+  min-height: 44px;
+  min-width: 44px;
+}}
+input[type="text"], input[type="email"], input[type="tel"], input[type="search"],
+input[type="url"], input[type="password"], textarea, select {{
+  min-height: 44px;
+}}
+/* ── Carousel controls — sized explicitly, not stretched by touch rule ── */
+[data-wb-go] {{
+  min-height: unset !important; min-width: unset !important;
+  width: 9px !important; height: 9px !important; padding: 0 !important;
+  border-radius: 999px !important;
+}}
+[data-wb-dir] {{
+  min-height: unset !important; min-width: unset !important;
+  width: 32px !important; height: 32px !important;
+}}
+
+/* ── Responsive: tablet (≤ 900px) ── */
 @media (max-width: 900px) {{
   .grid-2, .grid-3, .grid-4,
   .about-strip, .contact-grid, .footer-grid,
   [class*="two-col"], [class*="three-col"] {{
     grid-template-columns: 1fr !important;
   }}
+
   .section {{ padding: 64px 5%; }}
+  .hero {{ padding: 80px 5%; }}
   .hero h1 {{ font-size: clamp(1.8rem, 5vw, 3rem); }}
   .card-grid, .cat-grid, .testi-grid, .product-grid {{
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   }}
   .footer-grid {{ grid-template-columns: 1fr 1fr !important; }}
-}}
-
-/* ── Responsive: mobile/tablet nav ── */
-@media (max-width: 900px) {{
   .navbar {{ padding: 10px 16px; position: sticky; top: 0; }}
   .nav-links {{
     display: none;
@@ -416,25 +451,57 @@ footer {{ background: #1a202c; color: #a0aec0; padding: 60px 40px 30px; }}
   .hamburger {{ display: block; }}
 }}
 
-/* ── Responsive: mobile layout ── */
+/* ── Responsive: large phone (≤ 767px) ── */
+@media (max-width: 767px) {{
+  .section {{ padding: 56px 4%; }}
+  .hero {{ padding: 64px 4%; }}
+  .hero h1 {{ font-size: clamp(1.7rem, 6vw, 2.6rem); }}
+  .cat-grid, .testi-grid, .card-grid, .product-grid {{
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }}
+  table {{ display: block; overflow-x: auto; white-space: nowrap; }}
+  table {{ display: block; overflow-x: auto; white-space: nowrap; }}
+  .section-header h2 {{ font-size: clamp(1.4rem, 5vw, 2rem); }}
+}}
+
+/* ── Responsive: mobile (≤ 640px) ── */
 @media (max-width: 640px) {{
+  [data-wb-go] {{ width: 7px !important; height: 7px !important; }}
+  [data-wb-dir] {{ width: 26px !important; height: 26px !important; font-size: .8rem !important; }}
+  [data-wb-carousel-controls="1"] {{ gap: 5px !important; }}
+  [data-wb-carousel-dots="1"] {{ gap: 4px !important; }}
   .section {{ padding: 48px 16px; }}
-  .hero {{ padding: 60px 16px; min-height: 70vh; }}
-  .hero h1 {{ font-size: clamp(1.6rem, 7vw, 2.4rem); }}
+  .hero {{ padding: 60px 16px; min-height: 60vh; }}
+  .hero h1 {{ font-size: clamp(1.5rem, 7vw, 2.2rem); }}
   .hero p  {{ font-size: .95rem; }}
-  .hero-btns {{ flex-direction: column; align-items: center; }}
-  .hero-btns .btn {{ width: 100%; max-width: 320px; text-align: center; }}
+  .hero-btns {{ flex-direction: column; align-items: center; gap: 10px; }}
+  .hero-btns .btn {{ width: 100%; max-width: 320px; text-align: center; box-sizing: border-box; }}
   .card-grid, .cat-grid, .testi-grid, .product-grid {{
     grid-template-columns: 1fr;
   }}
-  .about-strip, .contact-grid {{ gap: 32px; }}
+  .about-strip, .contact-grid {{ gap: 32px; grid-template-columns: 1fr !important; }}
   .footer-grid {{ grid-template-columns: 1fr !important; }}
   .footer-bottom {{ flex-direction: column; gap: 12px; text-align: center; }}
   .form-row {{ grid-template-columns: 1fr; }}
   #cart-sidebar {{ width: 100vw; }}
-  .section-header h2 {{ font-size: 1.6rem; }}
+  .section-header h2 {{ font-size: 1.5rem; }}
   table {{ font-size: .82rem; }}
   .booking-form {{ padding: 24px 16px; }}
+  .product-card img {{ height: 160px; }}
+  .navbar {{ padding: 8px 12px; }}
+}}
+
+/* ── Responsive: small phone (≤ 479px) ── */
+@media (max-width: 479px) {{
+  .section {{ padding: 40px 12px; }}
+  .hero {{ padding: 48px 12px; min-height: 50vh; }}
+  .hero h1 {{ font-size: clamp(1.3rem, 8vw, 1.9rem); }}
+  .section-title {{ font-size: 1.4rem; }}
+  .card {{ padding: 18px 14px; }}
+  .btn {{ padding: 12px 20px; font-size: .9rem; }}
+  .product-grid {{ grid-template-columns: 1fr; }}
+  footer {{ padding: 40px 16px 20px; }}
+  .navbar {{ padding: 8px 10px; }}
 }}
 """
     if custom_overrides:

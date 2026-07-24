@@ -6,6 +6,88 @@ Contains extracted orchestrator helpers from crew_main_legacy.py.
 import re
 from typing import List, Dict
 
+# ── Canonical responsive CSS block persisted into every generated page ──────
+_RESPONSIVE_CSS_BLOCK = """
+/* ── wb: fluid media ── */
+img,video,iframe,embed,object{max-width:100%;height:auto;display:block}
+img{object-fit:cover}
+a,p,li,td,th{overflow-wrap:anywhere;word-break:break-word}
+a:not([data-wb-go]):not([data-wb-dir]),button:not([data-wb-go]):not([data-wb-dir]),[role=button]:not([data-wb-go]):not([data-wb-dir]),input[type=submit],input[type=button],select{min-height:44px;min-width:44px}
+input[type=text],input[type=email],input[type=tel],input[type=search],input[type=url],input[type=password],textarea,select{min-height:44px}
+[data-wb-go]{min-height:unset!important;min-width:unset!important;width:9px!important;height:9px!important;padding:0!important;border-radius:999px!important}
+[data-wb-dir]{min-height:unset!important;min-width:unset!important;width:32px!important;height:32px!important}
+
+/* ── wb: tablet (<=900px) ── */
+@media(max-width:900px){
+  .grid-2,.grid-3,.grid-4,.about-strip,.contact-grid,[class*=two-col],[class*=three-col]{grid-template-columns:1fr!important}
+  .footer-grid{grid-template-columns:1fr 1fr!important}
+  .cat-grid,.testi-grid,.card-grid,.product-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important}
+  .section{padding:64px 5%!important}
+  .hero{padding:80px 5%!important}
+  .hero h1{font-size:clamp(1.8rem,5vw,3rem)!important}
+  .nav-links{display:none;flex-direction:column;align-items:stretch;position:absolute;top:100%;left:0;right:0;background:var(--bg,#fff);padding:14px 16px;gap:10px;z-index:1001;border-top:1px solid rgba(0,0,0,.08);box-shadow:0 10px 28px rgba(0,0,0,.12)}
+  .nav-links li{width:100%}
+  .nav-links a{width:100%;padding:10px 12px;border-radius:8px}
+  .nav-links.open{display:flex!important}
+  .hamburger{display:block!important}
+}
+
+/* ── wb: large phone (<=767px) ── */
+@media(max-width:767px){
+  .section{padding:56px 4%!important}
+  .hero{padding:64px 4%!important}
+  .hero h1{font-size:clamp(1.7rem,6vw,2.6rem)!important}
+  .cat-grid,.testi-grid,.card-grid,.product-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important}
+  table{display:block;overflow-x:auto;white-space:nowrap}
+}
+
+/* ── wb: mobile (<=640px) ── */
+@media(max-width:640px){
+  [data-wb-go]{width:7px!important;height:7px!important}
+  [data-wb-dir]{width:26px!important;height:26px!important;font-size:.8rem!important}
+  [data-wb-carousel-controls="1"]{gap:5px!important}
+  [data-wb-carousel-dots="1"]{gap:4px!important}
+  .section{padding:48px 16px!important}
+  .hero{padding:60px 16px!important;min-height:60vh!important}
+  .hero h1{font-size:clamp(1.5rem,7vw,2.2rem)!important}
+  .hero p{font-size:.95rem!important}
+  .hero-btns{flex-direction:column!important;align-items:center!important;gap:10px!important}
+  .hero-btns .btn,.hero-btns a{width:100%!important;max-width:320px!important;text-align:center!important;box-sizing:border-box!important}
+  .cat-grid,.testi-grid,.card-grid,.product-grid{grid-template-columns:1fr!important}
+  .about-strip,.contact-grid{grid-template-columns:1fr!important;gap:32px!important}
+  .footer-grid{grid-template-columns:1fr!important}
+  .footer-bottom{flex-direction:column!important;gap:12px!important;text-align:center!important}
+  .form-row{grid-template-columns:1fr!important}
+  #cart-sidebar{width:100vw!important}
+  .booking-form{padding:24px 16px!important}
+  nav,.navbar{padding:8px 12px!important}
+}
+
+/* ── wb: small phone (<=479px) ── */
+@media(max-width:479px){
+  .section{padding:40px 12px!important}
+  .hero{padding:48px 12px!important;min-height:50vh!important}
+  .hero h1{font-size:clamp(1.3rem,8vw,1.9rem)!important}
+  .card{padding:18px 14px!important}
+  .btn{padding:12px 20px!important;font-size:.9rem!important}
+  .product-grid{grid-template-columns:1fr!important}
+  footer{padding:40px 16px 20px!important}
+}
+"""
+
+
+def _ensure_responsive_css(html: str) -> str:
+    """Inject the canonical responsive <style> block into a generated page if not already present."""
+    if not html or 'wb: fluid media' in html:
+        return html
+    # Insert just before closing </head>; if no </head>, append before </body>
+    if '</head>' in html:
+        return html.replace('</head>', f'<style id="wb-responsive">{_RESPONSIVE_CSS_BLOCK}</style>\n</head>', 1)
+    if '</body>' in html:
+        return html.replace('</body>', f'<style id="wb-responsive">{_RESPONSIVE_CSS_BLOCK}</style>\n</body>', 1)
+    return html + f'<style id="wb-responsive">{_RESPONSIVE_CSS_BLOCK}</style>'
+
+
 def extract_expected_spec(user_requirements: str) -> dict:
     """Extract hard requirements (name/contact/nav/categories/flags) from assembled prompt text."""
     text = user_requirements or ""
@@ -541,6 +623,8 @@ function appendChatMsg(text, role, id = '') {
 
     # Ensure product list exists when categories are present in spec.
     fixed = inject_products_section(fixed, categories)
+    # Persist responsive CSS so pages are device-ready without the editor runtime.
+    fixed = _ensure_responsive_css(fixed)
     return fixed
 
 def generate_static_fallback(user_requirements: str, theme_key: str = "modern") -> str:
@@ -950,6 +1034,7 @@ def build_website(
         site_dir = os.path.dirname(filepath)
         write_output_target_scaffold(site_dir, output_target, html_code)
         sync_legacy_entrypoint(site_dir, html_code)
+        html_code = _ensure_responsive_css(html_code)
         logger.info("[%s] ✅ static fallback saved to %s  (%.1fs)", trace_id, site_dir, time.time()-t0)
         return {
             "status": "success",

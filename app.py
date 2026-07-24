@@ -11,10 +11,15 @@ import os
 import argparse
 import logging
 import logging.config
+import io
+import zipfile
 from pathlib import Path
+from datetime import datetime
+from html import escape
+from urllib.parse import quote
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -174,6 +179,13 @@ async def output_browser(request: Request):
     if not _output_dir.exists():
         _output_dir.mkdir(parents=True, exist_ok=True)
 
+    sort_by = (request.query_params.get("sort", "name") or "name").strip().lower()
+    if sort_by not in {"name", "created", "updated", "size", "count"}:
+        sort_by = "name"
+    order = (request.query_params.get("order", "asc") or "asc").strip().lower()
+    if order not in {"asc", "desc"}:
+        order = "asc"
+
     requested_rel = request.query_params.get("path", "").strip()
     current_dir = _output_dir
     if requested_rel:
@@ -194,23 +206,130 @@ async def output_browser(request: Request):
 
     breadcrumb_links = []
     cursor = _output_dir.resolve()
+    sort_q = quote(sort_by)
+    order_q = quote(order)
     for part in breadcrumb_parts:
         cursor = cursor / part
+        crumb_path = quote(cursor.relative_to(_output_dir.resolve()).as_posix())
         breadcrumb_links.append(
-            f'<a href="/output-browser?path={cursor.relative_to(_output_dir.resolve()).as_posix()}">{part}</a>'
+            f'<a href="/output-browser?path={crumb_path}&sort={sort_q}&order={order_q}">{escape(part)}</a>'
         )
 
+    def _fmt_dt(ts: float) -> str:
+        try:
+            return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return "-"
+
+    def _fmt_size(num_bytes: int) -> str:
+        size = float(max(0, int(num_bytes or 0)))
+        units = ["B", "KB", "MB", "GB", "TB"]
+        for unit in units:
+            if size < 1024 or unit == units[-1]:
+                if unit == "B":
+                    return f"{int(size)} {unit}"
+                return f"{size:.1f} {unit}"
+            size /= 1024
+
+    def _entry_sort_key(meta: dict):
+        if sort_by == "created":
+            return meta["created_ts"]
+        if sort_by == "updated":
+            return meta["updated_ts"]
+        if sort_by == "size":
+            return meta["size_bytes"]
+        if sort_by == "count":
+            return meta["item_count"]
+        return meta["name"].lower()
+
+    listed = list(current_dir.iterdir()) if current_dir.exists() else []
+    dir_metas = []
+    file_metas = []
+    for entry in listed:
+        stat = entry.stat()
+        size_bytes = 0
+        item_count = 0
+        if entry.is_dir():
+            try:
+                children = list(entry.iterdir())
+                item_count = len(children)
+            except Exception:
+                item_count = 0
+            for nested in entry.rglob("*"):
+                if nested.is_file():
+                    try:
+                        size_bytes += nested.stat().st_size
+                    except OSError:
+                        pass
+        else:
+            size_bytes = stat.st_size
+
+        meta = {
+            "entry": entry,
+            "name": entry.name,
+            "is_dir": entry.is_dir(),
+            "created_ts": stat.st_ctime,
+            "updated_ts": stat.st_mtime,
+            "size_bytes": size_bytes,
+            "item_count": item_count,
+        }
+        if entry.is_dir():
+            dir_metas.append(meta)
+        else:
+            file_metas.append(meta)
+
+    reverse = order == "desc"
+    dir_metas = sorted(dir_metas, key=_entry_sort_key, reverse=reverse)
+    file_metas = sorted(file_metas, key=_entry_sort_key, reverse=reverse)
+
     entries = []
-    for entry in sorted(current_dir.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())) if current_dir.exists() else []:
+    for meta in dir_metas + file_metas:
+        entry = meta["entry"]
         rel_path = entry.relative_to(_output_dir.resolve()).as_posix()
-        href = f"/output/{rel_path}" if entry.is_file() else f"/output-browser?path={rel_path}"
+        rel_q = quote(rel_path)
+        href = f"/output/{rel_q}" if entry.is_file() else f"/output-browser?path={rel_q}&sort={sort_q}&order={order_q}"
         kind = "📁" if entry.is_dir() else "📄"
-        entries.append(f'<tr><td>{kind}</td><td><a href="{href}">{entry.name}</a></td></tr>')
+        created = _fmt_dt(meta["created_ts"])
+        updated = _fmt_dt(meta["updated_ts"])
+        size_text = _fmt_size(meta["size_bytes"])
+        count_text = str(meta["item_count"]) if entry.is_dir() else "-"
+        if entry.is_dir():
+            zip_href = f"/output-browser/download-zip?path={rel_q}"
+            download_cell = f'<a href="{zip_href}" download>Download ZIP</a>'
+        else:
+            download_cell = "-"
+        entries.append(
+            f'<tr>'
+            f'<td>{kind}</td>'
+            f'<td><a href="{href}">{escape(entry.name)}</a></td>'
+            f'<td>{created}</td>'
+            f'<td>{updated}</td>'
+            f'<td>{size_text}</td>'
+            f'<td>{count_text}</td>'
+            f'<td>{download_cell}</td>'
+            f'</tr>'
+        )
+
+    def _toggle(next_sort: str) -> str:
+        if sort_by != next_sort:
+            return "asc"
+        return "desc" if order == "asc" else "asc"
+
+    def _sort_link(label: str, key: str) -> str:
+        next_order = _toggle(key)
+        path_q = quote(requested_rel)
+        arrow = ""
+        if sort_by == key:
+            arrow = " ↑" if order == "asc" else " ↓"
+        return (
+            f'<a href="/output-browser?path={path_q}&sort={key}&order={next_order}" '
+            f'style="color:inherit;text-decoration:none">{label}{arrow}</a>'
+        )
 
     html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
     <title>Output Browser — Website Builder</title>
     <style>
-      body{{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 20px 40px;background:#f9fafb;color:#111827}}
+      body{{font-family:system-ui,sans-serif;max-width:1200px;margin:40px auto;padding:0 20px 40px;background:#f9fafb;color:#111827}}
       h1{{font-size:1.4rem;color:#4f46e5;margin-bottom:8px}}
       .meta{{color:#6b7280;margin-bottom:16px}}
       .crumbs{{margin-bottom:16px}}
@@ -222,13 +341,42 @@ async def output_browser(request: Request):
     </style></head><body>
     <h1>📁 Output Browser</h1>
     <div class="meta">Browsing {current_dir.relative_to(_output_dir.resolve()).as_posix() if current_dir != _output_dir.resolve() else 'output/'}</div>
-    <div class="crumbs"><a href="/output-browser">output/</a>{' / '.join(breadcrumb_links)}</div>
+    <div class="crumbs"><a href="/output-browser?sort={sort_q}&order={order_q}">output/</a>{' / '.join(breadcrumb_links)}</div>
     <table>
-      <thead><tr><th>Type</th><th>Name</th></tr></thead>
+            <thead><tr><th>Type</th><th>{_sort_link('Name', 'name')}</th><th>{_sort_link('Created Date', 'created')}</th><th>{_sort_link('Last Updated', 'updated')}</th><th>{_sort_link('File Size', 'size')}</th><th>{_sort_link('Item Count', 'count')}</th><th>Download</th></tr></thead>
       <tbody>{''.join(entries)}</tbody>
     </table>
     </body></html>"""
     return HTMLResponse(html)
+
+
+@app.get("/output-browser/download-zip", include_in_schema=False)
+async def output_browser_download_zip(path: str = ""):
+    """Download a folder under output/ as a zip archive."""
+    requested_rel = (path or "").strip()
+    if not requested_rel:
+        return JSONResponse({"detail": "Missing path"}, status_code=400)
+
+    try:
+        target = (_output_dir / requested_rel).resolve()
+        target.relative_to(_output_dir.resolve())
+    except Exception:
+        return JSONResponse({"detail": "Invalid path"}, status_code=400)
+
+    if not target.exists() or not target.is_dir():
+        return JSONResponse({"detail": "Folder not found"}, status_code=404)
+
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_path in target.rglob("*"):
+            if file_path.is_file():
+                arcname = file_path.relative_to(target).as_posix()
+                zf.write(file_path, arcname=arcname)
+    mem.seek(0)
+
+    safe_name = f"{target.name}.zip".replace('"', "")
+    headers = {"Content-Disposition": f'attachment; filename="{safe_name}"'}
+    return StreamingResponse(mem, media_type="application/zip", headers=headers)
 
 
 @app.get("/health", include_in_schema=False)
