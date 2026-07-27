@@ -332,7 +332,7 @@ a:hover {{ opacity: .8; }}
 .product-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 20px; }}
 .product-card {{ background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; transition: transform .2s; }}
 .product-card:hover {{ transform: translateY(-3px); }}
-.product-card img {{ width: 100%; height: 200px; object-fit: cover; }}
+.product-card img {{ width: 100%; height: 200px !important; object-fit: cover; object-position: 50% 50%; display: block; }}
 .product-card .info {{ padding: 16px; }}
 .product-card .price {{ font-size: 1.25rem; font-weight: 700; color: var(--primary); }}
 .add-to-cart {{ width: 100%; margin-top: 10px; padding: 10px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius); cursor: pointer; font-weight: 600; }}
@@ -487,7 +487,7 @@ input[type="url"], input[type="password"], textarea, select {{
   .section-header h2 {{ font-size: 1.5rem; }}
   table {{ font-size: .82rem; }}
   .booking-form {{ padding: 24px 16px; }}
-  .product-card img {{ height: 160px; }}
+  .product-card img {{ height: 160px !important; }}
   .navbar {{ padding: 8px 12px; }}
 }}
 

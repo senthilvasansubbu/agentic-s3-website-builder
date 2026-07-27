@@ -11,6 +11,22 @@ _RESPONSIVE_CSS_BLOCK = """
 /* ── wb: fluid media ── */
 img,video,iframe,embed,object{max-width:100%;height:auto;display:block}
 img{object-fit:cover}
+/* Keep media-card-carousel images uniformly framed so card copy aligns */
+[id^="media-carousel-"] article img{width:100%!important;height:clamp(170px,22vw,260px)!important;object-fit:cover!important;object-position:50% 50%!important;display:block!important}
+/* Responsive inline content grids (image+text, text cards) */
+div[style*="grid-template-columns"][style*="1fr"]:not([data-wb-carousel="1"]){grid-template-columns:1fr!important;gap:24px!important}
+@media(min-width:768px){div[style*="grid-template-columns"][style*="1fr"]:not([data-wb-carousel="1"]){grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(min-width:1024px){div[style*="grid-template-columns"][style*="1fr"]:not([data-wb-carousel="1"]){grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+/* Responsive gallery/collage grid */
+[data-wb-collage-grid="1"]{grid-template-columns:1fr!important}
+@media(min-width:640px){[data-wb-collage-grid="1"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(min-width:900px){[data-wb-collage-grid="1"]{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(min-width:1200px){[data-wb-collage-grid="1"]{grid-template-columns:repeat(6,minmax(0,1fr))!important}}
+/* Convert diagnostics media carousels into responsive card grids */
+section[data-wb-anchor-name="product"] [id^="media-carousel-"],section[data-wb-anchor-name="biochemistry"] [id^="media-carousel-"],section[data-wb-anchor-name="electrolyte"] [id^="media-carousel-"],section[data-wb-anchor-name="haematology"] [id^="media-carousel-"],section[data-wb-anchor-name="immunoassay"] [id^="media-carousel-"],section[data-wb-anchor-name="others"] [id^="media-carousel-"]{display:grid!important;grid-auto-flow:row!important;grid-auto-columns:unset!important;grid-template-columns:1fr!important;overflow-x:visible!important;scroll-snap-type:none!important}
+section[data-wb-anchor-name="product"] [id^="media-carousel-"] article,section[data-wb-anchor-name="biochemistry"] [id^="media-carousel-"] article,section[data-wb-anchor-name="electrolyte"] [id^="media-carousel-"] article,section[data-wb-anchor-name="haematology"] [id^="media-carousel-"] article,section[data-wb-anchor-name="immunoassay"] [id^="media-carousel-"] article,section[data-wb-anchor-name="others"] [id^="media-carousel-"] article{height:100%!important;display:flex!important;flex-direction:column!important;align-items:stretch!important}
+@media(min-width:768px){section[data-wb-anchor-name="product"] [id^="media-carousel-"],section[data-wb-anchor-name="biochemistry"] [id^="media-carousel-"],section[data-wb-anchor-name="electrolyte"] [id^="media-carousel-"],section[data-wb-anchor-name="haematology"] [id^="media-carousel-"],section[data-wb-anchor-name="immunoassay"] [id^="media-carousel-"],section[data-wb-anchor-name="others"] [id^="media-carousel-"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(min-width:1200px){section[data-wb-anchor-name="product"] [id^="media-carousel-"],section[data-wb-anchor-name="biochemistry"] [id^="media-carousel-"],section[data-wb-anchor-name="electrolyte"] [id^="media-carousel-"],section[data-wb-anchor-name="haematology"] [id^="media-carousel-"],section[data-wb-anchor-name="immunoassay"] [id^="media-carousel-"],section[data-wb-anchor-name="others"] [id^="media-carousel-"]{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
 a,p,li,td,th{overflow-wrap:anywhere;word-break:break-word}
 a:not([data-wb-go]):not([data-wb-dir]),button:not([data-wb-go]):not([data-wb-dir]),[role=button]:not([data-wb-go]):not([data-wb-dir]),input[type=submit],input[type=button],select{min-height:44px;min-width:44px}
 input[type=text],input[type=email],input[type=tel],input[type=search],input[type=url],input[type=password],textarea,select{min-height:44px}
@@ -1029,12 +1045,12 @@ def build_website(
         logger.warning("[%s] ⚠  No OPENAI_API_KEY — generating static fallback", trace_id)
         t1 = time.time()
         html_code = generate_static_fallback(user_requirements, theme_key=theme_key)
+        html_code = _ensure_responsive_css(html_code)
         filepath = generate_html({}, html_code, project_name, page_name="index", output_target=output_target)
         # Reuse the exact directory chosen by generate_html during this run.
         site_dir = os.path.dirname(filepath)
         write_output_target_scaffold(site_dir, output_target, html_code)
         sync_legacy_entrypoint(site_dir, html_code)
-        html_code = _ensure_responsive_css(html_code)
         logger.info("[%s] ✅ static fallback saved to %s  (%.1fs)", trace_id, site_dir, time.time()-t0)
         return {
             "status": "success",
@@ -1073,6 +1089,7 @@ def build_website(
     except Exception as exc:
         logger.error("[%s] ❌ CrewAI failed after %d retries: %s — falling back to static", trace_id, _MAX_RETRIES, exc)
         html_code = generate_static_fallback(user_requirements, theme_key=theme_key)
+        html_code = _ensure_responsive_css(html_code)
         filepath = generate_html({}, html_code, project_name, page_name="index", output_target=output_target)
         # Reuse the exact directory chosen by generate_html during this run.
         site_dir = os.path.dirname(filepath)

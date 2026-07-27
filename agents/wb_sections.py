@@ -17,7 +17,7 @@ def inject_products_section(html_code: str, categories: List[str]) -> str:
         cards.append(
             f'''
     <article style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.08)">
-    <img src="https://picsum.photos/seed/{seed}/480/320" alt="{cat}" loading="lazy" style="width:100%;height:180px;object-fit:cover;border-radius:10px" />
+    <img src="https://picsum.photos/seed/{seed}/480/320" alt="{cat}" loading="lazy" style="width:100%;height:180px !important;object-fit:cover;object-position:50% 50%;display:block;border-radius:10px" />
     <h3 style="margin:12px 0 8px">{cat}</h3>
     <p style="margin:0;color:#475569">High-quality {cat} solutions for laboratory and diagnostic workflows.</p>
     </article>

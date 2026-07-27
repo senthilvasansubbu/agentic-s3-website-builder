@@ -309,7 +309,7 @@ You MUST:
         <div class="product-card" data-name="${{(p.name||'').toLowerCase()}}">
           <div class="product-img-wrap">
             <img src="${{p.image_url || p.thumb_url || 'https://source.unsplash.com/featured/400x400/?product'}}"
-                                 alt="${{p.name}}" loading="lazy" style="width:100%;height:clamp(${{PRODUCT_IMAGE_MIN}}px,22vw,${{PRODUCT_IMAGE_MAX}}px);object-fit:cover;border-radius:8px 8px 0 0">
+                                                                 alt="${{p.name}}" loading="lazy" style="width:100%;height:clamp(${{PRODUCT_IMAGE_MIN}}px,22vw,${{PRODUCT_IMAGE_MAX}}px) !important;object-fit:cover;object-position:50% 50%;display:block;border-radius:8px 8px 0 0">
             ${{p.category_name ? `<span class="cat-badge">${{p.category_name}}</span>` : ''}}
           </div>
           <div class="product-info" style="padding:14px">

@@ -4113,16 +4113,16 @@ function _confirmDeleteSection() {
 
 /* ── Section templates for the Add Section modal ── */
 const SEC_TEMPLATES = [
-  { label: '📝 Text / Content', id: 'text-content', html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:900px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:16px">Section Heading</h2><p style="font-size:1.05rem;line-height:1.8;color:#555">Add your content here. Click ✏️ to edit this section.</p></div></section>` },
-  { label: '🖼 Image + Text',   id: 'image-text',   html: (id) => `<section id="${id}" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center"><div><h2 style="font-size:1.8rem;margin-bottom:16px">Heading</h2><p style="font-size:1rem;line-height:1.8;color:#555">Your description goes here.</p></div><img src="https://placehold.co/600x400" alt="" style="width:100%;border-radius:12px"></div></section>` },
-  { label: '🃏 Cards / Grid',   id: 'cards-grid',   html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:1100px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:40px">Our Offerings</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px"><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card One</h3><p style="color:#666;font-size:.95rem">Description.</p></div><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card Two</h3><p style="color:#666;font-size:.95rem">Description.</p></div><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card Three</h3><p style="color:#666;font-size:.95rem">Description.</p></div></div></div></section>` },
-  { label: '🖼 Media Card Carousel', id: 'media-card-carousel', html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:1160px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:12px">Media Showcase</h2><p style="text-align:center;color:#64748b;margin:0 0 24px">Horizontal media cards with aligned image sizing and bottom carousel controls.</p><div style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,270px);gap:16px;overflow-x:hidden;scroll-snap-type:x mandatory;padding-bottom:8px;scrollbar-width:none"><article id="${id}-item-1" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-1/640/420" alt="Media item 1" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight One</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-2" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-2/640/420" alt="Media item 2" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Two</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-3" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-3/640/420" alt="Media item 3" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Three</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-4" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-4/640/420" alt="Media item 4" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Four</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-5" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-5/640/420" alt="Media item 5" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Five</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-6" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-6/640/420" alt="Media item 6" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Six</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article></div><div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px"><a href="#${id}-item-1" aria-label="Scroll left" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #cbd5e1;border-radius:999px;text-decoration:none;color:#0f172a">◀</a><a href="#${id}-item-1" aria-label="Slide 1" style="width:9px;height:9px;background:#2563eb;border-radius:999px;display:inline-block"></a><a href="#${id}-item-2" aria-label="Slide 2" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-3" aria-label="Slide 3" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-4" aria-label="Slide 4" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-5" aria-label="Slide 5" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-6" aria-label="Slide 6" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-6" aria-label="Scroll right" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #cbd5e1;border-radius:999px;text-decoration:none;color:#0f172a">▶</a></div></div></section>` },
-  { label: '📬 Contact Form',  id: 'contact-form',  html: (id) => `<section id="${id}" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:600px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:24px">Get In Touch</h2><form onsubmit="return false" style="display:flex;flex-direction:column;gap:14px;text-align:left"><input type="text" placeholder="Your name" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem"><input type="email" placeholder="Email address" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem"><textarea placeholder="Your message" rows="4" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem;resize:vertical"></textarea><button type="submit" style="padding:13px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer">Send Message</button></form></div></section>` },
-  { label: '💬 Testimonials',  id: 'testimonials',  html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:1000px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:40px">What People Say</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px"><div style="background:#f9f7f4;border-radius:12px;padding:28px"><p style="font-style:italic;color:#555;line-height:1.7;margin-bottom:16px">"An excellent experience. Highly recommended!"</p><strong style="font-size:.9rem">— Happy Customer</strong></div><div style="background:#f9f7f4;border-radius:12px;padding:28px"><p style="font-style:italic;color:#555;line-height:1.7;margin-bottom:16px">"Outstanding quality and service."</p><strong style="font-size:.9rem">— Another Customer</strong></div></div></div></section>` },
-  { label: '📢 Call to Action', id: 'cta',           html: (id) => `<section id="${id}" style="padding:80px 5%;text-align:center;background:#6366f1;color:#fff"><div style="max-width:700px;margin:0 auto"><h2 style="font-size:2.2rem;margin-bottom:16px">Ready to Get Started?</h2><p style="opacity:.85;font-size:1.05rem;margin-bottom:32px">Join us today and experience the difference.</p><a href="#contact" style="display:inline-block;padding:14px 36px;background:#fff;color:#6366f1;border-radius:8px;font-weight:700;font-size:1rem;text-decoration:none">Get Started</a></div></section>` },
-  { label: '❓ FAQ',            id: 'faq',            html: (id) => `<section id="${id}" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:800px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:32px">Frequently Asked Questions</h2><details style="background:#fff;border-radius:8px;padding:16px 20px;text-align:left;margin-bottom:10px"><summary style="font-weight:700;cursor:pointer">Question one?</summary><p style="margin-top:10px;color:#555">Answer goes here.</p></details><details style="background:#fff;border-radius:8px;padding:16px 20px;text-align:left;margin-bottom:10px"><summary style="font-weight:700;cursor:pointer">Question two?</summary><p style="margin-top:10px;color:#555">Answer goes here.</p></details></div></section>` },
-  { label: '🖼 Gallery',        id: 'gallery',        html: (id) => `<section id="${id}" style="padding:80px 5%;background:#fff"><div style="max-width:1100px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:40px">Gallery</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"></div></div></section>` },
-  { label: '🧩 Photo Mosaic Mix', id: 'photo-mosaic-mix', html: (id) => `<section id="${id}" data-wb-collage="1" style="padding:80px 5%;background:#fff"><div style="max-width:1120px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:10px">Photo Mosaic Mix</h2><p style="text-align:center;color:#64748b;margin:0 0 24px">Blend multiple photos in one expressive collage with variable emphasis.</p><div data-wb-collage-grid="1" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:clamp(70px,9vw,110px);gap:10px"><figure data-wb-collage-item="1" data-wb-collage-weight="4" style="margin:0;grid-column:span 2;grid-row:span 2;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-a/920/740" alt="Mosaic highlight" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="2" style="margin:0;grid-column:span 2;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-b/920/700" alt="Mosaic frame" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="3" style="margin:0;grid-column:span 1;grid-row:span 2;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-c/640/920" alt="Mosaic portrait" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="1" style="margin:0;grid-column:span 1;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-d/680/620" alt="Mosaic detail" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="2" style="margin:0;grid-column:span 2;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-e/920/680" alt="Mosaic landscape" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure></div></div></section>` },
+  { label: '📝 Text / Content', id: 'text-content', html: (id) => `<section id="${id}" data-wb-sec-template="text-content" style="padding:80px 5%;background:#fff"><div style="max-width:900px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:16px">Section Heading</h2><p style="font-size:1.05rem;line-height:1.8;color:#555">Add your content here. Click ✏️ to edit this section.</p></div></section>` },
+  { label: '🖼 Image + Text',   id: 'image-text',   html: (id) => `<section id="${id}" data-wb-sec-template="image-text" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center"><div><h2 style="font-size:1.8rem;margin-bottom:16px">Heading</h2><p style="font-size:1rem;line-height:1.8;color:#555">Your description goes here.</p></div><img src="https://placehold.co/600x400" alt="" style="width:100%;border-radius:12px"></div></section>` },
+  { label: '🃏 Cards / Grid',   id: 'cards-grid',   html: (id) => `<section id="${id}" data-wb-sec-template="cards-grid" style="padding:80px 5%;background:#fff"><div style="max-width:1100px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:40px">Our Offerings</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px"><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card One</h3><p style="color:#666;font-size:.95rem">Description.</p></div><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card Two</h3><p style="color:#666;font-size:.95rem">Description.</p></div><div style="background:#f5f3ef;border-radius:12px;padding:28px;text-align:center"><h3 style="margin-bottom:10px">Card Three</h3><p style="color:#666;font-size:.95rem">Description.</p></div></div></div></section>` },
+  { label: '🖼 Media Card Carousel', id: 'media-card-carousel', html: (id) => `<section id="${id}" data-wb-sec-template="media-card-carousel" style="padding:80px 5%;background:#fff"><div style="max-width:1160px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:12px">Media Showcase</h2><p style="text-align:center;color:#64748b;margin:0 0 24px">Horizontal media cards with aligned image sizing and bottom carousel controls.</p><div style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,270px);gap:16px;overflow-x:hidden;scroll-snap-type:x mandatory;padding-bottom:8px;scrollbar-width:none"><article id="${id}-item-1" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-1/640/420" alt="Media item 1" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight One</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-2" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-2/640/420" alt="Media item 2" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Two</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-3" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-3/640/420" alt="Media item 3" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Three</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-4" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-4/640/420" alt="Media item 4" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Four</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-5" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-5/640/420" alt="Media item 5" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Five</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article><article id="${id}-item-6" style="scroll-snap-align:start;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px"><img src="https://picsum.photos/seed/${id}-6/640/420" alt="Media item 6" style="width:100%;height:clamp(170px,22vw,260px);object-fit:cover;border-radius:10px"><h3 style="margin:12px 0 6px;font-size:1.05rem">Featured Highlight Six</h3><p style="margin:0;color:#475569;font-size:.92rem;line-height:1.55">Short description for this media card and supporting context.</p></article></div><div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px"><a href="#${id}-item-1" aria-label="Scroll left" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #cbd5e1;border-radius:999px;text-decoration:none;color:#0f172a">◀</a><a href="#${id}-item-1" aria-label="Slide 1" style="width:9px;height:9px;background:#2563eb;border-radius:999px;display:inline-block"></a><a href="#${id}-item-2" aria-label="Slide 2" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-3" aria-label="Slide 3" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-4" aria-label="Slide 4" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-5" aria-label="Slide 5" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-6" aria-label="Slide 6" style="width:9px;height:9px;background:#94a3b8;border-radius:999px;display:inline-block"></a><a href="#${id}-item-6" aria-label="Scroll right" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #cbd5e1;border-radius:999px;text-decoration:none;color:#0f172a">▶</a></div></div></section>` },
+  { label: '📬 Contact Form',  id: 'contact-form',  html: (id) => `<section id="${id}" data-wb-sec-template="contact-form" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:600px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:24px">Get In Touch</h2><form onsubmit="return false" style="display:flex;flex-direction:column;gap:14px;text-align:left"><input type="text" placeholder="Your name" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem"><input type="email" placeholder="Email address" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem"><textarea placeholder="Your message" rows="4" style="padding:12px 16px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem;resize:vertical"></textarea><button type="submit" style="padding:13px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer">Send Message</button></form></div></section>` },
+  { label: '💬 Testimonials',  id: 'testimonials',  html: (id) => `<section id="${id}" data-wb-sec-template="testimonials" style="padding:80px 5%;background:#fff"><div style="max-width:1000px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:40px">What People Say</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px"><div style="background:#f9f7f4;border-radius:12px;padding:28px"><p style="font-style:italic;color:#555;line-height:1.7;margin-bottom:16px">"An excellent experience. Highly recommended!"</p><strong style="font-size:.9rem">— Happy Customer</strong></div><div style="background:#f9f7f4;border-radius:12px;padding:28px"><p style="font-style:italic;color:#555;line-height:1.7;margin-bottom:16px">"Outstanding quality and service."</p><strong style="font-size:.9rem">— Another Customer</strong></div></div></div></section>` },
+  { label: '📢 Call to Action', id: 'cta',           html: (id) => `<section id="${id}" data-wb-sec-template="cta" style="padding:80px 5%;text-align:center;background:#6366f1;color:#fff"><div style="max-width:700px;margin:0 auto"><h2 style="font-size:2.2rem;margin-bottom:16px">Ready to Get Started?</h2><p style="opacity:.85;font-size:1.05rem;margin-bottom:32px">Join us today and experience the difference.</p><a href="#contact" style="display:inline-block;padding:14px 36px;background:#fff;color:#6366f1;border-radius:8px;font-weight:700;font-size:1rem;text-decoration:none">Get Started</a></div></section>` },
+  { label: '❓ FAQ',            id: 'faq',            html: (id) => `<section id="${id}" data-wb-sec-template="faq" style="padding:80px 5%;background:#f9f7f4"><div style="max-width:800px;margin:0 auto;text-align:center"><h2 style="font-size:2rem;margin-bottom:32px">Frequently Asked Questions</h2><details style="background:#fff;border-radius:8px;padding:16px 20px;text-align:left;margin-bottom:10px"><summary style="font-weight:700;cursor:pointer">Question one?</summary><p style="margin-top:10px;color:#555">Answer goes here.</p></details><details style="background:#fff;border-radius:8px;padding:16px 20px;text-align:left;margin-bottom:10px"><summary style="font-weight:700;cursor:pointer">Question two?</summary><p style="margin-top:10px;color:#555">Answer goes here.</p></details></div></section>` },
+  { label: '🖼 Gallery',        id: 'gallery',        html: (id) => `<section id="${id}" data-wb-sec-template="gallery" style="padding:80px 5%;background:#fff"><div style="max-width:1100px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:40px">Gallery</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"><img src="https://placehold.co/400x300" alt="" style="width:100%;border-radius:10px"></div></div></section>` },
+  { label: '🧩 Photo Mosaic Mix', id: 'photo-mosaic-mix', html: (id) => `<section id="${id}" data-wb-sec-template="photo-mosaic-mix" data-wb-collage="1" style="padding:80px 5%;background:#fff"><div style="max-width:1120px;margin:0 auto"><h2 style="text-align:center;font-size:2rem;margin-bottom:10px">Photo Mosaic Mix</h2><p style="text-align:center;color:#64748b;margin:0 0 24px">Blend multiple photos in one expressive collage with variable emphasis.</p><div data-wb-collage-grid="1" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:clamp(70px,9vw,110px);gap:10px"><figure data-wb-collage-item="1" data-wb-collage-weight="4" style="margin:0;grid-column:span 2;grid-row:span 2;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-a/920/740" alt="Mosaic highlight" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="2" style="margin:0;grid-column:span 2;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-b/920/700" alt="Mosaic frame" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="3" style="margin:0;grid-column:span 1;grid-row:span 2;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-c/640/920" alt="Mosaic portrait" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="1" style="margin:0;grid-column:span 1;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-d/680/620" alt="Mosaic detail" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure><figure data-wb-collage-item="1" data-wb-collage-weight="2" style="margin:0;grid-column:span 2;grid-row:span 1;border-radius:14px;overflow:hidden;background:#e2e8f0"><img src="https://picsum.photos/seed/${id}-e/920/680" alt="Mosaic landscape" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block"></figure></div></div></section>` },
 ];
 
 let _selectedTemplate = null;
@@ -4480,7 +4480,7 @@ function openSecEditor(idx) {
     let brandEl = null, brandFid = '';
 
     // Always show Logo / Image + Brand Name only for the first section (nav/header)
-    const logo = activeSectionIndex === 0 ? el.querySelector('img') : null;
+    const logo = activeSectionIndex === 0 ? _findSectionLogoTarget(el) : null;
     if (activeSectionIndex === 0) {
       fieldIdx++;
       const logoFid = `img-${fieldIdx}`;
@@ -4921,6 +4921,9 @@ function openSecEditor(idx) {
     if (brandEl) {
       fields._brandEl  = brandEl;
       fields._brandFid = brandFid;
+    }
+    if (logo) {
+      fields._logoEl = logo;
     }
     fields._headingEls   = _headingEls;
     fields._headingStart = _headingStartField;
@@ -8786,6 +8789,48 @@ function _findHeroImageTarget(sectionEl) {
   return best;
 }
 
+function _findSectionLogoTarget(sectionEl) {
+  if (!sectionEl) return null;
+
+  const markedLogo = sectionEl.querySelector('img[data-wb-role="brand-logo"]');
+  if (markedLogo) return markedLogo;
+
+  const scopedLogo = sectionEl.querySelector('.brand-cell img, .brand img, .logo img, .site-title img, nav .brand img, nav .logo img, header .brand img, header .logo img');
+  if (scopedLogo) return scopedLogo;
+
+  const candidates = [...sectionEl.querySelectorAll('img')];
+  if (!candidates.length) return null;
+
+  let best = null;
+  let bestScore = -999;
+  candidates.forEach((img) => {
+    const cls = String(img.className || '').toLowerCase();
+    const alt = String(img.alt || '').toLowerCase();
+    const inBrandArea = !!img.closest('nav,header,.brand,.logo,.site-title,.brand-cell,[class*="brand"],[class*="logo"]');
+    const inContentCard = !!img.closest('article,.card,[class*="card"],.gallery,.mosaic,[data-type="grid-item"]');
+
+    let score = 0;
+    if (/logo|brand/.test(cls) || /logo|brand/.test(alt)) score += 10;
+    if (inBrandArea) score += 8;
+    if (inContentCard) score -= 8;
+
+    const r = img.getBoundingClientRect();
+    const w = Math.max(0, r.width || 0);
+    const h = Math.max(0, r.height || 0);
+    const area = w * h;
+    if (area > 0 && area <= 28000) score += 3;
+    if (h > 0 && h <= 90) score += 2;
+    if (w > 0 && w <= 280) score += 1;
+
+    if (score > bestScore) {
+      best = img;
+      bestScore = score;
+    }
+  });
+
+  return bestScore >= 3 ? best : null;
+}
+
 function _heroLayoutField(init = {}) {
   const showImage = init.showImage !== false;
   const hasImage = !!init.hasImage;
@@ -9030,13 +9075,15 @@ function applySecEdits() {
     const logoSrcEl = fieldsEl.querySelector(`input[data-fid="${logoFid}-src"]`);
     const logoAltEl = fieldsEl.querySelector(`input[data-fid="${logoFid}-alt"]`);
     if (logoSrcEl && logoSrcEl.value.trim()) {
-      let logoImg = imgs[0];
+      let logoImg = fieldsEl._logoEl || _findSectionLogoTarget(el);
       if (!logoImg) {
         logoImg = el.ownerDocument.createElement('img');
         logoImg.style.cssText = `height:${LOGO_FIXED_HEIGHT_PX}px;max-height:${LOGO_FIXED_HEIGHT_PX}px;width:auto;object-fit:contain;vertical-align:middle;margin:0 8px 0 0`;
-        el.querySelector('.logo, .brand, [class*="logo"]')?.prepend(logoImg) || el.prepend(logoImg);
+        const insertWrap = el.querySelector('.brand-cell, .brand, .logo, .site-title, [class*="brand"], [class*="logo"], nav, header') || el;
+        insertWrap.prepend(logoImg);
         imgs = [logoImg, ...imgs]; iIdx = 0;
       }
+      logoImg.setAttribute('data-wb-role', 'brand-logo');
       logoImg.src = logoSrcEl.value;
       logoImg.setAttribute('src', logoSrcEl.value);
       if (logoAltEl) logoImg.alt = logoAltEl.value;
@@ -9066,6 +9113,7 @@ function applySecEdits() {
         const wrapGap = wrapStyle.getPropertyValue('gap');
         if (wrapGap === '6px' || wrapGap === '10px') wrapStyle.removeProperty('gap');
       }
+      fieldsEl._logoEl = logoImg;
       iIdx = 1;
     }
 
@@ -9754,6 +9802,92 @@ function _injectResponsiveEnhancements(doc) {
 
     /* ── Fluid media ── */
     img, video, iframe, embed, object { max-width: 100% !important; height: auto !important; }
+    #product article img,
+    section[data-wb-anchor-name="product"] article img,
+    #biochemistry article img,
+    section[data-wb-anchor-name="biochemistry"] article img,
+    #electrolyte article img,
+    section[data-wb-anchor-name="electrolyte"] article img,
+    #haematology article img,
+    section[data-wb-anchor-name="haematology"] article img,
+    #immunoassay article img,
+    section[data-wb-anchor-name="immunoassay"] article img,
+    #others article img,
+    section[data-wb-anchor-name="others"] article img {
+      width: 100% !important;
+      height: clamp(170px, 22vw, 260px) !important;
+      object-fit: cover !important;
+      object-position: 50% 50% !important;
+      display: block !important;
+    }
+
+    /* ── Add-Section templates: explicit responsive behavior ── */
+    section[data-wb-sec-template="image-text"] > div[style*="grid-template-columns"] {
+      grid-template-columns: 1fr !important;
+      gap: 24px !important;
+    }
+    section[data-wb-sec-template="cards-grid"] div[style*="grid-template-columns"],
+    section[data-wb-sec-template="testimonials"] div[style*="grid-template-columns"],
+    section[data-wb-sec-template="gallery"] div[style*="grid-template-columns"] {
+      grid-template-columns: 1fr !important;
+    }
+    section[data-wb-sec-template="media-card-carousel"] div[style*="grid-auto-flow"] {
+      display: grid !important;
+      grid-auto-flow: row !important;
+      grid-auto-columns: unset !important;
+      grid-template-columns: 1fr !important;
+      overflow-x: visible !important;
+      scroll-snap-type: none !important;
+    }
+    section[data-wb-sec-template="media-card-carousel"] article {
+      height: 100% !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+    }
+    section[data-wb-sec-template="media-card-carousel"] article img {
+      width: 100% !important;
+      height: clamp(170px, 22vw, 260px) !important;
+      object-fit: cover !important;
+      object-position: 50% 50% !important;
+      display: block !important;
+    }
+    section[data-wb-sec-template="cta"] h2,
+    section[data-wb-sec-template="text-content"] h2,
+    section[data-wb-sec-template="cards-grid"] h2,
+    section[data-wb-sec-template="testimonials"] h2,
+    section[data-wb-sec-template="faq"] h2,
+    section[data-wb-sec-template="gallery"] h2,
+    section[data-wb-sec-template="photo-mosaic-mix"] h2 {
+      font-size: clamp(1.45rem, 4.8vw, 2.2rem) !important;
+      line-height: 1.25 !important;
+    }
+    @media (min-width: 768px) {
+      section[data-wb-sec-template="image-text"] > div[style*="grid-template-columns"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 36px !important;
+      }
+      section[data-wb-sec-template="cards-grid"] div[style*="grid-template-columns"],
+      section[data-wb-sec-template="testimonials"] div[style*="grid-template-columns"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      section[data-wb-sec-template="gallery"] div[style*="grid-template-columns"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      section[data-wb-sec-template="media-card-carousel"] div[style*="grid-auto-flow"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+    }
+    @media (min-width: 1200px) {
+      section[data-wb-sec-template="cards-grid"] div[style*="grid-template-columns"],
+      section[data-wb-sec-template="testimonials"] div[style*="grid-template-columns"],
+      section[data-wb-sec-template="gallery"] div[style*="grid-template-columns"] {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      }
+      section[data-wb-sec-template="media-card-carousel"] div[style*="grid-auto-flow"] {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+      }
+    }
 
     /* ── Overflow guard (emails / long URLs / phone numbers) ── */
     .grid, .contact-grid { min-width: 0 !important; }
