@@ -112,6 +112,7 @@ async def create_category(body: CategoryCreate, current_user: dict = Depends(req
 
 
 @router.get("/categories/{website_id}")
+@router.get("/{website_id}/categories")
 async def list_categories(website_id: str):
     rows = db.execute(
         "SELECT * FROM cart_categories WHERE website_id = %s ORDER BY sort_order, name",
