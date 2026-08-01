@@ -1,2 +1,0 @@
-INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 200 OK"
-INFO     apscheduler.scheduler:base.py:245 Scheduler has been shut down
