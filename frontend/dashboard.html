@@ -945,6 +945,7 @@
         <button class="btn btn-secondary btn-sm" onclick="toggleStagingOverlay()" id="stagingEditBtn" disabled title="Toggle numbered section markers">🔢 Section Numbers</button>
         <button class="btn btn-secondary btn-sm" onclick="toggleAnchorVisibility()" id="stagingAnchorBtn" disabled title="Show/hide anchor name chips on sections">⚓ Anchors</button>
         <button class="btn btn-secondary btn-sm" onclick="toggleGlobalFonts()" id="stagingFontBtn" disabled title="Global font &amp; colour settings">🔤 Fonts</button>
+        <button class="btn btn-secondary btn-sm" onclick="toggleStagingMetadataPanel()" id="stagingMetaBtn" disabled title="Edit social preview metadata (title, description, image)">🧾 Metadata</button>
         <button class="btn btn-secondary btn-sm" onclick="openStagingMediaLibrary()" id="stagingMediaBtn" disabled title="Upload and manage shared media for this website">🗂 Media Library</button>
         <button class="btn btn-secondary btn-sm" onclick="openAddSectionModal()" id="stagingAddSecBtn" disabled title="Add a new section to the page">＋ Add Section</button>
         <button class="btn btn-secondary btn-sm" onclick="historyUndo()" id="stagingUndoBtn" disabled title="Undo last change (up to 5 steps)">↩ Undo</button>
@@ -1011,6 +1012,97 @@
       <div>
         <label style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">Heading Colour</label>
         <input type="color" id="gfHeadColor" value="#111827" onchange="applyGlobalFont()" style="width:42px;height:32px;padding:2px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg)">
+      </div>
+    </div>
+
+    <div id="stagingMetaPanel" style="display:none;background:rgba(16,185,129,.06);border:1px solid var(--border);border-top:none;padding:14px 20px;gap:12px;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-size:.82rem;font-weight:700;color:var(--text)">Social Preview Metadata</div>
+        <div id="stagingMetaHint" style="font-size:.74rem;color:var(--muted)">Load a staged page to edit metadata.</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">Page Title</label>
+          <input id="metaTitleInput" type="text" placeholder="Quality Diagnostics" style="width:100%">
+          <div id="metaTitleGuide" style="margin-top:4px;font-size:.72rem;color:var(--muted)">0 chars • Suggested 30-60</div>
+        </div>
+        <div>
+          <label style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">OG URL</label>
+          <input id="metaOgUrlInput" type="url" placeholder="https://example.com/" style="width:100%">
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">Description</label>
+        <textarea id="metaDescriptionInput" placeholder="Short summary used in social previews" style="width:100%;min-height:72px;resize:vertical"></textarea>
+        <div id="metaDescriptionGuide" style="margin-top:4px;font-size:.72rem;color:var(--muted)">0 chars • Suggested 110-160</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end">
+        <div>
+          <label style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">OG/Twitter Image URL</label>
+          <input id="metaImageInput" type="text" placeholder="https://example.com/banner.jpg" style="width:100%" oninput="refreshStagingMetaImagePreview()">
+        </div>
+        <div>
+          <label style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);display:block;margin-bottom:4px">Twitter Card</label>
+          <select id="metaTwitterCardInput" style="width:100%">
+            <option value="summary_large_image">summary_large_image</option>
+            <option value="summary">summary</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" id="metaPickFromLibraryBtn" onclick="openMetadataImageLibrary()">🗂 Pick From Media Library</button>
+        <span style="font-size:.72rem;color:var(--muted)">Opens the same visual image picker used in Section Editor.</span>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="metaPresetSelect" style="min-width:220px">
+          <option value="">Choose a quick preset…</option>
+          <option value="balanced">Balanced (recommended)</option>
+          <option value="sales">Sales / Lead Generation</option>
+          <option value="trust">Trust / Brand Authority</option>
+          <option value="local">Local Business / Location-led</option>
+        </select>
+        <input id="metaPresetCustomInput" type="text" placeholder="Custom preset text (optional)" style="min-width:260px;flex:1">
+        <button class="btn btn-secondary btn-sm" id="metaPresetBtn" onclick="applyMetadataPreset()">⚡ Apply Optional Preset</button>
+        <button class="btn btn-secondary btn-sm" id="metaPresetResetBtn" onclick="resetMetadataPresetEffects()">↺ Reset Preset Effects</button>
+        <button class="btn btn-secondary btn-sm" id="metaSmartDefaultsBtn" onclick="applyMetadataSmartDefaults()">✨ Smart Defaults</button>
+        <button class="btn btn-secondary btn-sm" id="metaFillAboutBtn" onclick="autofillMetadataFromAbout()">🧠 Use About Text</button>
+        <button class="btn btn-secondary btn-sm" id="metaFillHeroBtn" onclick="autofillMetadataImageFromHero()">🖼 Use Hero Image</button>
+        <button class="btn btn-secondary btn-sm" id="metaReloadBtn" onclick="loadStagingMetadataFromPreview()">↺ Reload Metadata</button>
+        <button class="btn btn-primary btn-sm" id="metaApplyBtn" onclick="applyStagingMetadata()">✅ Apply Metadata to Preview</button>
+      </div>
+
+      <div id="metaQualityBar" style="font-size:.73rem;color:var(--muted);padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:rgba(15,17,23,.25)">Quality check: fill Title, Description, and Image URL for best social previews.</div>
+
+      <div style="display:grid;grid-template-columns:minmax(240px,340px) 1fr;gap:12px;align-items:start">
+        <div style="font-size:.74rem;color:var(--muted)">
+          Live Social Card Preview
+          <div style="font-size:.7rem;color:var(--muted);margin-top:2px">Approximate preview for messaging/social apps</div>
+        </div>
+        <div></div>
+      </div>
+
+      <div id="metaLiveCard" style="display:grid;grid-template-columns:130px 1fr;gap:10px;max-width:520px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card)">
+        <div style="background:rgba(99,102,241,.08);min-height:96px;display:flex;align-items:center;justify-content:center">
+          <img id="metaLiveCardImage" alt="Social image" style="display:none;width:100%;height:100%;object-fit:cover">
+          <div id="metaLiveCardImageFallback" style="font-size:.72rem;color:var(--muted);padding:8px;text-align:center">No image</div>
+        </div>
+        <div style="padding:9px 10px;display:flex;flex-direction:column;gap:4px;min-width:0">
+          <div id="metaLiveCardTitle" style="font-size:.81rem;font-weight:700;color:var(--text);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Preview title</div>
+          <div id="metaLiveCardDescription" style="font-size:.74rem;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">Preview description will appear here.</div>
+          <div id="metaLiveCardUrl" style="font-size:.7rem;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">example.com</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <img id="metaOgImagePreview" alt="OG preview" style="display:none;width:160px;height:84px;object-fit:cover;border:1px solid var(--border);border-radius:8px;background:var(--bg)">
+        <div style="font-size:.73rem;color:var(--muted);line-height:1.45">
+          Tip: social platforms read metadata from page head (title, meta description, og:image), not from visible About section text.
+        </div>
       </div>
     </div>
 

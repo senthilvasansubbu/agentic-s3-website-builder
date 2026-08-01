@@ -3221,6 +3221,554 @@ let currentStagingHtmlHash = '';
 let currentStagingManifestEtag = '';
 let currentStagingArtifactCount = 0;
 let currentStagingArtifacts = [];
+let stagingMetadataPanelOpen = false;
+let _metadataBaseline = { title: '', description: '' };
+
+function _metaInput(id) {
+  return document.getElementById(id);
+}
+
+function _setStagingMetadataEnabled(enabled) {
+  [
+    'metaTitleInput',
+    'metaOgUrlInput',
+    'metaDescriptionInput',
+    'metaImageInput',
+    'metaPickFromLibraryBtn',
+    'metaTwitterCardInput',
+    'metaPresetSelect',
+    'metaPresetCustomInput',
+    'metaPresetBtn',
+    'metaPresetResetBtn',
+    'metaSmartDefaultsBtn',
+    'metaFillAboutBtn',
+    'metaFillHeroBtn',
+    'metaReloadBtn',
+    'metaApplyBtn',
+  ].forEach(id => {
+    const el = _metaInput(id);
+    if (el) el.disabled = !enabled;
+  });
+}
+
+function _shortImageLabel(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return 'image';
+  const clean = raw.split('?')[0].split('#')[0];
+  const seg = clean.split('/').filter(Boolean).pop() || clean;
+  return seg.length > 58 ? `${seg.slice(0, 55)}...` : seg;
+}
+
+function _applySelectedMediaToMetadata(media) {
+  if (!media) return;
+  const mediaType = String(media.media_type || 'image').trim().toLowerCase();
+  if (mediaType !== 'image') {
+    toast('Please select an image for metadata preview', false);
+    return;
+  }
+  const rawSource = String(media.url || media.path || '').trim();
+  if (!rawSource) {
+    toast('Selected media has no URL', false);
+    return;
+  }
+  const imageInput = _metaInput('metaImageInput');
+  if (!imageInput) return;
+  const normalized = _normalizeStagingAssetUrl(rawSource);
+  const frame = document.getElementById('stagingIframe');
+  imageInput.value = _toAbsoluteMetaUrl(normalized, frame?.src || window.location.origin);
+  refreshStagingMetaImagePreview();
+  _updateMetadataGuides();
+  const displayName = String(media.name || '').trim() || _shortImageLabel(normalized);
+  toast(`Selected ${displayName} for metadata ✅`);
+}
+
+function openMetadataImageLibrary() {
+  if (!stagedWebsiteId) {
+    toast('Open a staging website first', false);
+    return;
+  }
+  _mediaPickerContext = { mode: 'metadata-image', fid: '' };
+  _mediaLibraryTypeFilter = 'image';
+  _refreshMediaPickerHeader();
+  openModal('existingBgImageModal');
+  loadExistingBgImages();
+  renderExistingBgImagePicker();
+}
+
+function _truncateSmart(text, maxLen) {
+  const raw = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!raw || raw.length <= maxLen) return raw;
+  const trimmed = raw.slice(0, maxLen - 1);
+  const cut = trimmed.lastIndexOf(' ');
+  return `${(cut > 40 ? trimmed.slice(0, cut) : trimmed).trim()}.`;
+}
+
+function _appendUniqueChunk(base, chunk, joiner = ' ') {
+  const lhs = String(base || '').trim();
+  const rhs = String(chunk || '').trim();
+  if (!rhs) return lhs;
+  if (!lhs) return rhs;
+  if (lhs.toLowerCase().includes(rhs.toLowerCase())) return lhs;
+  return `${lhs}${joiner}${rhs}`.trim();
+}
+
+function _stripPresetSuffixesTitle(value) {
+  let out = String(value || '').trim();
+  const suffixes = [
+    'Trusted Solutions',
+    'Reliable Since 2010',
+    'Local Service Experts',
+  ];
+  suffixes.forEach(sfx => {
+    const re = new RegExp(`\\s*\\|\\s*${sfx.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}`, 'ig');
+    out = out.replace(re, '');
+  });
+  out = out.replace(/(\|\s*){2,}/g, ' | ').replace(/\s+\|\s+$/g, '').trim();
+  return out;
+}
+
+function _stripPresetSuffixesDescription(value) {
+  let out = String(value || '').trim();
+  const suffixes = [
+    'Contact us today for expert guidance and fast support.',
+    'Trusted quality, experienced team, and consistent service delivery.',
+  ];
+  suffixes.forEach(sfx => {
+    const re = new RegExp(`\\s*${sfx.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}`, 'ig');
+    out = out.replace(re, '').trim();
+  });
+  return out.replace(/\s{2,}/g, ' ').trim();
+}
+
+function _metadataScore(title, description, image) {
+  let score = 0;
+  if (title.length >= 30 && title.length <= 60) score += 1;
+  else if (title.length >= 16) score += 0.5;
+  if (description.length >= 110 && description.length <= 160) score += 1;
+  else if (description.length >= 70) score += 0.5;
+  if (image) score += 1;
+  return score;
+}
+
+function _updateMetadataGuides() {
+  const title = (_metaInput('metaTitleInput')?.value || '').trim();
+  const description = (_metaInput('metaDescriptionInput')?.value || '').trim();
+  const image = (_metaInput('metaImageInput')?.value || '').trim();
+  const titleGuide = _metaInput('metaTitleGuide');
+  const descGuide = _metaInput('metaDescriptionGuide');
+  const quality = _metaInput('metaQualityBar');
+
+  if (titleGuide) {
+    const ok = title.length >= 30 && title.length <= 60;
+    titleGuide.textContent = `${title.length} chars • Suggested 30-60`;
+    titleGuide.style.color = ok || title.length === 0 ? 'var(--muted)' : '#f59e0b';
+  }
+
+  if (descGuide) {
+    const ok = description.length >= 110 && description.length <= 160;
+    descGuide.textContent = `${description.length} chars • Suggested 110-160`;
+    descGuide.style.color = ok || description.length === 0 ? 'var(--muted)' : '#f59e0b';
+  }
+
+  if (quality) {
+    const score = _metadataScore(title, description, image);
+    if (score >= 2.5) {
+      quality.textContent = 'Quality check: Great. Metadata is likely to render well on WhatsApp and social platforms.';
+      quality.style.borderColor = '#16a34a';
+      quality.style.color = '#bbf7d0';
+    } else if (score >= 1.5) {
+      quality.textContent = 'Quality check: Good. Add or refine remaining fields for stronger preview quality.';
+      quality.style.borderColor = '#f59e0b';
+      quality.style.color = '#fde68a';
+    } else {
+      quality.textContent = 'Quality check: Fill Title, Description, and Image URL for best social previews.';
+      quality.style.borderColor = 'var(--border)';
+      quality.style.color = 'var(--muted)';
+    }
+  }
+
+  refreshMetadataLiveCard();
+}
+
+function _wireMetadataGuideListeners() {
+  ['metaTitleInput', 'metaDescriptionInput', 'metaImageInput'].forEach(id => {
+    const el = _metaInput(id);
+    if (!el || el.dataset.metaGuideBound === '1') return;
+    el.dataset.metaGuideBound = '1';
+    el.addEventListener('input', _updateMetadataGuides);
+  });
+}
+
+function _metaContent(doc, selector) {
+  return (doc.querySelector(selector)?.getAttribute('content') || '').trim();
+}
+
+function _extractStagingMetadata(doc) {
+  return {
+    title: (doc.querySelector('title')?.textContent || '').trim(),
+    description: _metaContent(doc, 'meta[name="description"]'),
+    ogTitle: _metaContent(doc, 'meta[property="og:title"]'),
+    ogDescription: _metaContent(doc, 'meta[property="og:description"]'),
+    ogImage: _metaContent(doc, 'meta[property="og:image"]'),
+    ogUrl: _metaContent(doc, 'meta[property="og:url"]'),
+    twitterCard: _metaContent(doc, 'meta[name="twitter:card"]') || 'summary_large_image',
+    twitterTitle: _metaContent(doc, 'meta[name="twitter:title"]'),
+    twitterDescription: _metaContent(doc, 'meta[name="twitter:description"]'),
+    twitterImage: _metaContent(doc, 'meta[name="twitter:image"]'),
+  };
+}
+
+function refreshStagingMetaImagePreview() {
+  const img = _metaInput('metaOgImagePreview');
+  const val = (_metaInput('metaImageInput')?.value || '').trim();
+  if (!img) return;
+  if (!val) {
+    img.style.display = 'none';
+    img.removeAttribute('src');
+    return;
+  }
+  img.src = val;
+  img.style.display = '';
+}
+
+function _hostnamePreview(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url) return 'example.com';
+  try {
+    return new URL(url).hostname.replace(/^www\./i, '') || 'example.com';
+  } catch (_) {
+    return url.replace(/^https?:\/\//i, '').split('/')[0] || 'example.com';
+  }
+}
+
+function refreshMetadataLiveCard() {
+  const title = (_metaInput('metaTitleInput')?.value || '').trim();
+  const description = (_metaInput('metaDescriptionInput')?.value || '').trim();
+  const image = (_metaInput('metaImageInput')?.value || '').trim();
+  const ogUrl = (_metaInput('metaOgUrlInput')?.value || '').trim();
+
+  const titleEl = _metaInput('metaLiveCardTitle');
+  const descEl = _metaInput('metaLiveCardDescription');
+  const urlEl = _metaInput('metaLiveCardUrl');
+  const imgEl = _metaInput('metaLiveCardImage');
+  const imgFallback = _metaInput('metaLiveCardImageFallback');
+
+  if (titleEl) titleEl.textContent = title || 'Preview title';
+  if (descEl) descEl.textContent = description || 'Preview description will appear here.';
+  if (urlEl) urlEl.textContent = _hostnamePreview(ogUrl || currentStagingUrl || window.location.origin);
+
+  if (imgEl && imgFallback) {
+    if (image) {
+      imgEl.src = image;
+      imgEl.style.display = '';
+      imgFallback.style.display = 'none';
+      imgEl.onerror = () => {
+        imgEl.style.display = 'none';
+        imgFallback.style.display = '';
+        imgFallback.textContent = 'Image unavailable';
+      };
+    } else {
+      imgEl.style.display = 'none';
+      imgEl.removeAttribute('src');
+      imgFallback.style.display = '';
+      imgFallback.textContent = 'No image';
+    }
+  }
+}
+
+function toggleStagingMetadataPanel() {
+  stagingMetadataPanelOpen = !stagingMetadataPanelOpen;
+  const panel = _metaInput('stagingMetaPanel');
+  const btn = _metaInput('stagingMetaBtn');
+  if (panel) panel.style.display = stagingMetadataPanelOpen ? 'flex' : 'none';
+  if (btn) btn.style.background = stagingMetadataPanelOpen ? 'rgba(16,185,129,.2)' : '';
+  if (stagingMetadataPanelOpen) {
+    loadStagingMetadataFromPreview();
+    setTimeout(() => {
+      panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      _metaInput('metaTitleInput')?.focus();
+    }, 40);
+    toast('Metadata editor opened below the top toolbar');
+  } else {
+    toast('Metadata editor hidden');
+  }
+}
+
+function loadStagingMetadataFromPreview() {
+  const frame = document.getElementById('stagingIframe');
+  const hint = _metaInput('stagingMetaHint');
+  if (!frame || !frame.contentDocument) {
+    _setStagingMetadataEnabled(false);
+    if (hint) hint.textContent = 'Load a staged page to edit metadata.';
+    return;
+  }
+  const doc = frame.contentDocument;
+  const meta = _extractStagingMetadata(doc);
+  const title = meta.title || '';
+  const description = meta.description || meta.ogDescription || meta.twitterDescription || '';
+  const image = meta.ogImage || meta.twitterImage || '';
+
+  const titleInput = _metaInput('metaTitleInput');
+  const urlInput = _metaInput('metaOgUrlInput');
+  const descInput = _metaInput('metaDescriptionInput');
+  const imageInput = _metaInput('metaImageInput');
+  const cardInput = _metaInput('metaTwitterCardInput');
+  const presetSel = _metaInput('metaPresetSelect');
+  const presetCustom = _metaInput('metaPresetCustomInput');
+
+  if (titleInput) titleInput.value = title;
+  if (urlInput) urlInput.value = meta.ogUrl || '';
+  if (descInput) descInput.value = description;
+  if (imageInput) imageInput.value = image;
+  if (cardInput) cardInput.value = meta.twitterCard || 'summary_large_image';
+  if (presetSel) presetSel.value = '';
+  if (presetCustom) presetCustom.value = '';
+  _metadataBaseline = {
+    title: title,
+    description: description,
+  };
+
+  _setStagingMetadataEnabled(true);
+  _wireMetadataGuideListeners();
+  refreshStagingMetaImagePreview();
+  _updateMetadataGuides();
+  refreshMetadataLiveCard();
+  if (hint) hint.textContent = 'Edit fields, apply to preview, then click Save Changes.';
+}
+
+function _setMetaTag(doc, attr, key, content) {
+  const selector = `meta[${attr}="${key}"]`;
+  let node = doc.querySelector(selector);
+  const value = String(content || '').trim();
+  if (!value) {
+    if (node) node.remove();
+    return;
+  }
+  if (!node) {
+    node = doc.createElement('meta');
+    node.setAttribute(attr, key);
+    doc.head.appendChild(node);
+  }
+  node.setAttribute('content', value);
+}
+
+function _bestAboutParagraph(doc) {
+  const candidates = [
+    ...doc.querySelectorAll('#about-us p, #about p, section[id*="about"] p, .about p, .about-section p'),
+  ].map(el => (el.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  if (!candidates.length) return '';
+  const preferred = candidates.find(t => t.length >= 80 && t.length <= 220);
+  return preferred || candidates.sort((a, b) => b.length - a.length)[0] || '';
+}
+
+function _bestHeadline(doc) {
+  const h = doc.querySelector('h1, header h2, .hero h1, .hero h2');
+  return (h?.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function _bestLocationText(doc) {
+  const el = doc.querySelector('[class*="address"], [id*="address"], [class*="location"], [id*="location"]');
+  const txt = (el?.textContent || '').replace(/\s+/g, ' ').trim();
+  return txt.length > 120 ? txt.slice(0, 120).trim() : txt;
+}
+
+function _toAbsoluteMetaUrl(raw, frameUrl) {
+  const val = String(raw || '').trim();
+  if (!val) return '';
+  try {
+    return new URL(val, frameUrl || window.location.origin).href;
+  } catch (_) {
+    return val;
+  }
+}
+
+function autofillMetadataFromAbout() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame || !frame.contentDocument) {
+    toast('Preview not loaded', false);
+    return;
+  }
+  const text = _bestAboutParagraph(frame.contentDocument);
+  if (!text) {
+    toast('No About text found in this page', false);
+    return;
+  }
+  const descInput = _metaInput('metaDescriptionInput');
+  if (descInput) descInput.value = _truncateSmart(text, 160);
+  _updateMetadataGuides();
+  toast('Description filled from About section');
+}
+
+function autofillMetadataImageFromHero() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame || !frame.contentDocument) {
+    toast('Preview not loaded', false);
+    return;
+  }
+  const doc = frame.contentDocument;
+  const heroImg = doc.querySelector('header img, .hero img, section.hero img, [class*="hero"] img');
+  const firstImg = doc.querySelector('img');
+  const src = (heroImg?.getAttribute('src') || firstImg?.getAttribute('src') || '').trim();
+  if (!src) {
+    toast('No image found in this page', false);
+    return;
+  }
+  const imageInput = _metaInput('metaImageInput');
+  if (imageInput) imageInput.value = _toAbsoluteMetaUrl(src, frame.src);
+  refreshStagingMetaImagePreview();
+  _updateMetadataGuides();
+  toast('Image filled from page media');
+}
+
+function applyMetadataPreset() {
+  const preset = (_metaInput('metaPresetSelect')?.value || '').trim();
+  const customPreset = (_metaInput('metaPresetCustomInput')?.value || '').trim();
+  const titleInput = _metaInput('metaTitleInput');
+  const descInput = _metaInput('metaDescriptionInput');
+  const baseTitle = _stripPresetSuffixesTitle((titleInput?.value || '').trim());
+  const baseDesc = _stripPresetSuffixesDescription((descInput?.value || '').trim());
+
+  if (!preset && !customPreset) {
+    toast('Preset is optional. Select one or enter custom text.', false);
+    return;
+  }
+
+  const variants = {
+    balanced: {
+      title: baseTitle,
+      description: baseDesc,
+    },
+    sales: {
+      title: baseTitle ? `${baseTitle} | Trusted Solutions` : baseTitle,
+      description: baseDesc ? `${baseDesc} Contact us today for expert guidance and fast support.` : baseDesc,
+    },
+    trust: {
+      title: baseTitle ? `${baseTitle} | Reliable Since 2010` : baseTitle,
+      description: baseDesc ? `${baseDesc} Trusted quality, experienced team, and consistent service delivery.` : baseDesc,
+    },
+    local: {
+      title: baseTitle ? `${baseTitle} | Local Service Experts` : baseTitle,
+      description: baseDesc,
+    },
+  };
+
+  const selected = variants[preset] || variants.balanced;
+  let nextTitle = selected.title || baseTitle;
+  let nextDesc = selected.description || baseDesc;
+
+  if (customPreset) {
+    nextTitle = _appendUniqueChunk(_stripPresetSuffixesTitle(nextTitle), customPreset, ' | ');
+    nextDesc = _appendUniqueChunk(_stripPresetSuffixesDescription(nextDesc), customPreset, ' ');
+  }
+
+  if (titleInput) titleInput.value = _truncateSmart(nextTitle, 60);
+  if (descInput) descInput.value = _truncateSmart(nextDesc, 160);
+  _updateMetadataGuides();
+  toast('Optional preset applied');
+}
+
+function resetMetadataPresetEffects() {
+  const titleInput = _metaInput('metaTitleInput');
+  const descInput = _metaInput('metaDescriptionInput');
+  const presetSel = _metaInput('metaPresetSelect');
+  const presetCustom = _metaInput('metaPresetCustomInput');
+
+  const hasBaseline = String(_metadataBaseline.title || _metadataBaseline.description || '').trim().length > 0;
+  if (!hasBaseline) {
+    toast('No baseline metadata found. Use Reload Metadata first.', false);
+    return;
+  }
+
+  if (titleInput) titleInput.value = String(_metadataBaseline.title || '');
+  if (descInput) descInput.value = String(_metadataBaseline.description || '');
+  if (presetSel) presetSel.value = '';
+  if (presetCustom) presetCustom.value = '';
+
+  _updateMetadataGuides();
+  toast('Preset effects reset to last loaded metadata');
+}
+
+function applyMetadataSmartDefaults() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame || !frame.contentDocument) {
+    toast('Preview not loaded', false);
+    return;
+  }
+  const doc = frame.contentDocument;
+  const titleInput = _metaInput('metaTitleInput');
+  const descInput = _metaInput('metaDescriptionInput');
+  const imageInput = _metaInput('metaImageInput');
+  const urlInput = _metaInput('metaOgUrlInput');
+
+  const headline = _bestHeadline(doc);
+  const about = _bestAboutParagraph(doc);
+  const location = _bestLocationText(doc);
+
+  if (titleInput && !String(titleInput.value || '').trim()) {
+    titleInput.value = _truncateSmart(headline || (doc.querySelector('title')?.textContent || ''), 60);
+  }
+
+  if (descInput && !String(descInput.value || '').trim()) {
+    const source = about || headline;
+    const enriched = location ? `${source} Serving ${location}.` : source;
+    descInput.value = _truncateSmart(enriched, 160);
+  }
+
+  if (imageInput && !String(imageInput.value || '').trim()) {
+    const heroImg = doc.querySelector('header img, .hero img, section.hero img, [class*="hero"] img, img');
+    const src = (heroImg?.getAttribute('src') || '').trim();
+    if (src) imageInput.value = _toAbsoluteMetaUrl(src, frame.src);
+  }
+
+  if (urlInput && !String(urlInput.value || '').trim()) {
+    const clean = String(frame.src || '').split('?')[0].split('#')[0];
+    urlInput.value = clean || window.location.origin;
+  }
+
+  refreshStagingMetaImagePreview();
+  _updateMetadataGuides();
+  toast('Smart defaults applied');
+}
+
+function applyStagingMetadata() {
+  const frame = document.getElementById('stagingIframe');
+  if (!frame || !frame.contentDocument) {
+    toast('Preview not loaded', false);
+    return;
+  }
+  const doc = frame.contentDocument;
+  const title = (_metaInput('metaTitleInput')?.value || '').trim();
+  const description = (_metaInput('metaDescriptionInput')?.value || '').trim();
+  const ogUrlRaw = (_metaInput('metaOgUrlInput')?.value || '').trim();
+  const imageRaw = (_metaInput('metaImageInput')?.value || '').trim();
+  const twitterCard = (_metaInput('metaTwitterCardInput')?.value || 'summary_large_image').trim();
+
+  _historyPush();
+
+  if (!doc.querySelector('title')) {
+    const t = doc.createElement('title');
+    doc.head.appendChild(t);
+  }
+  doc.querySelector('title').textContent = title || doc.querySelector('title').textContent || '';
+
+  _setMetaTag(doc, 'name', 'description', description);
+  _setMetaTag(doc, 'property', 'og:type', 'website');
+  _setMetaTag(doc, 'property', 'og:title', title);
+  _setMetaTag(doc, 'property', 'og:description', description);
+  _setMetaTag(doc, 'property', 'og:url', _toAbsoluteMetaUrl(ogUrlRaw, frame.src));
+  _setMetaTag(doc, 'property', 'og:image', _toAbsoluteMetaUrl(imageRaw, frame.src));
+  _setMetaTag(doc, 'name', 'twitter:card', twitterCard || 'summary_large_image');
+  _setMetaTag(doc, 'name', 'twitter:title', title);
+  _setMetaTag(doc, 'name', 'twitter:description', description);
+  _setMetaTag(doc, 'name', 'twitter:image', _toAbsoluteMetaUrl(imageRaw, frame.src));
+
+  const hint = _metaInput('stagingMetaHint');
+  if (hint) hint.textContent = 'Metadata applied to preview. Click Save Changes to persist.';
+  refreshStagingMetaImagePreview();
+  _updateMetadataGuides();
+  document.getElementById('stagingStatusBar').textContent = 'Metadata updated in preview — click Save Changes to persist.';
+  toast('Metadata applied to preview');
+}
 
 function _cacheBustUrl(url) {
   const base = String(url || '').trim();
@@ -3680,6 +4228,9 @@ async function loadStagingWebsites() {
     currentStagingHomeEntryPath = 'index.html';
     currentStagingHtmlHash = '';
     currentStagingManifestEtag = '';
+    _setStagingMetadataEnabled(false);
+    const metaHint = _metaInput('stagingMetaHint');
+    if (metaHint) metaHint.textContent = 'Load a staged page to edit metadata.';
     _renderStagingPagePicker('');
   }
 
@@ -3780,6 +4331,7 @@ async function loadStagedSite(preselect, entryPathOverride = null) {
             const jump = document.getElementById('stagingJumpSelect');
             if (jump) jump.innerHTML = '<option value="">— jump to section —</option>';
           }
+          loadStagingMetadataFromPreview();
         }
       } catch(_) {}
     };
@@ -3791,11 +4343,14 @@ async function loadStagedSite(preselect, entryPathOverride = null) {
     loading.style.display = 'none';
     placeholder.style.display = 'flex';
     frame.style.display = 'none';
+    _setStagingMetadataEnabled(false);
+    const metaHint = _metaInput('stagingMetaHint');
+    if (metaHint) metaHint.textContent = 'No preview found for this website yet.';
     document.getElementById('stagingStatusBar').textContent = 'No built output found for this website.';
   }
 
   // Enable controls
-  ['stagingEditBtn', 'stagingFontBtn', 'stagingMediaBtn', 'stagingAddSecBtn', 'stagingUndoBtn', 'stagingResetBtn', 'stagingPopoutBtn', 'stagingRefreshBtn', 'stagingSaveBtn', 'stagingGoLiveBtn', 'stagingAnchorBtn', 'stagingAddPageBtn', 'stagingSetHomeBtn'].forEach(btnId => {
+  ['stagingEditBtn', 'stagingFontBtn', 'stagingMetaBtn', 'stagingMediaBtn', 'stagingAddSecBtn', 'stagingUndoBtn', 'stagingResetBtn', 'stagingPopoutBtn', 'stagingRefreshBtn', 'stagingSaveBtn', 'stagingGoLiveBtn', 'stagingAnchorBtn', 'stagingAddPageBtn', 'stagingSetHomeBtn'].forEach(btnId => {
     const btn = document.getElementById(btnId);
     if (btn) btn.disabled = false;
   });
@@ -5565,10 +6120,12 @@ function _refreshMediaPickerHeader() {
       ? 'Media Library - Choose Background Image'
       : mode === 'image-field'
         ? 'Media Library - Choose Block Media'
+        : mode === 'metadata-image'
+          ? 'Media Library - Choose Metadata Preview Image'
         : 'Media Library';
   }
   if (typeFilterEl) {
-    if (mode === 'background') {
+    if (mode === 'background' || mode === 'metadata-image') {
       typeFilterEl.value = 'image';
       typeFilterEl.disabled = true;
       _mediaLibraryTypeFilter = 'image';
@@ -5585,7 +6142,11 @@ function _refreshMediaPickerHeader() {
       actionBtn.style.display = 'none';
     } else {
       actionBtn.style.display = '';
-      actionBtn.textContent = mode === 'background' ? 'Add To Background' : 'Use In Block';
+      actionBtn.textContent = mode === 'background'
+        ? 'Add To Background'
+        : mode === 'metadata-image'
+          ? 'Use For Metadata'
+          : 'Use In Block';
     }
   }
 }
@@ -5899,6 +6460,11 @@ function addChosenExistingBgImageFromPicker() {
   }
   if (_mediaPickerContext.mode === 'image-field') {
     _applySelectedMediaToImageField(selected, _mediaPickerContext.fid);
+    closeModal('existingBgImageModal');
+    return;
+  }
+  if (_mediaPickerContext.mode === 'metadata-image') {
+    _applySelectedMediaToMetadata(selected);
     closeModal('existingBgImageModal');
     return;
   }
@@ -10088,6 +10654,7 @@ function stagingRefresh() {
         _injectResponsiveEnhancements(frame.contentDocument);
         _ensureMediaCardCarouselRuntime(frame.contentDocument);
         frame.contentDocument.defaultView?.wbMediaCardCarouselInitAll?.(frame.contentDocument);
+        loadStagingMetadataFromPreview();
       }
     } catch(_) {}
   };
