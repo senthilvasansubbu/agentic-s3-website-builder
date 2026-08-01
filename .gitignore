@@ -210,9 +210,13 @@ __marimo__/
 # Generated website output
 output/
 
-# SQLite — ignore live data files, keep only the empty seed DB
+# SQLite — keep the seed DB and current runtime snapshot in the repository
 data/*.db
 data/*.db-shm
 data/*.db-wal
 !data/website_builder_empty.db
+!data/website_builder.db
+!data/website_builder.db-shm
+!data/website_builder.db-wal
+!data/webbuilder.db
 node_modules/
