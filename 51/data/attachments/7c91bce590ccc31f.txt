@@ -1,0 +1,19 @@
+2026-08-01 10:44:31  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-01 10:44:31  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-01 10:44:31  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
+2026-08-01 10:44:31  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
+2026-08-01 10:44:31  INFO      apscheduler.scheduler  Scheduler started
+✅ Scheduler started — monitoring every 5min | reminders daily
+[analytics] log_event failed silently: no such table: activity_log
+2026-08-01 10:44:32  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites "HTTP/1.1 200 OK"
+2026-08-01 10:44:32  INFO      website_builder.api  [7feedd4a] ▶ BUILD REQUEST  website_id=cb71648b-f25f-47c1-b9b2-20927a463e2e  user=c2131b6f-72e3-4eee-a42d-0931a084a9eb  cart=None  web_search=False  social_search=False
+2026-08-01 10:44:32  INFO      website_builder.api  [7feedd4a] 🔍 website found: name='wave-build-site'  theme=modern  cart_features=[]  chatbot=0
+2026-08-01 10:44:32  DEBUG     website_builder.requirements_analyst  build_prompt complete — 5431 chars, 0 cart_features, cats=[], nav_links=[]
+2026-08-01 10:44:32  INFO      website_builder.api  [7feedd4a] 🏗  Prompt ready (5431 chars, 0 cart features, chatbot=False) — queuing build
+2026-08-01 10:44:32  INFO      website_builder.api  [7feedd4a] 🏷️  Classification context for CrewAI: key=generic label='generic' group='general'
+2026-08-01 10:44:32  INFO      website_builder.api  [cb71648b-f25f-47c1-b9b2-20927a463e2e] 📝 build narrative logged
+[analytics] log_event failed silently: no such table: activity_log
+2026-08-01 10:44:32  INFO      website_builder.api  [7feedd4a] 🎉 BUILD COMPLETE  website_id=cb71648b-f25f-47c1-b9b2-20927a463e2e  total=0.0s
+2026-08-01 10:44:32  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites/cb71648b-f25f-47c1-b9b2-20927a463e2e/build "HTTP/1.1 200 OK"
+2026-08-01 10:44:32  INFO      httpx  HTTP Request: GET http://testserver/api/v1/websites/cb71648b-f25f-47c1-b9b2-20927a463e2e/build-status "HTTP/1.1 200 OK"
+2026-08-01 10:44:32  INFO      apscheduler.scheduler  Scheduler has been shut down

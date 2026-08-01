@@ -1,0 +1,12 @@
+2026-08-01 10:44:32  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-01 10:44:32  INFO      apscheduler.scheduler  Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-01 10:44:32  INFO      apscheduler.scheduler  Added job "run_all_checks" to job store "default"
+2026-08-01 10:44:32  INFO      apscheduler.scheduler  Added job "run_payment_reminders" to job store "default"
+2026-08-01 10:44:32  INFO      apscheduler.scheduler  Scheduler started
+✅ Scheduler started — monitoring every 5min | reminders daily
+[analytics] log_event failed silently: no such table: activity_log
+2026-08-01 10:44:32  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites "HTTP/1.1 200 OK"
+2026-08-01 10:44:32  INFO      website_builder.api  [01b9a73c] ▶ BUILD REQUEST  website_id=239c158e-4e82-411e-9461-c00777e0d760  user=3ed715a5-1d4d-4297-9f08-375fa2d1b52a  cart=None  web_search=False  social_search=False
+2026-08-01 10:44:32  INFO      website_builder.api  [01b9a73c] 🔍 website found: name='wave-build-site'  theme=modern  cart_features=[]  chatbot=0
+2026-08-01 10:44:32  INFO      httpx  HTTP Request: POST http://testserver/api/v1/websites/239c158e-4e82-411e-9461-c00777e0d760/build "HTTP/1.1 400 Bad Request"
+2026-08-01 10:44:32  INFO      apscheduler.scheduler  Scheduler has been shut down
